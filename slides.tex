@@ -1,0 +1,4407 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+% ==========================================
+% PREAMBLE AND SETUP
+% ==========================================
+
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+% Essential packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{mathtools}
+\usepackage{physics}
+\usepackage{braket}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning,calc,patterns,decorations.pathreplacing,intersections,fit,backgrounds,quantikz2}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{algorithm,algorithmic}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{animate}
+\usepackage{hyperref}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+% Custom colors for consistency
+\definecolor{qcblue}{RGB}{0,114,178}
+\definecolor{qcred}{RGB}{213,94,0}
+\definecolor{qcgreen}{RGB}{0,158,115}
+\definecolor{qcpurple}{RGB}{148,0,211}
+\definecolor{qcyellow}{RGB}{240,228,66}
+\definecolor{qcgray}{RGB}{86,86,86}
+
+% Code listing style
+\lstset{
+   basicstyle=\ttfamily\footnotesize,
+   keywordstyle=\color{qcblue}\bfseries,
+   commentstyle=\color{qcgreen},
+   stringstyle=\color{qcred},
+   numbers=left,
+   numberstyle=\tiny\color{qcgray},
+   breaklines=true,
+   frame=single,
+   backgroundcolor=\color{gray!5}
+}
+
+% Teaching notes (hidden in compiled output)
+\newcommand{\teaching}[1]{}
+
+% Slide header
+\newcommand{\slideheader}[1]{\frametitle{#1}}
+
+% Two-column content layout
+\long\def\contentcols#1#2#3#4{%
+  \begin{columns}[T]
+    \begin{column}{#1\textwidth}#3\end{column}
+    \begin{column}{#2\textwidth}#4\end{column}
+  \end{columns}
+}
+
+% Colored boxes
+\usepackage{tcolorbox}
+\newtcolorbox{redBox}{colback=red!5,colframe=red!60!black,fonttitle=\bfseries}
+\newtcolorbox{greenBox}{colback=green!5,colframe=green!60!black,fonttitle=\bfseries}
+\newtcolorbox{blueBox}{colback=blue!5,colframe=blue!60!black,fonttitle=\bfseries}
+\newtcolorbox{yellowBox}{colback=yellow!5,colframe=yellow!60!black,fonttitle=\bfseries}
+
+% Custom commands
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Zq}{\mathbb{Z}_q}
+\newcommand{\bigO}{\mathcal{O}}
+\newcommand{\poly}{\text{poly}}
+
+% Theorem environments
+\setbeamertemplate{theorems}[numbered]
+\theoremstyle{plain}
+\newtheorem{proposition}[theorem]{Proposition}
+
+% ==========================================
+% TITLE MATTER
+% ==========================================
+
+\title[Post-Quantum Cryptography]{Foundations of Post-Quantum Cryptography}
+\subtitle{A 3-Hour Introduction for Quantum Technologies Students}
+\author[J.R. Martínez]{Dr. José Ramón Martínez Saavedra}
+\institute[Quside]{Quside Technologies SL}
+\date{\today}
+
+\begin{document}
+
+% ==========================================
+% TITLE SLIDE
+% ==========================================
+
+% Slide 1.1.1: Title Slide
+% Content: Title, subtitle, author, institution, visual hook
+% Purpose: Set professional tone, establish context
+% Build: Use split background with classical lock being shattered by quantum wave
+\begin{frame}[plain]
+   \begin{tikzpicture}[remember picture,overlay]
+       % Background gradient
+       \fill[left color=gray!20, right color=qcblue!20] 
+           (current page.south west) rectangle (current page.north east);
+       
+       % Classical lock (left side)
+       %\node[opacity=0.3] at ([xshift=-2cm]current page.west) {
+       %    \includegraphics[width=5cm]{placeholder-lock} TODO
+       %};
+       
+       % Quantum circuit (right side)
+       \node[opacity=0.3] at ([xshift=2cm]current page.east) {
+           \begin{quantikz}
+               \qw & \gate{H} & \ctrl{1} & \gate{H} & \meter{} \\
+               \qw & \qw & \targ{} & \qw & \meter{}
+           \end{quantikz}
+       };
+   \end{tikzpicture}
+   
+   \vspace{2cm}
+   \begin{center}
+       {\Huge \textbf{Foundations of Post-Quantum Cryptography}}\\[0.5cm]
+       {\Large A 3-Hour Introduction for Quantum Technologies Students}\\[1cm]
+       {\large Dr. José Ramón Martínez Saavedra}\\[0.3cm]
+       {\large Quside Technologies SL}\\[0.5cm]
+       {\large \today}
+   \end{center}
+   
+\end{frame}
+
+
+% ==========================================
+% SECTION 1.1: INTRODUCTION & HOOK
+% ==========================================
+
+\section{Introduction \& Hook}
+
+% Slide 1.1.2: The Invisible Infrastructure - Live Demo
+% Content: Live browser demo, certificate details, crypto handshake animation
+% Purpose: Hook audience with tangible real-time example
+% Build: Create live demo slide with space for browser screenshot and annotation
+\begin{frame}{The Invisible Infrastructure}
+   \begin{columns}
+       \begin{column}{0.6\textwidth}
+           \begin{block}{Live Demo}
+               \begin{enumerate}
+                   \item Open \url{https://github.com}
+                   \item Click padlock icon
+                   \item View certificate details
+               \end{enumerate}
+           \end{block}
+           
+           \vspace{0.5cm}
+           
+           \begin{alertblock}{In 400 milliseconds...}
+               \begin{itemize}
+                   \item 3 digital signatures verified
+                   \item ECDHE key exchange performed
+                   \item 6 cryptographic keys derived
+                   \item AES-256-GCM encryption started
+               \end{itemize}
+           \end{alertblock}
+       \end{column}
+       
+       \begin{column}{0.4\textwidth}
+           \begin{tikzpicture}[scale=0.8]
+               % Simplified TLS handshake
+               \node[circle,draw,thick] (client) at (0,4) {You};
+               \node[circle,draw,thick] (server) at (0,0) {GitHub};
+               
+               \draw[->,thick,qcblue] (client) -- node[right] {\small ClientHello} (server);
+               \pause
+               \draw[<-,thick,qcgreen] (client) -- node[left] {\small ServerHello} (server);
+               \pause
+               \draw[<-,thick,qcred] (client) -- node[right] {\small Certificate} (server);
+               \pause
+               \draw[->,thick,qcpurple] (client) -- node[left] {\small Finished} (server);
+           \end{tikzpicture}
+       \end{column}
+   \end{columns}
+   
+   \vspace{0.5cm}
+   \centering
+   \textbf{\Large \color{qcred}All of this will be broken by quantum computers!}
+\end{frame}
+
+% Slide 1.1.3: The Scale of Cryptographic Dependence
+% Content: Infographic showing daily crypto operations
+% Purpose: Establish ubiquity and critical importance
+% Build: Animated counters showing increasing numbers
+\begin{frame}{One Day in the Digital World}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.9]
+           % Central node
+           \node[circle, draw, ultra thick, minimum size=2cm, fill=qcblue!20] (center) at (0,0) {
+               \textbf{24 Hours}
+           };
+           
+           % Surrounding statistics
+           \node[draw, rounded corners, fill=qcgreen!20] (sig) at (-4,3) {
+               \textbf{300 Billion}\\Digital Signatures
+           };
+           \draw[->, thick] (sig) -- (center);
+           
+           \node[draw, rounded corners, fill=qcred!20] (email) at (4,3) {
+               \textbf{200 Million}\\Encrypted Emails
+           };
+           \draw[->, thick] (email) -- (center);
+           
+           \node[draw, rounded corners, fill=qcyellow!20] (video) at (-4,-3) {
+               \textbf{500 Hours}\\Video Uploaded
+           };
+           \draw[->, thick] (video) -- (center);
+           
+           \node[draw, rounded corners, fill=qcpurple!20] (trans) at (4,-3) {
+               \textbf{150,000}\\Financial Transactions
+           };
+           \draw[->, thick] (trans) -- (center);
+           
+        % \pause
+           % Personal scale
+           \node[draw, ultra thick, red, rounded corners] at (0,-5) {
+               \textbf{Your Phone Alone: 1,000+ Crypto Operations Daily}
+           };
+       \end{tikzpicture}
+   \end{center}
+\end{frame}
+
+% Slide 1.1.4: The Quantum Timeline
+% Content: Timeline showing data harvesting now, quantum threats later
+% Purpose: Create urgency - this isn't a future problem
+% Build: Animated timeline with expanding threat zones
+\begin{frame}{The Quantum Timeline}
+   \begin{tikzpicture}[scale=0.9]
+       % Timeline
+       \draw[ultra thick, ->] (0,0) -- (12,0) node[right] {Time};
+       
+       % Year markers
+       \foreach \x/\year in {0/2024, 2/2028, 4/2033, 6/2036, 10/2045} {
+           \draw[thick] (\x,0.1) -- (\x,-0.1);
+           \node[below] at (\x,-0.3) {\year};
+       }
+       
+       % Events
+       \pause
+       \fill[qcred!50] (0,0.5) rectangle (12,2);
+       \node[white] at (6,1.25) {\textbf{Data Harvesting Happening NOW}};
+       
+       \pause
+       \node[draw, thick, fill=white] at (4,3) {IBM: 100k qubits};
+       \draw[thick, ->] (4,2.5) -- (4,0.5);
+       
+       \pause
+       \node[draw, thick, fill=white] at (6,3) {Crypto-relevant QC};
+       \draw[thick, ->] (6,2.5) -- (6,0.5);
+       
+       \pause
+       % Danger zone
+       \draw[ultra thick, qcred, decorate, decoration={snake, amplitude=2mm}] 
+           (0,-1.5) -- node[below] {\textbf{Your secrets already at risk!}} (12,-1.5);
+   \end{tikzpicture}
+\end{frame}
+
+% Slide 1.1.5: Today's Existential Question
+% Content: Central question and three sub-questions
+% Purpose: Frame the lecture's narrative arc
+% Build: Questions appear one by one
+\begin{frame}{The Challenge}
+   \begin{center}
+       {\Huge \color{qcblue}
+       How do we protect information\\
+       from computers that don't exist yet?
+       }
+   \end{center}
+   
+   \vspace{1cm}
+   
+   \pause
+   \begin{columns}
+       \begin{column}{0.33\textwidth}
+           \centering
+           \textbf{\large 1. Foundation}\\[0.5cm]
+           \begin{tikzpicture}
+               \node[draw, rounded corners, minimum height=2cm, text width=3cm, align=center] {
+                   How does current cryptography work?
+               };
+           \end{tikzpicture}
+       \end{column}
+       
+       \pause
+       \begin{column}{0.33\textwidth}
+           \centering
+           \textbf{\large 2. Threat}\\[0.5cm]
+           \begin{tikzpicture}
+               \node[draw, rounded corners, minimum height=2cm, text width=3cm, align=center, fill=qcred!20] {
+                   Why do quantum computers break it?
+               };
+           \end{tikzpicture}
+       \end{column}
+       
+       \pause
+       \begin{column}{0.33\textwidth}
+           \centering
+           \textbf{\large 3. Solution}\\[0.5cm]
+           \begin{tikzpicture}
+               \node[draw, rounded corners, minimum height=2cm, text width=3cm, align=center, fill=qcgreen!20] {
+                   What mathematical structures survive?
+               };
+           \end{tikzpicture}
+       \end{column}
+   \end{columns}
+\end{frame}
+
+% Slide 1.1.6: Why Physicists Will Lead This Revolution
+% Content: Venn diagram showing unique physicist position
+% Purpose: Empower audience - they have unique qualifications
+% Build: Venn diagram components appear sequentially
+\begin{frame}{Why YOU Are Uniquely Positioned}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.8]
+           % Three circles
+           \def\firstcircle{(0,0) circle (3cm)}
+           \def\secondcircle{(3,0) circle (3cm)}
+           \def\thirdcircle{(1.5,-2.6) circle (3cm)}
+           
+           % Draw circles
+           \draw[thick, fill=qcblue!20, fill opacity=0.5] \firstcircle;
+           \node at (-1.5,1.5) {\textbf{Quantum}};
+           \node at (-1.5,1) {\textbf{Mechanics}};
+           
+           \pause
+           \draw[thick, fill=qcred!20, fill opacity=0.5] \secondcircle;
+           \node at (4.5,1.5) {\textbf{Classical}};
+           \node at (4.5,1) {\textbf{Crypto}};
+           
+           \pause
+           \draw[thick, fill=qcgreen!20, fill opacity=0.5] \thirdcircle;
+           \node at (1.5,-4.5) {\textbf{Physics}};
+           \node at (1.5,-5) {\textbf{Intuition}};
+           
+           \pause
+           % Intersection
+           \node[font=\Large\bfseries] at (1.5,0) {YOU};
+           
+           % Advantages
+           \pause
+           \node[draw, rounded corners, align=left] at (7,2) {
+               \textbf{Your Advantages:}\\
+               • Deep QM understanding\\
+               • Lattice experience\\
+               • Theory + experiment\\
+               • Physical constraints
+           };
+       \end{tikzpicture}
+   \end{center}
+\end{frame}
+
+% Slide 1.1.7: Lecture Roadmap
+% Content: Three-hour journey visualization
+% Purpose: Set expectations and maintain attention
+% Build: Path animation showing the journey
+\begin{frame}{Our Three-Hour Journey}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.9]
+           % Timeline
+           \draw[ultra thick, ->] (0,0) -- (12,0);
+           
+           % Hour markers
+           \foreach \hour/\x in {1/4, 2/8, 3/12} {
+               \draw[thick] (\x,0.1) -- (\x,-0.1);
+               \node[below] at (\x,-0.3) {Hour \hour};
+           }
+           
+           % Content blocks
+           \pause
+           \node[draw, thick, rounded corners, fill=qcblue!20, text width=3.5cm, align=center] 
+               at (2,2) {\textbf{Foundations}\\Current crypto\\Why it fails};
+           \draw[thick, ->] (2,1.2) -- (2,0.1);
+           
+           \pause
+           \node[draw, thick, rounded corners, fill=qcred!20, text width=3.5cm, align=center] 
+               at (6,2) {\textbf{Quantum Threat}\\Shor's algorithm\\Lattice solutions};
+           \draw[thick, ->] (6,1.2) -- (6,0.1);
+           
+           \pause
+           \node[draw, thick, rounded corners, fill=qcgreen!20, text width=3.5cm, align=center] 
+               at (10,2) {\textbf{Solutions}\\NIST standards\\Your future};
+           \draw[thick, ->] (10,1.2) -- (10,0.1);
+           
+           % Interactive elements
+           \pause
+           \node[star, star points=5, draw, fill=qcyellow!50] at (2,0) {};
+           \node[star, star points=5, draw, fill=qcyellow!50] at (6,0) {};
+           \node[star, star points=5, draw, fill=qcyellow!50] at (10,0) {};
+           \node at (6,-1) {\faIcon{laptop-code} Interactive elements throughout};
+       \end{tikzpicture}
+   \end{center}
+\end{frame}
+
+% ==========================================
+% SECTION 1.2: CLASSICAL CRYPTOGRAPHY ESSENTIALS
+% ==========================================
+
+\section{Classical Cryptography Essentials}
+
+% Slide 1.2.1: The Three Pillars of Cryptographic Security
+% Content: Visual of three pillars holding up digital security
+% Purpose: Establish fundamental security requirements
+% Build: Pillars appear one by one with icons
+\begin{frame}{The Three Pillars of Security}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.8]
+           % Platform
+           \draw[ultra thick, fill=gray!30] (-5,-1) rectangle (5,-0.5);
+           \node at (0,-0.75) {\textbf{DIGITAL SECURITY}};
+           
+           % Pillars appear one by one
+           \pause
+           % Pillar 1
+           \draw[thick, fill=qcblue!30] (-3.5,0) rectangle (-2,3);
+           \node[rotate=90] at (-2.75,1.5) {\textbf{Confidentiality}};
+           \node at (-2.75,3.5) {\faIcon{lock}};
+           \node[text width=2cm, align=center] at (-2.75,-2) {Encryption\\(Lock box)};
+           
+           \pause
+           % Pillar 2
+           \draw[thick, fill=qcgreen!30] (-0.75,0) rectangle (0.75,3);
+           \node[rotate=90] at (0,1.5) {\textbf{Integrity}};
+           \node at (0,3.5) {\faIcon{shield-alt}};
+           \node[text width=2cm, align=center] at (0,-2) {Hashing\\(Tamper seal)};
+           
+           \pause
+           % Pillar 3
+           \draw[thick, fill=qcred!30] (2,0) rectangle (3.5,3);
+           \node[rotate=90] at (2.75,1.5) {\textbf{Authentication}};
+           \node at (2.75,3.5) {\faIcon{signature}};
+           \node[text width=2cm, align=center] at (2.75,-2) {Signatures\\(Identity)};
+           
+           \pause
+           % Warning
+           \node[draw, thick, red, rounded corners] at (0,-3.5) {
+               \textbf{Remove ANY pillar → Total collapse!}
+           };
+       \end{tikzpicture}
+   \end{center}
+\end{frame}
+
+% Slide 1.2.2: Pillar 1 - Confidentiality Through Encryption
+% Content: Simple encryption visualization
+% Purpose: Define encryption's role and limitations
+% Build: Show transformation from plaintext to ciphertext
+\begin{frame}{Pillar 1: Confidentiality}
+   \begin{columns}
+       \begin{column}{0.5\textwidth}
+           \begin{center}
+               \begin{tikzpicture}[scale=0.8]
+                   % Plaintext
+                   \node[draw, rounded corners, fill=white] (plain) at (0,3) {
+                       \texttt{ATTACK AT DAWN}
+                   };
+                   
+                   \pause
+                   % Encryption box
+                   \node[draw, thick, fill=qcblue!30, minimum width=3cm, minimum height=1cm] 
+                       (enc) at (0,1.5) {\textbf{Encrypt}};
+                   \draw[->, thick] (plain) -- (enc);
+                   
+                   % Key
+                   \node[draw, fill=qcyellow!30] (key) at (-3,1.5) {\faIcon{key} Key};
+                   \draw[->, thick] (key) -- (enc);
+                   
+                   \pause
+                   % Ciphertext
+                   \node[draw, rounded corners, fill=qcgray!30] (cipher) at (0,0) {
+                       \texttt{X9kP2m8QzR5n}
+                   };
+                   \draw[->, thick] (enc) -- (cipher);
+               \end{tikzpicture}
+           \end{center}
+       \end{column}
+       
+       \begin{column}{0.5\textwidth}
+           \begin{block}{What Encryption Provides}
+               \begin{itemize}
+                   \item Transforms readable → unreadable
+                   \item Only key holder can reverse
+                   \item Examples: AES, RSA, ChaCha20
+               \end{itemize}
+           \end{block}
+           
+           \pause
+           \begin{alertblock}{Critical Limitation}
+               Encryption alone is NOT enough!
+               \begin{itemize}
+                   \item No integrity guarantee
+                   \item No sender verification
+                   \item Vulnerable to tampering
+               \end{itemize}
+           \end{alertblock}
+       \end{column}
+   \end{columns}
+\end{frame}
+
+% Slide 1.2.3: When Confidentiality Fails
+% Content: NSA-Google case study
+% Purpose: Show real consequences of encryption failure
+% Build: Timeline of the incident
+\begin{frame}{Case Study: When Encryption Isn't Used}
+   \begin{center}
+       \textbf{\Large 2013: NSA vs Google Internal Traffic}
+   \end{center}
+   
+   \begin{tikzpicture}[scale=0.9]
+       % Google data centers
+       \node[draw, thick, minimum width=2cm, minimum height=1.5cm] (dc1) at (0,0) {
+           \includegraphics[width=1cm]{placeholder-server}\\
+           \small DC1
+       };
+       
+       \node[draw, thick, minimum width=2cm, minimum height=1.5cm] (dc2) at (6,0) {
+           \includegraphics[width=1cm]{placeholder-server}\\
+           \small DC2
+       };
+       
+       \pause
+       % Internal traffic
+       \draw[<->, ultra thick, qcblue] (dc1) -- node[above] {Private fiber} node[below] {\color{red}Unencrypted!} (dc2);
+       
+       \pause
+       % NSA tap
+       \node[draw, thick, fill=qcred!30] (nsa) at (3,-2) {NSA Tap};
+       \draw[->, thick, red] (3,0) -- (nsa);
+       
+       \pause
+       % Impact
+       \node[draw, ultra thick, red, rounded corners] at (3,2) {
+           \textbf{Result: Massive privacy breach}
+       };
+       
+       \pause
+       % Lesson
+       \node[draw, thick, rounded corners, fill=qcgreen!20] at (3,-3.5) {
+           \textbf{Lesson: Physical security $\neq$ Cryptographic security}
+       };
+   \end{tikzpicture}
+\end{frame}
+
+% Slide 1.2.4: Pillar 2 - Integrity Through Hashing
+% Content: Hash function visualization
+% Purpose: Explain integrity verification concept
+% Build: Show how small changes create different hashes
+\begin{frame}{Pillar 2: Integrity}
+   \begin{columns}
+       \begin{column}{0.6\textwidth}
+           \begin{center}
+               \begin{tikzpicture}[scale=0.8]
+                   % Original message
+                   \node[draw, rounded corners] (msg1) at (0,3) {
+                       \texttt{Transfer \$1000 to Alice}
+                   };
+                   
+                   % Hash function
+                   \node[draw, thick, fill=qcgreen!30, minimum width=3cm] 
+                       (hash1) at (0,1.5) {\textbf{SHA-256}};
+                   \draw[->, thick] (msg1) -- (hash1);
+                   
+                   % Hash output
+                   \node[draw, rounded corners, fill=qcgray!20] (out1) at (0,0) {
+                       \texttt{7d865e95...}
+                   };
+                   \draw[->, thick] (hash1) -- (out1);
+                   
+                   \pause
+                   % Modified message
+                   \node[draw, rounded corners, fill=qcred!20] (msg2) at (5,3) {
+                       \texttt{Transfer \$9000 to Alice}
+                   };
+                   
+                   % Hash function
+                   \node[draw, thick, fill=qcgreen!30, minimum width=3cm] 
+                       (hash2) at (5,1.5) {\textbf{SHA-256}};
+                   \draw[->, thick] (msg2) -- (hash2);
+                   
+                   % Different hash
+                   \node[draw, rounded corners, fill=qcred!30] (out2) at (5,0) {
+                       \texttt{2a4b9c12...}
+                   };
+                   \draw[->, thick] (hash2) -- (out2);
+                   
+                   \pause
+                   % Comparison
+                   \draw[<->, ultra thick, red] (out1) -- node[below] {Completely different!} (out2);
+               \end{tikzpicture}
+           \end{center}
+       \end{column}
+       
+       \begin{column}{0.4\textwidth}
+           \begin{block}{Hash Properties}
+               \begin{itemize}
+                   \item Fixed size output
+                   \item Deterministic
+                   \item Avalanche effect
+                   \item One-way function
+               \end{itemize}
+           \end{block}
+           
+           \pause
+           \begin{exampleblock}{Use Cases}
+               \begin{itemize}
+                   \item File verification
+                   \item Password storage
+                   \item Digital fingerprints
+                   \item Blockchain
+               \end{itemize}
+           \end{exampleblock}
+       \end{column}
+   \end{columns}
+\end{frame}
+
+% Slide 1.2.5: When Integrity Fails
+% Content: MD5 collision attack on certificates
+% Purpose: Demonstrate critical importance of hash security
+% Build: Show how collision creates rogue certificate
+\begin{frame}{Case Study: MD5 Collision Disaster (2008)}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.9]
+           % Legitimate certificate
+           \node[draw, thick, fill=qcgreen!20, text width=4cm, align=center] (legit) at (-3,2) {
+               \textbf{Legitimate Cert}\\
+               \small website.com\\
+               \small Valid purposes
+           };
+           
+           % Hash
+           \node[draw, fill=qcgray!30] (hash1) at (-3,0) {
+               MD5: \texttt{3a7f9b2c...}
+           };
+           \draw[->, thick] (legit) -- (hash1);
+           
+           \pause
+           % Rogue certificate
+           \node[draw, thick, fill=qcred!20, text width=4cm, align=center] (rogue) at (3,2) {
+               \textbf{Rogue CA Cert}\\
+               \small Can sign anything!\\
+               \small Ultimate power
+           };
+           
+           % Same hash!
+           \node[draw, fill=qcgray!30] (hash2) at (3,0) {
+               MD5: \texttt{3a7f9b2c...}
+           };
+           \draw[->, thick] (rogue) -- (hash2);
+           
+           \pause
+           % Collision
+           \draw[<->, ultra thick, red] (hash1) -- node[above] {\textbf{COLLISION!}} (hash2);
+           
+           \pause
+           % Impact
+           \node[draw, ultra thick, red, rounded corners, text width=8cm, align=center] at (0,-2) {
+               \textbf{Impact: Attackers can impersonate ANY website}\\
+               \small Complete breakdown of web security
+           };
+       \end{tikzpicture}
+   \end{center}
+\end{frame}
+
+% Slide 1.2.6: Pillar 3 - Authentication Through Signatures
+% Content: Digital signature process
+% Purpose: Complete the security triad
+% Build: Show signing and verification process
+\begin{frame}{Pillar 3: Authentication}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.8]
+           % Signing process
+           \node[draw, rounded corners] (msg) at (-4,3) {
+               \texttt{I authorize \$1M transfer}
+           };
+           
+           \pause
+           % Private key
+           \node[draw, fill=qcred!30] (privkey) at (-6,1) {
+               \faIcon{key} Private Key
+           };
+           
+           % Sign operation
+           \node[draw, thick, fill=qcred!30, minimum width=3cm] (sign) at (-4,1) {
+               \textbf{Sign}
+           };
+           \draw[->, thick] (msg) -- (sign);
+           \draw[->, thick] (privkey) -- (sign);
+           
+           \pause
+           % Signature
+           \node[draw, rounded corners, fill=qcgray!30] (sig) at (-4,-1) {
+               \texttt{Digital Signature}
+           };
+           \draw[->, thick] (sign) -- (sig);
+           
+           % Verification process
+           \pause
+           \node[align=center] at (0,1) {\textbf{Anyone can verify}\\with public key};
+           
+           % Public key
+           \node[draw, fill=qcgreen!30] (pubkey) at (2,1) {
+               \faIcon{key} Public Key
+           };
+           
+           % Verify operation
+           \node[draw, thick, fill=qcgreen!30, minimum width=3cm] (verify) at (4,1) {
+               \textbf{Verify}
+           };
+           \draw[->, thick] (sig) -| (verify);
+           \draw[->, thick] (msg) -| (verify);
+           \draw[->, thick] (pubkey) -- (verify);
+           
+           \pause
+           % Result
+           \node[draw, thick, fill=qcgreen!20] at (4,-1) {
+               \faIcon{check-circle} Valid!
+           };
+           \draw[->, thick] (verify) -- (4,-1);
+       \end{tikzpicture}
+   \end{center}
+   
+   \vspace{0.5cm}
+   \begin{columns}
+       \begin{column}{0.5\textwidth}
+           \centering
+           \textbf{Properties:}\\
+           • Non-repudiation\\
+           • Public verifiability\\
+           • Unforgeable
+       \end{column}
+       \begin{column}{0.5\textwidth}
+           \centering
+           \textbf{Examples:}\\
+           • RSA signatures\\
+           • ECDSA\\
+           • EdDSA
+       \end{column}
+   \end{columns}
+\end{frame}
+
+% Slide 1.2.7: When Authentication Fails
+% Content: DigiNotar breach case study
+% Purpose: Show authentication failure is catastrophic
+% Build: Timeline and impact cascade
+\begin{frame}{Case Study: DigiNotar Catastrophe (2011)}
+   \begin{columns}
+       \begin{column}{0.5\textwidth}
+           \begin{center}
+               \textbf{\Large Timeline of Disaster}
+               
+               \begin{tikzpicture}[scale=0.8]
+                   % Timeline
+                   \draw[thick, ->] (0,0) -- (0,-6);
+                   
+                   % Events
+                   \node[right, align=left] at (0.2,0) {\textbf{June:} Hackers breach DigiNotar};
+                   \pause
+                   
+                   \node[right, align=left] at (0.2,-1.5) {\textbf{July:} Issue *.google.com cert};
+                   \pause
+                   
+                   \node[right, align=left] at (0.2,-3) {\textbf{August:} Iran uses for MITM};
+                   \pause
+                   
+                   \node[right, align=left] at (0.2,-4.5) {\textbf{Sept:} Company bankrupt};
+                   \pause
+                   
+                   \node[right, align=left, red] at (0.2,-6) {\textbf{Result:} Dutch gov crisis};
+               \end{tikzpicture}
+           \end{center}
+       \end{column}
+       
+       \begin{column}{0.5\textwidth}
+           \begin{alertblock}{Impact Cascade}
+               \pause
+               \begin{enumerate}
+                   \item Fraudulent certificates trusted globally
+                   \pause
+                   \item Iranian citizens' Gmail compromised
+                   \pause
+                   \item All browsers revoke DigiNotar
+                   \pause
+                   \item Dutch government sites fail
+                   \pause
+                   \item Complete infrastructure rebuild
+               \end{enumerate}
+           \end{alertblock}
+           
+           \pause
+           \begin{block}{Lesson}
+               Authentication failure affects everyone who trusts the system
+           \end{block}
+       \end{column}
+   \end{columns}
+\end{frame}
+
+% Slide 1.2.8: The Pre-Digital Key Distribution Problem
+% Content: Visual showing exponential key growth
+% Purpose: Motivate public key cryptography
+% Build: Animate growing number of required keys
+\begin{frame}{The Original Problem: Key Distribution}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.9]
+           % Small network
+           \node[circle, draw, thick] (a) at (0,2) {A};
+           \node[circle, draw, thick] (b) at (2,2) {B};
+           \node[circle, draw, thick] (c) at (1,0) {C};
+           
+           % Keys needed
+           \draw[thick, qcblue] (a) -- node[above] {\small Key 1} (b);
+           \draw[thick, qcred] (b) -- node[right] {\small Key 2} (c);
+           \draw[thick, qcgreen] (c) -- node[left] {\small Key 3} (a);
+           
+           \node at (1,-1.5) {3 people = 3 keys};
+           
+           \pause
+           % Medium network
+           \begin{scope}[xshift=5cm]
+               \foreach \i in {1,...,5} {
+                   \node[circle, draw, thick] (n\i) at ({72*\i}:1.5) {\i};
+               }
+               \foreach \i in {1,...,5} {
+                   \foreach \j in {1,...,5} {
+                       \ifnum\i<\j
+                           \draw[gray] (n\i) -- (n\j);
+                       \fi
+                   }
+               }
+               \node at (0,-2.5) {5 people = 10 keys};
+           \end{scope}
+           
+           \pause
+           % Large network indication
+           \begin{scope}[xshift=9cm]
+               \node[draw, thick, rounded corners, minimum width=3cm, minimum height=3cm, fill=qcred!20] {
+                   1000 people\\[0.5em]
+                   \textbf{499,500}\\keys!
+               };
+           \end{scope}
+       \end{tikzpicture}
+   \end{center}
+   
+   \vspace{0.5cm}
+   \pause
+   \begin{alertblock}{The Circular Paradox}
+       To communicate securely, you must first communicate securely!
+   \end{alertblock}
+\end{frame}
+
+% Slide 1.2.9: The 1976 Revolution - Diffie-Hellman Insight
+% Content: One-way function with trapdoor visualization
+% Purpose: Introduce asymmetric cryptography concept
+% Build: Show the revolutionary idea step by step
+\begin{frame}{The Revolutionary Insight (1976)}
+   \begin{columns}
+       \begin{column}{0.5\textwidth}
+           \begin{quote}
+               ``We stand today on the brink of a revolution in cryptography.''
+               
+               \vspace{0.5em}
+               -- Diffie \& Hellman
+           \end{quote}
+           
+           \vspace{1em}
+           \pause
+           
+           \textbf{The Breakthrough:}\\
+           Separate the key into two parts with different capabilities!
+           
+           \vspace{0.5em}
+           \pause
+           \begin{itemize}
+               \item \textcolor{qcgreen}{Public key: Can encrypt}
+               \item \textcolor{qcred}{Private key: Can decrypt}
+           \end{itemize}
+       \end{column}
+       
+       \begin{column}{0.5\textwidth}
+           \begin{center}
+               \begin{tikzpicture}[scale=0.8]
+                   % One-way function
+                   \node[draw, rounded corners] (x) at (0,3) {Private: $x$};
+                   \pause
+                   
+                   \node[draw, thick, fill=qcblue!30, minimum width=3cm] (f) at (0,1.5) {
+                       \textbf{One-way Function}
+                   };
+                   \draw[->, ultra thick, qcgreen] (x) -- node[right] {Easy} (f);
+                   
+                   \pause
+                   \node[draw, rounded corners] (y) at (0,0) {Public: $f(x)$};
+                   \draw[->, ultra thick, qcgreen] (f) -- (y);
+                   
+                   \pause
+                   % Reverse direction
+                   \draw[->, ultra thick, red, dashed] (y) to[bend right=60] node[left] {Hard!} (x);
+                   
+                   \pause
+                   % With trapdoor
+                   \node[draw, fill=qcyellow!30] (trap) at (3,0) {Trapdoor};
+                   \draw[->, thick, qcgreen] (trap) -- (y);
+                   \draw[->, thick, qcgreen, dashed] (y) to[bend left=60] node[right] {Easy with trapdoor} (x);
+               \end{tikzpicture}
+           \end{center}
+       \end{column}
+   \end{columns}
+\end{frame}
+
+% Slide 1.2.10: How Diffie-Hellman Works
+% Content: Step-by-step DH key exchange
+% Purpose: First concrete example of public key crypto
+% Build: Animate the protocol steps
+\begin{frame}{Diffie-Hellman Key Exchange}
+   \begin{center}
+       \begin{tikzpicture}[scale=0.9]
+           % Alice and Bob
+           \node[circle, draw, thick, fill=qcblue!20] (alice) at (-3,0) {Alice};
+           \node[circle, draw, thick, fill=qcred!20] (bob) at (3,0) {Bob};
+           
+           % Public parameters
+           \node[draw, rounded corners, fill=qcgray!20] at (0,3) {
+               Public: $g = 5$, $p = 23$
+           };
+           
+           \pause
+           % Step 1: Choose secrets
+           \node[draw, fill=qcblue!10] at (-3,-1.5) {Secret: $a = 6$};
+           \node[draw, fill=qcred!10] at (3,-1.5) {Secret: $b = 15$};
+           
+           \pause
+           % Step 2: Compute public values
+           \node[draw, rounded corners] at (-3,-2.5) {$A = 5^6 \bmod 23 = 8$};
+           \node[draw, rounded corners] at (3,-2.5) {$B = 5^{15} \bmod 23 = 19$};
+           
+           \pause
+           % Step 3: Exchange
+           \draw[->, thick, qcblue] (-2.5,-2.5) to[bend left] node[above] {$A = 8$} (2.5,-2.5);
+           \draw[->, thick, qcred] (2.5,-3) to[bend left] node[below] {$B = 19$} (-2.5,-3);
+           
+           \pause
+           % Step 4: Compute shared secret
+           \node[draw, rounded corners, fill=qcgreen!20] at (-3,-4) {$K = 19^6 \bmod 23 = 2$};
+           \node[draw, rounded corners, fill=qcgreen!20] at (3,-4) {$K = 8^{15} \bmod 23 = 2$};
+           
+           \pause
+           % Eavesdropper
+           \node[circle, draw, thick, fill=qcgray!30] (eve) at (0,-1) {Eve};
+           \node[align=center] at (0,-2) {Sees: $g=5$, $p=23$\\$A=8$, $B=19$\\
+               \color{red}Cannot compute $K$!};
+       \end{tikzpicture}
+   \end{center}
+\end{frame}
+
+
+% ==================================================
+% HOUR 2: QUANTUM THREAT AND LATTICE FOUNDATIONS
+% ==================================================
+
+\section{Quantum Algorithms Breaking Crypto}
+
+% Slide 2.1.1: Section Title - The Quantum Cryptographic Apocalypse
+\begin{frame}
+  \slideheader{The Quantum Cryptographic Apocalypse}
+  
+  \vfill
+  \begin{center}
+    \begin{tikzpicture}[scale=1.2]
+      % Quantum computer icon
+      \node[draw, ultra thick, minimum width=3cm, minimum height=2cm, fill=purple!20] (qc) at (0,2) {
+        \Large \textbf{Quantum\\Computer}
+      };
+      
+      % Lightning bolts
+      \draw[ultra thick, red!80, decorate, decoration={zigzag, segment length=3mm, amplitude=2mm}] 
+        (-0.5,0.5) -- (-2,-1.5);
+      \draw[ultra thick, red!80, decorate, decoration={zigzag, segment length=3mm, amplitude=2mm}] 
+        (0,0.5) -- (0,-1.5);
+      \draw[ultra thick, red!80, decorate, decoration={zigzag, segment length=3mm, amplitude=2mm}] 
+        (0.5,0.5) -- (2,-1.5);
+      
+      % Broken crypto logos
+      \node[opacity=0.3, rotate=25] at (-2,-2) {\includegraphics[width=1.5cm]{example-image}};
+      \node[opacity=0.3, rotate=-15] at (0,-2) {\includegraphics[width=1.5cm]{example-image}};
+      \node[opacity=0.3, rotate=35] at (2,-2) {\includegraphics[width=1.5cm]{example-image}};
+      
+      % Text overlay
+      \node[font=\Large\bfseries, red!80] at (0,-3.5) {RSA};
+      \node[font=\Large\bfseries, red!80] at (-2,-3.5) {ECC};
+      \node[font=\Large\bfseries, red!80] at (2,-3.5) {DSA};
+    \end{tikzpicture}
+    
+    \vspace{1cm}
+    \Huge \textbf{``Not if, but when''}
+  \end{center}
+  \vfill
+  
+  \teaching{Reset attention after break with dramatic visuals}
+\end{frame}
+
+% Slide 2.1.2: Dispelling the Parallel Search Myth
+\begin{frame}
+  \slideheader{Dispelling the Parallel Search Myth}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{blueBox}
+      \textbf{Common Misconception:}
+      \begin{itemize}
+        \item ``QC tries all keys at once''
+        \item ``Quantum = massive parallelism''
+        \item ``Like having $2^n$ classical computers''
+      \end{itemize}
+    \end{blueBox}
+    
+    \vspace{0.5cm}
+    
+    \begin{redBox}
+      \textbf{Reality:}
+      \begin{itemize}
+        \item Quantum interference patterns
+        \item Amplitude cancellation/reinforcement
+        \item Extracts global properties
+      \end{itemize}
+    \end{redBox}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Superposition visualization
+      \draw[thick] (0,0) -- (5,0) node[right] {$x$};
+      \draw[thick] (0,-2) -- (0,2) node[above] {Amplitude};
+      
+      % Wave functions
+      \foreach \x in {0.5,1,1.5,2,2.5,3,3.5,4,4.5} {
+        \draw[blue!60, thick] (\x,-1.5) -- (\x,1.5);
+      }
+      
+      % Interference pattern
+      \draw[red, ultra thick, smooth] plot coordinates {
+        (0,0) (0.5,1) (1,0) (1.5,-1) (2,0) (2.5,1.5) (3,0) (3.5,-1.5) (4,0) (4.5,1) (5,0)
+      };
+      
+      \node[below] at (2.5,-2.5) {\textbf{Interference reveals structure}};
+    \end{tikzpicture}
+    
+    \vspace{0.3cm}
+    
+    \begin{greenBox}
+      \textbf{Better Analogy:}\\
+      Like a diffraction grating revealing hidden wavelengths
+    \end{greenBox}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Correct fundamental misunderstanding early}
+\end{frame}
+
+% Slide 2.1.3: Shor's Algorithm - The Real Magic
+\begin{frame}
+  \slideheader{Shor's Algorithm - The Real Magic}
+  
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+
+    \begin{center}
+      \textbf{\large Not brute force - finds hidden periods!}
+    \end{center}
+    
+    \vspace{0.3cm}
+    
+    \begin{enumerate}
+      \item \textbf{Transform problem:}\\
+        Factoring $\rightarrow$ Period finding
+        
+      \item \textbf{Create superposition:}\\
+        $\sum_x |x\rangle|f(x)\rangle$ over all values
+        
+      \item \textbf{Extract period:}\\
+        QFT reveals through interference
+    \end{enumerate}
+    
+    \vspace{0.5cm}
+    
+    \begin{greenBox}
+      \textbf{Physics Analogy:}\\
+      Diffraction grating reveals light wavelength $\lambda$ from interference pattern
+    \end{greenBox}
+  
+    \end{column}
+    \begin{column}{0.45\textwidth}
+
+    \begin{tikzpicture}[scale=0.7]
+      % Periodic function
+      \draw[thick, ->] (0,0) -- (5,0) node[right] {$x$};
+      \draw[thick, ->] (0,0) -- (0,3) node[above] {$f(x)$};
+      
+      % Draw periodic pattern
+      \foreach \i in {0,...,4} {
+        \draw[blue, ultra thick] plot[smooth] coordinates {
+          ({\i},0) ({\i+0.25},2) ({\i+0.5},1) ({\i+0.75},1.5) ({\i+1},0)
+        };
+      }
+      
+      % Period indicator
+      \draw[<->, red, thick] (0,-0.5) -- (1,-0.5) node[midway, below] {period $r$};
+      
+      % QFT arrow
+      \node[draw, thick, fill=yellow!30] (qft) at (7,1.5) {QFT};
+      \draw[->, ultra thick] (5.5,1.5) -- (6.5,1.5);
+      
+      % Frequency domain
+      \draw[thick, ->] (8,0) -- (11,0) node[right] {freq};
+      \draw[thick, ->] (8,0) -- (8,3);
+      
+      % Peak at frequency
+      \draw[red, ultra thick] (9,2.5) -- (9,0);
+      \node[red, below] at (9,0) {$1/r$};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Core conceptual understanding - it's about finding patterns}
+\end{frame}
+
+% Slide 2.1.4: From Factoring to Period Finding
+\begin{frame}
+  \slideheader{From Factoring to Period Finding}
+  
+  \begin{center}
+    \textbf{\large Mathematical Connection}
+  \end{center}
+  
+  \begin{blueBox}
+    \textbf{Goal:} Factor $n = pq$ (RSA modulus)
+  \end{blueBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{enumerate}
+    \item Choose random $a$ coprime to $n$
+    
+    \item Define function: $f(x) = a^x \bmod n$
+    
+    \item \textbf{Key insight:} This function is periodic!\\
+    Find period $r$ such that $a^r \equiv 1 \pmod{n}$
+    
+    \item If $r$ is even and $a^{r/2} \not\equiv -1 \pmod{n}$:
+    \begin{align}
+      a^r - 1 &\equiv 0 \pmod{n}\\
+      (a^{r/2} - 1)(a^{r/2} + 1) &\equiv 0 \pmod{n}
+    \end{align}
+    
+    \item Then $\gcd(a^{r/2} - 1, n)$ gives a factor!
+  \end{enumerate}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Success probability} $\geq 1/2$ for random $a$
+  \end{greenBox}
+  
+  \teaching{Show the mathematical reduction clearly}
+\end{frame}
+
+% Slide 2.1.5: Concrete Example - Factoring 15
+\begin{frame}
+  \slideheader{Concrete Example - Factoring 15}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Let's factor $n = 15$ using $a = 7$:}
+    
+    \vspace{0.3cm}
+    
+    \begin{tabular}{ll}
+      $7^0 \bmod 15$ & $= 1$ \\
+      $7^1 \bmod 15$ & $= 7$ \\
+      $7^2 \bmod 15$ & $= 49 \bmod 15 = 4$ \\
+      $7^3 \bmod 15$ & $= 28 \bmod 15 = 13$ \\
+      $7^4 \bmod 15$ & $= 91 \bmod 15 = \mathbf{1}$ \\
+    \end{tabular}
+    
+    \vspace{0.3cm}
+    
+    \begin{redBox}
+      Period found: $r = 4$
+    \end{redBox}
+    
+    \vspace{0.3cm}
+    
+    Since $r = 4$ is even:\\
+    $a^{r/2} - 1 = 7^2 - 1 = 48$
+    
+    $\gcd(48, 15) = \gcd(48, 15) = 3$
+    
+    \begin{greenBox}
+      $15 = 3 \times 5$ \checkmark
+    \end{greenBox}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Plot the periodic function
+      \draw[thick, ->] (0,0) -- (5,0) node[right] {$x$};
+      \draw[thick, ->] (0,0) -- (0,3.5) node[above] {$a^x \bmod n$};
+      
+      % Plot points
+      \node[circle, fill=blue, inner sep=2pt] (p0) at (0,0.2) {};
+      \node[circle, fill=blue, inner sep=2pt] (p1) at (1,1.4) {};
+      \node[circle, fill=blue, inner sep=2pt] (p2) at (2,0.8) {};
+      \node[circle, fill=blue, inner sep=2pt] (p3) at (3,2.6) {};
+      \node[circle, fill=blue, inner sep=2pt] (p4) at (4,0.2) {};
+      
+      % Labels
+      \node[below] at (0,0) {$0$};
+      \node[below] at (1,0) {$1$};
+      \node[below] at (2,0) {$2$};
+      \node[below] at (3,0) {$3$};
+      \node[below] at (4,0) {$4$};
+      
+      \node[left] at (0,0.2) {$1$};
+      \node[left] at (0,1.4) {$7$};
+      \node[left] at (0,0.8) {$4$};
+      \node[left] at (0,2.6) {$13$};
+      
+      % Connect points
+      \draw[blue, thick] (p0) -- (p1) -- (p2) -- (p3) -- (p4);
+      
+      % Highlight period
+      \draw[<->, red, ultra thick] (0,-0.5) -- (4,-0.5) node[midway, below] {period = 4};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Demystify with concrete, small numbers}
+\end{frame}
+
+% Slide 2.1.6: Quantum Circuit for Shor
+\begin{frame}
+  \slideheader{Quantum Circuit for Shor}
+  
+  \begin{center}
+    \textbf{\large High-level Circuit Structure}
+  \end{center}
+  
+  \begin{tikzpicture}[scale=0.9]
+    % Input registers
+    \node[left] at (-1,3) {$|0\rangle^{\otimes n}$};
+    \node[left] at (-1,1) {$|0\rangle^{\otimes n}$};
+    
+    % Quantum wires
+    \draw[thick] (0,3) -- (12,3);
+    \draw[thick] (0,2.8) -- (12,2.8);
+    \draw[thick] (0,2.6) -- (12,2.6);
+    \node at (0.5,2.3) {$\vdots$};
+    
+    \draw[thick] (0,1) -- (12,1);
+    \draw[thick] (0,0.8) -- (12,0.8);
+    \draw[thick] (0,0.6) -- (12,0.6);
+    \node at (0.5,0.3) {$\vdots$};
+    
+    % Gates
+    \node[draw, thick, minimum width=1.5cm, minimum height=2.5cm, fill=blue!20] (h) at (2,2) {$H^{\otimes n}$};
+    \node[draw, thick, minimum width=3cm, minimum height=2.5cm, fill=red!20] (mod) at (6,2) {
+      \begin{tabular}{c}
+        Modular\\Exponentiation\\$U_a|x\rangle|0\rangle = |x\rangle|a^x \bmod n\rangle$
+      \end{tabular}
+    };
+    \node[draw, thick, minimum width=1.5cm, minimum height=1.2cm, fill=green!20] (qft) at (10,3) {QFT$^{-1}$};
+    
+    % Measurement
+    \draw[thick] (11.5,3) -- (11.5,2.5) -- (12,2.5) -- (12,3.5) -- (11.5,3.5) -- (11.5,3);
+    \node[right] at (12.2,3) {Measure};
+    
+    % Annotations
+    \node[below, blue] at (2,0) {Superposition};
+    \node[below, red] at (6,-0.5) {Main computational cost};
+    \node[below, green] at (10,0) {Extract period};
+  \end{tikzpicture}
+  
+  \vspace{0.5cm}
+  
+  \begin{greenBox}
+    \textbf{Resource Requirements:}
+    \begin{itemize}
+      \item $\sim 3n$ logical qubits for $n$-bit RSA modulus
+      \item $\sim n^3$ gates (mostly in modular exponentiation)
+      \item Polynomial depth $O(n^3)$
+    \end{itemize}
+  \end{greenBox}
+  
+  \teaching{Show it's a real, implementable algorithm}
+\end{frame}
+
+% Slide 2.1.7: The Devastating Efficiency
+\begin{frame}
+  \slideheader{The Devastating Efficiency}
+  
+  \begin{center}
+    \textbf{\large Classical vs Quantum Time Complexity}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{table}
+    \centering
+    \begin{tabular}{|l|r|r|c|}
+      \hline
+      \textbf{RSA Size} & \textbf{Classical Time} & \textbf{Quantum Time} & \textbf{Speedup} \\
+      \hline
+      RSA-1024 & $10^6$ years & 3 hours & $10^{10}\times$ \\
+      RSA-2048 & $10^{20}$ years & 8 hours & $10^{24}\times$ \\
+      RSA-4096 & $10^{40}$ years & 15 hours & $10^{44}\times$ \\
+      RSA-8192 & $10^{80}$ years & 30 hours & $10^{84}\times$ \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{redBox}
+    \textbf{No escape through bigger keys!}
+    \begin{itemize}
+      \item Classical: Exponential in key size
+      \item Quantum: Polynomial in key size
+      \item Doubling key size: Classical $\times 10^{20}$, Quantum $\times 2$
+    \end{itemize}
+  \end{redBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{tikzpicture}[scale=0.6]
+    \draw[thick, ->] (0,0) -- (8,0) node[right] {Key size};
+    \draw[thick, ->] (0,0) -- (0,5) node[above] {Time};
+    
+    % Classical exponential curve
+    \draw[red, ultra thick, domain=0:6] plot (\x, {0.1*exp(0.5*\x)});
+    \node[red, right] at (6,4) {Classical};
+    
+    % Quantum polynomial curve
+    \draw[blue, ultra thick, domain=0:7] plot (\x, {0.3*\x});
+    \node[blue, right] at (7,2.1) {Quantum};
+  \end{tikzpicture}
+  
+  \teaching{Drive home the exponential vs polynomial gap}
+\end{frame}
+
+% Slide 2.1.8: Current Quantum Hardware Reality Check
+\begin{frame}
+  \slideheader{Current Quantum Hardware Reality Check}
+  
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+
+    \textbf{Requirements for Breaking RSA-2048:}
+    
+    \begin{itemize}
+      \item \textbf{Logical qubits:} $\sim$4,000
+      \item \textbf{Error rate:} $< 10^{-10}$
+      \item \textbf{Gate depth:} $\sim 10^9$
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Physical Reality:}
+    
+    \begin{itemize}
+      \item Logical $\rightarrow$ Physical: $\sim$10,000:1
+      \item \textbf{Total needed:} 20-40 million physical qubits
+      \item \textbf{Current record:} $\sim$1,000 qubits
+      \item \textbf{Gap:} 4-5 orders of magnitude
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \begin{blueBox}
+      \textbf{Timeline Estimate:}\\
+      10-20 years for cryptographically relevant quantum computers
+    \end{blueBox}
+  
+    \end{column}
+    \begin{column}{0.45\textwidth}
+
+    \begin{tikzpicture}[scale=0.7]
+      % Log scale plot
+      \draw[thick, ->] (0,0) -- (5,0) node[right] {Year};
+      \draw[thick, ->] (0,0) -- (0,5) node[above] {Qubits (log)};
+      
+      % Y-axis labels
+      \node[left] at (0,1) {$10^2$};
+      \node[left] at (0,2) {$10^3$};
+      \node[left] at (0,3) {$10^4$};
+      \node[left] at (0,4) {$10^5$};
+      
+      % X-axis labels
+      \node[below] at (1,0) {2020};
+      \node[below] at (2.5,0) {2025};
+      \node[below] at (4,0) {2030};
+      
+      % Current progress
+      \draw[blue, ultra thick] plot[smooth] coordinates {
+        (0,0.7) (0.5,1) (1,1.3) (1.5,1.7) (2,2) (2.5,2.3)
+      };
+      
+      % Projected (dashed)
+      \draw[blue, ultra thick, dashed] plot[smooth] coordinates {
+        (2.5,2.3) (3,2.7) (3.5,3.3) (4,4)
+      };
+      
+      % Danger threshold
+      \draw[red, ultra thick, dashed] (0,4.5) -- (5,4.5);
+      \node[red, right] at (5,4.5) {Crypto-relevant};
+      
+      \node[green] at (2.5,1) {\textbf{We are here}};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Balanced view - real threat but time to prepare}
+\end{frame}
+
+% Slide 2.1.9: Breaking Signatures Too!
+\begin{frame}
+  \slideheader{Breaking Signatures Too!}
+  
+  \begin{center}
+    \textbf{\large Same Quantum Algorithms Break All Classical Public Key Crypto}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{table}
+    \centering
+    \begin{tabular}{|l|l|l|}
+      \hline
+      \textbf{Signature Scheme} & \textbf{Underlying Problem} & \textbf{Quantum Algorithm} \\
+      \hline
+      RSA Signatures & Integer Factorization & Shor's Algorithm \\
+      DSA & Discrete Logarithm & Modified Shor \\
+      ECDSA & Elliptic Curve DLog & Modified Shor \\
+      EdDSA & Elliptic Curve DLog & Modified Shor \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{redBox}
+    \textbf{Impact of Signature Breaking:}
+    \begin{itemize}
+      \item Forge ANY digital signature
+      \item Impersonate ANY website (fake certificates)
+      \item Falsify software updates
+      \item Compromise blockchain transactions
+      \item Destroy digital trust infrastructure
+    \end{itemize}
+  \end{redBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Timeline:} Same as encryption - when quantum computers can break RSA-2048, they can forge RSA-2048 signatures
+  \end{greenBox}
+  
+  \teaching{Emphasize complete failure of classical public key crypto}
+\end{frame}
+
+% Slide 2.1.10: Grover's Algorithm - The Symmetric Threat
+\begin{frame}
+  \slideheader{Grover's Algorithm - The Symmetric Threat}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Different Quantum Approach:}
+    \begin{itemize}
+      \item Amplitude amplification
+      \item Search $N$ items in $\sqrt{N}$ time
+      \item Quadratic speedup (not exponential)
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Impact on Symmetric Crypto:}
+    
+    \begin{tabular}{|l|c|c|}
+      \hline
+      \textbf{Algorithm} & \textbf{Classical} & \textbf{Quantum} \\
+      \hline
+      AES-128 & 128-bit & 64-bit \\
+      AES-256 & 256-bit & 128-bit \\
+      SHA-256 & 128-bit coll. & 85-bit coll. \\
+      SHA-512 & 256-bit coll. & 170-bit coll. \\
+      \hline
+    \end{tabular}
+    
+    \vspace{0.3cm}
+    
+    \begin{greenBox}
+      \textbf{Solution:} Double key sizes\\
+      AES-256 remains secure\\
+      SHA-384/512 remain secure
+    \end{greenBox}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.7]
+      % Search space visualization
+      \draw[thick] (0,0) rectangle (4,4);
+      
+      % Grid of items
+      \foreach \x in {0.5,1.5,2.5,3.5} {
+        \foreach \y in {0.5,1.5,2.5,3.5} {
+          \node[circle, draw, minimum size=0.3cm] at (\x,\y) {};
+        }
+      }
+      
+      % Marked item
+      \node[circle, fill=red, minimum size=0.3cm] at (2.5,1.5) {};
+      
+      % Classical search path
+      \draw[->, blue, thick] (0.5,3.5) -- (1.5,3.5) -- (2.5,3.5) -- (3.5,3.5) -- (3.5,2.5) -- (2.5,2.5) -- (1.5,2.5) -- (0.5,2.5) -- (0.5,1.5) -- (1.5,1.5) -- (2.5,1.5);
+      \node[blue, below] at (2,-0.5) {Classical: $O(N)$ steps};
+      
+      % Quantum amplitude
+      \begin{scope}[shift={(6,0)}]
+        \draw[thick, ->] (0,0) -- (4,0) node[right] {Item};
+        \draw[thick, ->] (0,0) -- (0,3) node[above] {Amplitude};
+        
+        % Initial uniform
+        \draw[gray, dashed] (0,0.5) -- (4,0.5);
+        
+        % After Grover iterations
+        \draw[red, ultra thick] (2.5,2.5) -- (2.5,0);
+        
+        \node[below] at (2,-0.5) {Quantum: $O(\sqrt{N})$ steps};
+      \end{scope}
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Complete the quantum algorithm picture}
+\end{frame}
+
+% Slide 2.1.11: Why These Quantum Advantages?
+\begin{frame}
+  \slideheader{Why These Quantum Advantages?}
+  
+  \begin{center}
+    \textbf{\large What Makes Some Problems Quantum-Easy?}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{blueBox}
+      \textbf{Shor Exploits:}
+      \begin{itemize}
+        \item Hidden periodic structure
+        \item Fourier analysis natural for QC
+        \item Interference extracts global property
+      \end{itemize}
+    \end{blueBox}
+    
+    \vspace{0.3cm}
+    
+    \begin{blueBox}
+      \textbf{Grover Exploits:}
+      \begin{itemize}
+        \item Superposition over search space
+        \item Amplitude amplification
+        \item Quadratic speedup only
+      \end{itemize}
+    \end{blueBox}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.6]
+      % Venn diagram
+      \draw[thick, fill=blue!20] (0,0) circle (2cm);
+      \draw[thick, fill=red!20] (2,0) circle (2cm);
+      
+      \node at (-1,0) {\small \textbf{Periodic}};
+      \node at (3,0) {\small \textbf{Search}};
+      \node at (1,0) {\small \textbf{Both}};
+      
+      % Examples
+      \node[below] at (-1,-2.5) {\tiny Factoring, DLog};
+      \node[below] at (3,-2.5) {\tiny Database search};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.5cm}
+  
+  \begin{redBox}
+    \textbf{Key Insight:} Not all problems have quantum speedup!
+    \begin{itemize}
+      \item Need specific structure (periodicity, search)
+      \item Most problems: No quantum advantage
+      \item This gives us hope for post-quantum crypto!
+    \end{itemize}
+  \end{redBox}
+  
+  \teaching{Transition to quantum-resistant problems}
+\end{frame}
+
+% ==================================================
+% Section 2.2: Enter the Lattice
+% ==================================================
+
+\section{Enter the Lattice}
+
+% Slide 2.2.1: From Quantum Vulnerability to Quantum Resistance
+\begin{frame}
+  \slideheader{From Quantum Vulnerability to Quantum Resistance}
+  
+  \begin{center}
+    \textbf{\large The Search for Quantum-Hard Problems}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{blueBox}
+    \textbf{Requirements for Post-Quantum Security:}
+    \begin{itemize}
+      \item[$\times$] No hidden periodicity (Shor doesn't apply)
+      \item[$\times$] No efficient quantum algorithm known
+      \item[\checkmark] Still usable for cryptography
+      \item[\checkmark] Efficient classical algorithms for legitimate users
+      \item[\checkmark] Decades of cryptanalysis attempts
+    \end{itemize}
+  \end{blueBox}
+  
+  \vspace{0.5cm}
+  
+  \pause
+  
+  \begin{center}
+    \begin{tikzpicture}[scale=1.2]
+      % Arrow pointing down
+      \draw[->, ultra thick, green!60!black] (0,0) -- (0,-1);
+      
+      % Text
+      \node[font=\Large\bfseries] at (0,-1.5) {Enter: LATTICE PROBLEMS};
+      
+      % Lattice visualization
+      \begin{scope}[shift={(0,-3)}]
+        \foreach \x in {-2,-1,0,1,2} {
+          \foreach \y in {-1,0,1} {
+            \node[circle, fill=black, inner sep=1.5pt] at (\x*0.6,\y*0.6) {};
+          }
+        }
+        % Connect some points
+        \draw[thick, blue] (-1.2,-0.6) -- (-0.6,0) -- (0,0.6) -- (0.6,0) -- (1.2,-0.6);
+        \draw[thick, blue] (-1.2,0) -- (-0.6,0.6) -- (0,0) -- (0.6,-0.6) -- (1.2,0);
+      \end{scope}
+    \end{tikzpicture}
+  \end{center}
+  
+  \teaching{Introduce lattices as the solution}
+\end{frame}
+
+% Slide 2.2.2: Lattices - Your Physics Background Helps!
+\begin{frame}
+  \slideheader{Lattices - Your Physics Background Helps!}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Mathematical Definition:}
+    \begin{align}
+      \mathcal{L} = \left\{ \sum_{i=1}^n a_i \mathbf{b}_i : a_i \in \mathbb{Z} \right\}
+    \end{align}
+    
+    \vspace{0.3cm}
+    
+    \textbf{You Already Know This From:}
+    \begin{itemize}
+      \item Crystal structures (Bravais lattices)
+      \item Reciprocal lattices
+      \item Brillouin zones
+      \item Miller indices
+      \item X-ray diffraction
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \begin{greenBox}
+      \textbf{Your Advantage:}\\
+      Geometric intuition from condensed matter physics!
+    \end{greenBox}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=1.2]
+      % 2D lattice
+      \draw[thick, ->] (-0.5,0) -- (3.5,0) node[right] {$\mathbf{b}_1$};
+      \draw[thick, ->] (0,-0.5) -- (0,3) node[above] {$\mathbf{b}_2$};
+      
+      % Basis vectors
+      \draw[ultra thick, blue, ->] (0,0) -- (1,0.2) node[midway, below] {$\mathbf{b}_1$};
+      \draw[ultra thick, blue, ->] (0,0) -- (0.3,1) node[midway, left] {$\mathbf{b}_2$};
+      
+      % Lattice points
+      \foreach \x in {-1,0,1,2,3} {
+        \foreach \y in {-1,0,1,2} {
+          \pgfmathsetmacro{\px}{\x*1 + \y*0.3}
+          \pgfmathsetmacro{\py}{\x*0.2 + \y*1}
+          \ifthenelse{\lengthtest{\px pt < 3.5pt} \AND \lengthtest{\py pt < 3pt} \AND \lengthtest{\px pt > -0.5pt} \AND \lengthtest{\py pt > -0.5pt}}{
+            \node[circle, fill=black, inner sep=1.5pt] at (\px,\py) {};
+          }{}
+        }
+      }
+      
+      % Example lattice vector
+      \draw[red, ultra thick, ->] (0,0) -- (2.3,2.2);
+      \node[red, right] at (2.3,2.2) {$2\mathbf{b}_1 + 2\mathbf{b}_2$};
+    \end{tikzpicture}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Crystal Structure Analogy:}\\
+    FCC, BCC, hexagonal - all lattices!
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Connect to familiar physics concepts}
+\end{frame}
+
+% Slide 2.2.3: Good Basis vs Bad Basis
+\begin{frame}
+  \slideheader{Good Basis vs Bad Basis}
+  
+  \begin{center}
+    \textbf{\large Same Lattice, Different Bases}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{center}
+      \textbf{Good Basis}
+    \end{center}
+    
+    \begin{tikzpicture}[scale=1.5]
+      % Good basis vectors
+      \draw[ultra thick, blue, ->] (0,0) -- (1,0) node[midway, below] {$\mathbf{b}_1$};
+      \draw[ultra thick, blue, ->] (0,0) -- (0.1,0.9) node[midway, left] {$\mathbf{b}_2$};
+      
+      % Lattice points
+      \foreach \x in {-1,0,1,2} {
+        \foreach \y in {-1,0,1,2} {
+          \pgfmathsetmacro{\px}{\x + 0.1*\y}
+          \pgfmathsetmacro{\py}{0.9*\y}
+          \node[circle, fill=gray, inner sep=1pt] at (\px,\py) {};
+        }
+      }
+      
+      % Properties
+      \node[below] at (1,-0.5) {
+        \begin{tabular}{l}
+          Nearly orthogonal\\
+          Short vectors\\
+          Easy to work with
+        \end{tabular}
+      };
+    \end{tikzpicture}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{center}
+      \textbf{Bad Basis}
+    \end{center}
+    
+    \begin{tikzpicture}[scale=1.5]
+      % Bad basis vectors
+      \draw[ultra thick, red, ->] (0,0) -- (2.1,0.9) node[midway, below] {$\mathbf{b}_1'$};
+      \draw[ultra thick, red, ->] (0,0) -- (1.9,1.8) node[midway, above] {$\mathbf{b}_2'$};
+      
+      % Same lattice points
+      \foreach \x in {-1,0,1,2} {
+        \foreach \y in {-1,0,1,2} {
+          \pgfmathsetmacro{\px}{\x + 0.1*\y}
+          \pgfmathsetmacro{\py}{0.9*\y}
+          \node[circle, fill=gray, inner sep=1pt] at (\px,\py) {};
+        }
+      }
+      
+      % Properties
+      \node[below] at (1,-0.5) {
+        \begin{tabular}{l}
+          Highly skewed\\
+          Long vectors\\
+          Hard to analyze
+        \end{tabular}
+      };
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.5cm}
+  
+  \begin{redBox}
+    \textbf{Key Computational Problem:}\\
+    Given bad basis → Find good basis = HARD!
+  \end{redBox}
+  
+  \begin{greenBox}
+    \textbf{Crystallography Analogy:}\\
+    Primitive cell vs Conventional cell - finding the ``natural'' basis is non-trivial
+  \end{greenBox}
+  
+  \teaching{Introduce the basis reduction challenge}
+\end{frame}
+
+% Slide 2.2.4: The Dimension Explosion
+\begin{frame}
+  \slideheader{The Dimension Explosion}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Your 3D Intuition:}
+    \begin{itemize}
+      \item Vectors have clear ``direction''
+      \item Can visualize shortest vector
+      \item Volume is... volume
+      \item Few ``nearly shortest'' vectors
+    \end{itemize}
+    
+    \vspace{0.5cm}
+    
+    \textbf{In 500+ Dimensions:}
+    \begin{itemize}
+      \item Volume concentrates at surface
+      \item All vectors nearly orthogonal
+      \item Exponentially many short vectors
+      \item Geometry becomes counterintuitive
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Sphere volume concentration
+      \draw[thick] (0,0) circle (2cm);
+      \draw[thick, fill=blue!30] (0,0) circle (1.8cm);
+      \draw[thick, fill=blue!60] (0,0) circle (1.6cm);
+      
+      \node[below] at (0,-2.5) {$n = 3$};
+      \node at (0,0) {90\% volume};
+      
+      \begin{scope}[shift={(5,0)}]
+        \draw[thick] (0,0) circle (2cm);
+        \draw[thick, fill=blue!90] (0,0) circle (1.99cm);
+        
+        \node[below] at (0,-2.5) {$n = 500$};
+        \node at (0,0) {\tiny 99.9\% at surface!};
+      \end{scope}
+    \end{tikzpicture}
+    
+    \vspace{0.5cm}
+    
+    \begin{redBox}
+      \textbf{Curse of Dimensionality:}\\
+      Algorithms that work in 3D fail spectacularly in 500D
+    \end{redBox}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Explain why high dimensions matter}
+\end{frame}
+
+% Slide 2.2.5: The Shortest Vector Problem (SVP)
+\begin{frame}
+  \slideheader{The Shortest Vector Problem (SVP)}
+  
+  \begin{center}
+    \textbf{\large Core Lattice Problem \#1}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{Given:} A basis $B = \{\mathbf{b}_1, \ldots, \mathbf{b}_n\}$ of lattice $\mathcal{L}$\\
+    \textbf{Find:} The shortest non-zero vector $\mathbf{v} \in \mathcal{L}$
+  \end{blueBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=1.2]
+      % Bad basis
+      \draw[thick, ->] (0,0) -- (2.5,0.3) node[right] {$\mathbf{b}_1$};
+      \draw[thick, ->] (0,0) -- (2.2,1.8) node[above] {$\mathbf{b}_2$};
+      
+      % Lattice points
+      \foreach \x in {-1,0,1,2} {
+        \foreach \y in {-1,0,1,2} {
+          \pgfmathsetmacro{\px}{\x*2.5 + \y*2.2}
+          \pgfmathsetmacro{\py}{\x*0.3 + \y*1.8}
+          \ifthenelse{\lengthtest{\px pt < 5pt} \AND \lengthtest{\py pt < 4pt} \AND \lengthtest{\px pt > -1pt} \AND \lengthtest{\py pt > -1pt}}{
+            \node[circle, fill=gray, inner sep=1.5pt] at (\px,\py) {};
+          }{}
+        }
+      }
+      
+      % Shortest vector (not obvious!)
+      \draw[ultra thick, red, ->] (0,0) -- (0.3,1.5);
+      \node[red, left] at (0.3,1.5) {$\mathbf{v}_{min}$};
+      
+      % Circle showing minimum distance
+      \draw[dashed, red] (0,0) circle (1.52cm);
+    \end{tikzpicture}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Complexity:}
+    \begin{itemize}
+      \item NP-hard to solve exactly
+      \item NP-hard to approximate within factor $n^c$
+      \item Best algorithms: $2^{O(n)}$ time
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Why it's hard:}
+    \begin{itemize}
+      \item Can't just try basis vectors
+      \item Need integer combinations
+      \item Exponentially many to check
+    \end{itemize}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Define the core computational problem}
+\end{frame}
+
+% Slide 2.2.6: The Closest Vector Problem (CVP)
+\begin{frame}
+  \slideheader{The Closest Vector Problem (CVP)}
+  
+  \begin{center}
+    \textbf{\large Core Lattice Problem \#2}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{Given:} Lattice $\mathcal{L}$ and target point $\mathbf{t} \notin \mathcal{L}$\\
+    \textbf{Find:} Closest lattice point $\mathbf{v} \in \mathcal{L}$ to $\mathbf{t}$
+  \end{blueBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=1.2]
+      % Lattice points
+      \foreach \x in {-1,0,1,2,3} {
+        \foreach \y in {-1,0,1,2} {
+          \node[circle, fill=gray, inner sep=1.5pt] at (\x,\y) {};
+        }
+      }
+      
+      % Target point
+      \node[star, star points=5, star point ratio=0.5, fill=blue, minimum size=0.3cm] (target) at (1.7,1.3) {};
+      \node[blue, above] at (target) {$\mathbf{t}$};
+      
+      % Closest lattice point
+      \node[circle, fill=red, inner sep=2pt] at (2,1) {};
+      \draw[red, thick, ->] (1.7,1.3) -- (2,1);
+      
+      % Voronoi cell indication
+      \draw[dashed, green] (1.5,0.5) -- (2.5,0.5) -- (2.5,1.5) -- (1.5,1.5) -- cycle;
+    \end{tikzpicture}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Connection to Coding:}
+    \begin{itemize}
+      \item Lattice = Error correcting code
+      \item Target = Received noisy codeword
+      \item CVP = Decode to nearest codeword
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Also NP-hard!}
+    \begin{itemize}
+      \item Even harder than SVP
+      \item Used directly in crypto
+    \end{itemize}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Physical Analogy:}\\
+    Finding which unit cell a perturbed atom belongs to
+  \end{greenBox}
+  
+  \teaching{Connect to error correction}
+\end{frame}
+
+% Slide 2.2.7: Classical Algorithms for Lattice Problems
+\begin{frame}
+  \slideheader{Classical Algorithms for Lattice Problems}
+  
+  \begin{center}
+    \textbf{\large The Algorithm Zoo}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{table}
+    \centering
+    \begin{tabular}{|l|l|l|l|}
+      \hline
+      \textbf{Algorithm} & \textbf{Year} & \textbf{Time} & \textbf{Quality} \\
+      \hline
+      LLL & 1982 & Polynomial & Exponential approx \\
+      BKZ-$k$ & 1994 & $2^{O(k)}$ & $(2k)^{n/2k}$ approx \\
+      Sieving & 2008 & $2^{0.292n + o(n)}$ & Exact SVP \\
+      Enumeration & 2010 & $2^{O(n \log n)}$ & Exact SVP \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{itemize}
+    \item \textbf{LLL:} Fast but poor quality (sufficient for some attacks)
+    \item \textbf{BKZ:} Time-quality tradeoff via blocksize $k$
+    \item \textbf{Sieving:} Best asymptotic complexity
+    \item \textbf{Key point:} All exponential for good approximations!
+  \end{itemize}
+  
+  \vspace{0.3cm}
+  
+  \begin{tikzpicture}[scale=0.7]
+    \draw[thick, ->] (0,0) -- (6,0) node[right] {Dimension $n$};
+    \draw[thick, ->] (0,0) -- (0,4) node[above] {Time (log scale)};
+    
+    % LLL - polynomial
+    \draw[green, ultra thick] plot[smooth] coordinates {(0,0.5) (2,0.7) (4,0.9) (6,1.1)};
+    \node[green, right] at (6,1.1) {LLL};
+    
+    % BKZ - exponential
+    \draw[blue, ultra thick] plot[smooth] coordinates {(0,0.5) (2,1.5) (4,2.5) (6,3.5)};
+    \node[blue, right] at (6,3.5) {BKZ};
+    
+    % Sieving - exponential but better
+    \draw[red, ultra thick] plot[smooth] coordinates {(0,0.5) (2,1.2) (4,2) (6,2.8)};
+    \node[red, right] at (6,2.8) {Sieving};
+  \end{tikzpicture}
+  
+  \teaching{Establish classical hardness baseline}
+\end{frame}
+
+% Slide 2.2.8: Quantum (Non-)Algorithms for Lattices
+\begin{frame}
+  \slideheader{Quantum (Non-)Algorithms for Lattices}
+  
+  \begin{center}
+    \textbf{\large The Quantum Speedup That Wasn't}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{table}
+    \centering
+    \begin{tabular}{|l|c|c|c|}
+      \hline
+      \textbf{Algorithm} & \textbf{Classical} & \textbf{Quantum} & \textbf{Speedup} \\
+      \hline
+      Best SVP solver & $2^{0.292n}$ & $2^{0.265n}$ & $\approx 1.019^n$ \\
+      \hline
+      Compare: Factoring & $2^{n^{1/3}}$ & $\text{poly}(n)$ & Exponential! \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{redBox}
+      \textbf{Tiny Quantum Advantage:}
+      \begin{itemize}
+        \item Classical: $2^{0.292n}$
+        \item Quantum: $2^{0.265n}$
+        \item Speedup: $2^{0.027n} \approx 1.019^n$
+        \item For $n=500$: $1.019^{500} \approx 13,000\times$
+      \end{itemize}
+    \end{redBox}
+    
+    \vspace{0.3cm}
+    
+    Compare to Shor:
+    \begin{itemize}
+      \item Classical: $2^{n^{1/3}}$
+      \item Quantum: $n^3$
+      \item Speedup: $2^{n^{1/3}}/n^3$ (astronomical!)
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.7]
+      % Comparison chart
+      \draw[thick, ->] (0,0) -- (5,0) node[right] {Security param};
+      \draw[thick, ->] (0,0) -- (0,4) node[above] {Speedup};
+      
+      % Lattice speedup (basically flat)
+      \draw[blue, ultra thick] (0,0.2) -- (5,0.4);
+      \node[blue, above] at (2.5,0.4) {Lattice: $1.019^n$};
+      
+      % Factoring speedup (exponential)
+      \draw[red, ultra thick, domain=0.5:4.5] plot (\x, {0.3*exp(0.5*\x)});
+      \node[red, right] at (4.5,3.5) {Factoring};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Bottom Line:} No meaningful quantum speedup for lattices!
+  \end{greenBox}
+  
+  \teaching{Key message - lattices resist quantum attack}
+\end{frame}
+
+% Slide 2.2.9: Why No Quantum Breakthrough?
+\begin{frame}
+  \slideheader{Why No Quantum Breakthrough?}
+  
+  \begin{center}
+    \textbf{\large What Makes Lattices Quantum-Resistant?}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{No Hidden Periodicity:}
+    \begin{itemize}
+      \item Shor needs periodic structure
+      \item Lattice problems are geometric
+      \item No algebraic pattern to exploit
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{No Algebraic Structure:}
+    \begin{itemize}
+      \item Can't use quantum Fourier transform
+      \item No group structure to leverage
+      \item Pure geometric optimization
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{High-Dimensional Geometry:}
+    \begin{itemize}
+      \item Quantum walks don't help much
+      \item No efficient amplitude amplification
+      \item Curse of dimensionality affects QC too!
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Timeline of attempts
+      \draw[thick, ->] (0,0) -- (0,5) node[above] {Years};
+      
+      \node[left] at (0,0.5) {2008};
+      \node[left] at (0,1.5) {2011};
+      \node[left] at (0,2.5) {2015};
+      \node[left] at (0,3.5) {2020};
+      \node[left] at (0,4.5) {2024};
+      
+      % Attempts
+      \node[right, red] at (0.2,0.5) {$\times$ Quantum sieve?};
+      \node[right, red] at (0.2,1.5) {$\times$ Quantum enumeration?};
+      \node[right, red] at (0.2,2.5) {$\times$ Novel approaches?};
+      \node[right, red] at (0.2,3.5) {$\times$ Hybrid algorithms?};
+      \node[right, red] at (0.2,4.5) {Still no breakthrough!};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{15+ Years of Research:}\\
+    Despite intense effort, no exponential quantum speedup found for lattice problems
+  \end{blueBox}
+  
+  \teaching{Build confidence in quantum resistance}
+\end{frame}
+
+% Slide 2.2.10: Concrete Security Numbers
+\begin{frame}
+  \slideheader{Concrete Security Numbers}
+  
+  \begin{center}
+    \textbf{\large Dimension vs Security Level}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{table}
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+      \hline
+      \textbf{Dimension} & \textbf{Classical} & \textbf{Quantum} & \textbf{Equivalent} \\
+      \hline
+      $n = 300$ & $2^{88}$ & $2^{80}$ & - \\
+      $n = 500$ & $2^{146}$ & $2^{133}$ & AES-128 \\
+      $n = 700$ & $2^{204}$ & $2^{186}$ & RSA-2048 \\
+      $n = 1000$ & $2^{292}$ & $2^{265}$ & AES-256 \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{greenBox}
+      \textbf{Key Takeaways:}
+      \begin{itemize}
+        \item Still exponentially hard for QC
+        \item Modest dimension increase compensates
+        \item Well-understood security
+      \end{itemize}
+    \end{greenBox}
+    
+    \vspace{0.3cm}
+    
+    \textbf{For RSA-2048 equivalent:}
+    \begin{itemize}
+      \item Use lattice dimension $\approx 700$
+      \item Security margin included
+      \item Future-proof for decades
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.7]
+      % Security level comparison
+      \draw[thick, ->] (0,0) -- (5,0) node[right] {Dimension};
+      \draw[thick, ->] (0,0) -- (0,4) node[above] {Security (bits)};
+      
+      % Classical security
+      \draw[blue, ultra thick] plot[smooth] coordinates {
+        (0,0) (1,0.88) (2,1.46) (3,2.04) (4,2.92)
+      };
+      \node[blue, above] at (4,2.92) {Classical};
+      
+      % Quantum security
+      \draw[red, ultra thick] plot[smooth] coordinates {
+        (0,0) (1,0.8) (2,1.33) (3,1.86) (4,2.65)
+      };
+      \node[red, below] at (4,2.65) {Quantum};
+      
+      % Markers
+      \draw[dashed] (2,0) -- (2,1.46);
+      \node[below] at (2,0) {500};
+      \draw[dashed] (3,0) -- (3,2.04);
+      \node[below] at (3,0) {700};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Quantify the security with concrete numbers}
+\end{frame}
+
+% Slide 2.2.11: The Lattice Advantage Summary
+\begin{frame}
+  \slideheader{The Lattice Advantage Summary}
+  
+  \begin{center}
+    \textbf{\large Why Lattices Win for Post-Quantum Crypto}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{greenBox}
+        \textbf{Security Advantages:}
+        \begin{itemize}
+          \item[\checkmark] No quantum algorithm breakthrough
+          \item[\checkmark] 15+ years of quantum cryptanalysis
+          \item[\checkmark] Worst-case hardness guarantees
+          \item[\checkmark] Well-understood security
+        \end{itemize}
+      \end{greenBox}
+      
+      \vspace{0.3cm}
+      
+      \begin{greenBox}
+        \textbf{Practical Advantages:}
+        \begin{itemize}
+          \item[\checkmark] Efficient implementations
+          \item[\checkmark] Multiple crypto primitives
+          \item[\checkmark] Parallelizable operations
+          \item[\checkmark] Hardware-friendly
+        \end{itemize}
+      \end{greenBox}
+    \end{column}
+    
+    \begin{column}{0.5\textwidth}
+      \begin{tikzpicture}[scale=0.8]
+        % Trophy icon
+        \draw[thick, fill=yellow!50] (-1,2) -- (-1.2,1) -- (-0.5,1) -- (-0.5,0) -- (0.5,0) -- (0.5,1) -- (1.2,1) -- (1,2) -- cycle;
+        \draw[thick, fill=yellow!50] (-1,2) .. controls (-1,2.5) and (1,2.5) .. (1,2);
+        
+        % Handles
+        \draw[thick] (-1,1.7) .. controls (-1.5,1.7) and (-1.5,1.3) .. (-1.2,1.3);
+        \draw[thick] (1,1.7) .. controls (1.5,1.7) and (1.5,1.3) .. (1.2,1.3);
+        
+        % Number 1
+        \node[font=\Large\bfseries] at (0,1.5) {1};
+        
+        % Text below
+        \node[below, align=center, font=\large\bfseries] at (0,-0.5) {
+          Lattices:\\
+          The Winner of\\
+          Post-Quantum\\
+          Cryptography
+        };
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.5cm}
+  
+  \begin{redBox}
+    \centering
+    \textbf{Ready for Hour 3:} How do we actually build cryptosystems from lattices?
+  \end{redBox}
+  
+  \teaching{Summarize lattice advantages and transition to Hour 3}
+\end{frame}
+
+% ==================================================
+% END OF HOUR 2
+% ==================================================
+
+% ==================================================
+% HOUR 3: SOLUTIONS AND DEPLOYMENT
+% ==================================================
+
+\section{Learning With Errors - The Bridge}
+
+% Slide 3.1.1: From Abstract Lattices to Practical Crypto
+\begin{frame}
+  \slideheader{From Abstract Lattices to Practical Crypto}
+  
+  \begin{center}
+    \textbf{\large The Challenge: How to Use Geometric Hardness?}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{tikzpicture}[scale=1.2]
+    % Left: Abstract lattice
+    \node[draw, thick, minimum width=3cm, minimum height=2cm, fill=blue!20] (lattice) at (-4,0) {
+      \begin{tabular}{c}
+        \textbf{Lattice}\\
+        \textbf{Problems}\\
+        (SVP, CVP)
+      \end{tabular}
+    };
+    
+    % Middle: Bridge
+    \node[draw, ultra thick, minimum width=2.5cm, minimum height=2cm, fill=yellow!30] (lwe) at (0,0) {
+      \begin{tabular}{c}
+        \textbf{Learning}\\
+        \textbf{With}\\
+        \textbf{Errors}
+      \end{tabular}
+    };
+    
+    % Right: Cryptosystems
+    \node[draw, thick, minimum width=3cm, minimum height=2cm, fill=green!20] (crypto) at (4,0) {
+      \begin{tabular}{c}
+        \textbf{Practical}\\
+        \textbf{Cryptosystems}\\
+        (Encryption, Sigs)
+      \end{tabular}
+    };
+    
+    % Arrows
+    \draw[->, ultra thick] (lattice) -- (lwe) node[midway, above] {Reduction};
+    \draw[->, ultra thick] (lwe) -- (crypto) node[midway, above] {Construction};
+    
+    % Labels
+    \node[below] at (-4,-1.5) {\small Geometric};
+    \node[below] at (0,-1.5) {\small Algebraic};
+    \node[below] at (4,-1.5) {\small Practical};
+  \end{tikzpicture}
+  
+  \vspace{0.5cm}
+  
+  \begin{blueBox}
+    \textbf{LWE:} The crucial bridge between abstract lattice problems and usable cryptography
+  \end{blueBox}
+  
+  \teaching{Introduce LWE as the key enabling construction}
+\end{frame}
+
+% Slide 3.1.2: The LWE Insight - Linear Algebra Plus Noise
+\begin{frame}
+  \slideheader{The LWE Insight - Linear Algebra Plus Noise}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Without Noise:}
+    \begin{align}
+      \mathbf{b} = A\mathbf{s}
+    \end{align}
+    
+    \begin{itemize}
+      \item Linear system of equations
+      \item Solve by Gaussian elimination
+      \item Polynomial time: $O(n^3)$
+      \item Completely insecure!
+    \end{itemize}
+    
+    \vspace{0.5cm}
+    
+    \textbf{With Small Noise:}
+    \begin{align}
+      \mathbf{b} = A\mathbf{s} + \mathbf{e}
+    \end{align}
+    
+    \begin{itemize}
+      \item Noisy linear system
+      \item Gaussian elimination fails!
+      \item Best algorithms: exponential
+      \item Secure foundation
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Clean system
+      \node at (0,3.5) {\textbf{Clean System}};
+      \draw[thick] (0,2.5) -- (2,2.5) -- (2,0) -- (0,0) -- cycle;
+      \node at (1,1.25) {$A$};
+      
+      \node at (2.5,1.25) {$\times$};
+      
+      \draw[thick] (3,2) -- (3.5,2) -- (3.5,0.5) -- (3,0.5) -- cycle;
+      \node at (3.25,1.25) {$\mathbf{s}$};
+      
+      \node at (4,1.25) {$=$};
+      
+      \draw[thick] (4.5,2) -- (5,2) -- (5,0.5) -- (4.5,0.5) -- cycle;
+      \node at (4.75,1.25) {$\mathbf{b}$};
+      
+      % Noisy system
+      \node at (0,-0.5) {\textbf{Noisy System}};
+      \draw[thick] (0,-1.5) -- (2,-1.5) -- (2,-4) -- (0,-4) -- cycle;
+      \node at (1,-2.75) {$A$};
+      
+      \node at (2.5,-2.75) {$\times$};
+      
+      \draw[thick] (3,-2) -- (3.5,-2) -- (3.5,-3.5) -- (3,-3.5) -- cycle;
+      \node at (3.25,-2.75) {$\mathbf{s}$};
+      
+      \node at (4,-2.75) {$+$};
+      
+      \draw[thick, fill=red!30] (4.5,-2) -- (5,-2) -- (5,-3.5) -- (4.5,-3.5) -- cycle;
+      \node at (4.75,-2.75) {$\mathbf{e}$};
+      
+      \node at (5.5,-2.75) {$=$};
+      
+      \draw[thick] (6,-2) -- (6.5,-2) -- (6.5,-3.5) -- (6,-3.5) -- cycle;
+      \node at (6.25,-2.75) {$\mathbf{b}$};
+    \end{tikzpicture}
+    
+    \vspace{0.3cm}
+    
+    \begin{greenBox}
+      \textbf{Physics Analogy:}\\
+      Like thermal noise in measurements - small but ruins exact methods!
+    \end{greenBox}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Core concept - noise transforms easy to hard}
+\end{frame}
+
+% Slide 3.1.3: LWE Formal Definition
+\begin{frame}
+  \slideheader{LWE Formal Definition}
+  
+  \begin{center}
+    \textbf{\large Learning With Errors Problem}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{LWE Distribution:}\\
+    Given secret $\mathbf{s} \in \mathbb{Z}_q^n$ and error distribution $\chi$ over $\mathbb{Z}_q$:
+    \begin{itemize}
+      \item Sample $\mathbf{a}_i \leftarrow \mathbb{Z}_q^n$ uniformly
+      \item Sample $e_i \leftarrow \chi$ (small error)
+      \item Output $(\mathbf{a}_i, b_i = \langle \mathbf{a}_i, \mathbf{s} \rangle + e_i \bmod q)$
+    \end{itemize}
+  \end{blueBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{redBox}
+    \textbf{The LWE Problem:}\\
+    Given many samples $\{(\mathbf{a}_i, b_i)\}_{i=1}^m$ from LWE distribution:\\
+    $\rightarrow$ Recover the secret $\mathbf{s}$
+  \end{redBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \textbf{Parameters:}
+      \begin{itemize}
+        \item $n$: dimension (security parameter)
+        \item $q$: modulus (polynomial in $n$)
+        \item $\chi$: error distribution (Gaussian)
+        \item $m$: number of samples
+      \end{itemize}
+    \end{column}
+    
+    \begin{column}{0.5\textwidth}
+      \textbf{Hardness:}
+      \begin{itemize}
+        \item Best algorithms: $2^{O(n)}$ time
+        \item Quantum: Still $2^{O(n)}$ time
+        \item Proven as hard as lattice problems
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  
+  \teaching{Precise mathematical foundation}
+\end{frame}
+
+% Slide 3.1.4: Concrete LWE Example
+\begin{frame}
+  \slideheader{Concrete LWE Example}
+  
+  \begin{center}
+    \textbf{\large Let's See LWE with Small Numbers}
+  \end{center}
+  
+  Parameters: $n = 4$, $q = 97$, secret $\mathbf{s} = (3, 7, 2, 5)$
+  
+  \vspace{0.3cm}
+  
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{|c|c|c|c|}
+      \hline
+      $\mathbf{a}_i$ & $\langle \mathbf{a}_i, \mathbf{s} \rangle$ & $e_i$ & $b_i$ \\
+      \hline
+      $(14, 28, 91, 45)$ & $42 + 196 + 182 + 225 = 66 \bmod 97$ & $+1$ & $67$ \\
+      $(73, 12, 56, 89)$ & $219 + 84 + 112 + 445 = 82 \bmod 97$ & $-1$ & $81$ \\
+      $(31, 65, 22, 18)$ & $93 + 455 + 44 + 90 = 4 \bmod 97$ & $0$ & $4$ \\
+      $(88, 47, 39, 71)$ & $264 + 329 + 78 + 355 = 54 \bmod 97$ & $+2$ & $56$ \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.3cm}
+  
+  \begin{redBox}
+    \textbf{Try to solve this!}
+    \begin{itemize}
+      \item Without errors: Easy linear algebra
+      \item With errors: Which equation has $e = 0$? $\pm 1$? $\pm 2$?
+      \item Can't use standard techniques!
+    \end{itemize}
+  \end{redBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    Even with tiny parameters, the problem becomes intractable quickly
+  \end{greenBox}
+  
+  \teaching{Make it tangible with real numbers}
+\end{frame}
+
+% Slide 3.1.5: The Error Distribution
+\begin{frame}
+  \slideheader{The Error Distribution}
+  
+  \begin{center}
+    \textbf{\large The Critical Component: Discrete Gaussian Noise}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Discrete Gaussian Distribution:}
+    \begin{align}
+      \Pr[e = x] \propto \exp\left(-\frac{x^2}{2\sigma^2}\right)
+    \end{align}
+    
+    for $x \in \mathbb{Z}$
+    
+    \vspace{0.3cm}
+    
+    \textbf{Key Properties:}
+    \begin{itemize}
+      \item Center: $\mu = 0$
+      \item Width: $\sigma$ (standard deviation)
+      \item Support: Integers only
+      \item Tails decay exponentially
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{The Balancing Act:}
+    \begin{itemize}
+      \item Too small $\sigma$: Insecure
+      \item Too large $\sigma$: Decryption fails
+      \item Sweet spot: $\sigma \approx \sqrt{n}$
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Axes
+      \draw[thick, ->] (-3,0) -- (3,0) node[right] {$e$};
+      \draw[thick, ->] (0,0) -- (0,3.5) node[above] {Probability};
+      
+      % Discrete points
+      \foreach \x in {-5,-4,-3,-2,-1,0,1,2,3,4,5} {
+        \pgfmathsetmacro{\prob}{2.5*exp(-\x*\x/4)}
+        \draw[blue, ultra thick] (\x/2,0) -- (\x/2,\prob);
+        \node[circle, fill=blue, inner sep=1.5pt] at (\x/2,\prob) {};
+      }
+      
+      % Continuous envelope
+      \draw[red, dashed, thick, domain=-2.5:2.5, samples=50] 
+        plot (\x, {2.5*exp(-4*\x*\x/4)});
+      
+      % Labels
+      \node[below] at (0,0) {$0$};
+      \node[below] at (1,0) {$2$};
+      \node[below] at (-1,0) {$-2$};
+      
+      % Annotations
+      \draw[<->, green, thick] (-1,1.5) -- (1,1.5) node[midway, above] {$2\sigma$};
+    \end{tikzpicture}
+    
+    \vspace{0.5cm}
+    
+    \begin{blueBox}
+      \textbf{Security comes from:}\\
+      Many possible error patterns\\
+      $\rightarrow$ Many possible secrets
+    \end{blueBox}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Understand the critical noise component}
+\end{frame}
+
+% Slide 3.1.6: Regev's Breakthrough - Worst-Case Hardness
+\begin{frame}
+  \slideheader{Regev's Breakthrough - Worst-Case Hardness}
+  
+  \begin{center}
+    \textbf{\large The Theoretical Foundation (2005)}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{redBox}
+    \textbf{Regev's Theorem:}\\
+    If you can solve LWE on average, you can solve worst-case lattice problems
+  \end{redBox}
+  
+  \vspace{0.3cm}
+  
+  \begin{tikzpicture}[scale=1]
+    % Flow diagram
+    \node[draw, thick, minimum width=3cm, minimum height=1cm] (worst) at (0,3) {
+      \textbf{ANY lattice instance}
+    };
+    
+    \node[draw, thick, minimum width=3cm, minimum height=1cm, fill=yellow!30] (transform) at (0,1.5) {
+      Quantum reduction
+    };
+    
+    \node[draw, thick, minimum width=3cm, minimum height=1cm] (lwe) at (0,0) {
+      \textbf{LWE instance}
+    };
+    
+    \node[draw, thick, minimum width=3cm, minimum height=1cm, fill=red!30] (solve) at (4,0) {
+      \textbf{LWE solver}
+    };
+    
+    \node[draw, thick, minimum width=3cm, minimum height=1cm] (solution) at (4,3) {
+      \textbf{Lattice solution}
+    };
+    
+    % Arrows
+    \draw[->, ultra thick] (worst) -- (transform);
+    \draw[->, ultra thick] (transform) -- (lwe);
+    \draw[->, ultra thick] (lwe) -- (solve);
+    \draw[->, ultra thick] (solve) -- (solution);
+    \draw[->, ultra thick, dashed] (solution) -- (worst) node[midway, left] {Verify};
+  \end{tikzpicture}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Why This Matters:}
+    \begin{itemize}
+      \item No ``weak'' LWE instances
+      \item Unlike RSA: some moduli might be weak
+      \item Average-case = Worst-case security!
+    \end{itemize}
+  \end{greenBox}
+  
+  \teaching{Establish strong theoretical foundation}
+\end{frame}
+
+% Slide 3.1.7: Building Encryption from LWE
+\begin{frame}
+  \slideheader{Building Encryption from LWE}
+  
+  \begin{center}
+    \textbf{\large From Hard Problem to Encryption Scheme}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{Key Generation:}
+    \begin{itemize}
+      \item Secret key: $\mathbf{s} \in \mathbb{Z}_q^n$
+      \item Public key: $(A, \mathbf{b} = A\mathbf{s} + \mathbf{e})$
+    \end{itemize}
+  \end{blueBox}
+  
+  \vspace{0.2cm}
+  
+  \begin{redBox}
+    \textbf{Encrypt bit $\mu \in \{0,1\}$:}
+    \begin{enumerate}
+      \item Sample random subset $S \subseteq \{1,\ldots,m\}$
+      \item Compute:
+        \begin{align}
+          \mathbf{a}' &= \sum_{i \in S} \mathbf{a}_i\\
+          b' &= \sum_{i \in S} b_i + \mu \cdot \lfloor q/2 \rfloor
+        \end{align}
+      \item Ciphertext: $(\mathbf{a}', b')$
+    \end{enumerate}
+  \end{redBox}
+  
+  \vspace{0.2cm}
+  
+  \begin{greenBox}
+    \textbf{Decrypt:}
+    \begin{itemize}
+      \item Compute: $v = b' - \langle \mathbf{a}', \mathbf{s} \rangle$
+      \item If $v$ closer to $0$: output $0$
+      \item If $v$ closer to $q/2$: output $1$
+    \end{itemize}
+  \end{greenBox}
+  
+  \teaching{Show concrete encryption construction}
+\end{frame}
+
+% Slide 3.1.8: Why Decryption Works
+\begin{frame}
+  \slideheader{Why Decryption Works}
+  
+  \begin{center}
+    \textbf{\large Mathematical Analysis of Correctness}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  Let's trace through decryption:
+  
+  \begin{align}
+    v &= b' - \langle \mathbf{a}', \mathbf{s} \rangle\\
+    &= \sum_{i \in S} b_i + \mu \cdot \lfloor q/2 \rfloor - \left\langle \sum_{i \in S} \mathbf{a}_i, \mathbf{s} \right\rangle\\
+    &= \sum_{i \in S} (\langle \mathbf{a}_i, \mathbf{s} \rangle + e_i) + \mu \cdot \lfloor q/2 \rfloor - \sum_{i \in S} \langle \mathbf{a}_i, \mathbf{s} \rangle\\
+    &= \sum_{i \in S} e_i + \mu \cdot \lfloor q/2 \rfloor
+  \end{align}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{blueBox}
+      \textbf{Key Insight:}
+      \begin{itemize}
+        \item Error term: $\sum_{i \in S} e_i$ is small
+        \item Message term: $\mu \cdot \lfloor q/2 \rfloor$ is large
+        \item They don't interfere!
+      \end{itemize}
+    \end{blueBox}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Decryption succeeds if:}
+    $$\left|\sum_{i \in S} e_i\right| < \frac{q}{4}$$
+    
+    High probability for proper parameters!
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Number line
+      \draw[thick, ->] (-0.5,0) -- (5,0) node[right] {$v$};
+      
+      % Markers
+      \draw[thick] (0,-0.2) -- (0,0.2) node[above] {$0$};
+      \draw[thick] (2.5,-0.2) -- (2.5,0.2) node[above] {$q/2$};
+      \draw[thick] (4.5,-0.2) -- (4.5,0.2) node[above] {$q$};
+      
+      % Noise clouds
+      \draw[blue, thick, fill=blue!20] (-0.5,0.5) -- (0.5,0.5) -- (0.5,1) -- (-0.5,1) -- cycle;
+      \node at (0,0.75) {$\mu=0$};
+      
+      \draw[red, thick, fill=red!20] (2,0.5) -- (3,0.5) -- (3,1) -- (2,1) -- cycle;
+      \node at (2.5,0.75) {$\mu=1$};
+      
+      % Decision boundary
+      \draw[dashed, green, thick] (1.25,-0.5) -- (1.25,1.2);
+      \node[green, below] at (1.25,-0.6) {Decision};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Demonstrate correctness mathematically}
+\end{frame}
+
+% Slide 3.1.9: From Basic LWE to Ring-LWE
+\begin{frame}
+  \slideheader{From Basic LWE to Ring-LWE}
+  
+  \begin{center}
+    \textbf{\large The Efficiency Revolution}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{redBox}
+      \textbf{Problem with Basic LWE:}
+      \begin{itemize}
+        \item Public key: $n \times m$ matrix
+        \item Size: $O(n^2)$ elements
+        \item For $n=1024$: Several MB!
+        \item Too large for practice
+      \end{itemize}
+    \end{redBox}
+    
+    \vspace{0.3cm}
+    
+    \begin{greenBox}
+      \textbf{Solution: Add Structure}
+      \begin{itemize}
+        \item Work in polynomial ring
+        \item $R_q = \mathbb{Z}_q[X]/(X^n + 1)$
+        \item Structured matrices
+        \item 100× size reduction!
+      \end{itemize}
+    \end{greenBox}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.6]
+      % Standard LWE matrix
+      \node at (0,4) {\textbf{Standard LWE}};
+      \draw[thick] (0,3) rectangle (3,0);
+      \foreach \x in {0.5,1,1.5,2,2.5} {
+        \foreach \y in {0.5,1,1.5,2,2.5} {
+          \node at (\x,\y) {\tiny $a_{ij}$};
+        }
+      }
+      \node[below] at (1.5,-0.5) {$n^2$ elements};
+      
+      % Ring-LWE matrix
+      \node at (6,4) {\textbf{Ring-LWE}};
+      \draw[thick] (5,3) rectangle (8,0);
+      % Circulant structure
+      \node at (5.5,2.5) {$a_0$};
+      \node at (6.5,2.5) {$a_1$};
+      \node at (7.5,2.5) {$a_2$};
+      \node at (5.5,1.5) {$a_2$};
+      \node at (6.5,1.5) {$a_0$};
+      \node at (7.5,1.5) {$a_1$};
+      \node at (5.5,0.5) {$a_1$};
+      \node at (6.5,0.5) {$a_2$};
+      \node at (7.5,0.5) {$a_0$};
+      
+      \node[below] at (6.5,-0.5) {$n$ elements};
+      
+      % Arrow showing reduction
+      \draw[->, ultra thick, red] (3.5,1.5) -- (4.5,1.5) node[midway, above] {100×};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.5cm}
+  
+  \begin{blueBox}
+    \textbf{The Polynomial View:}\\
+    Instead of vectors and matrices, work with polynomials:\\
+    $a(X) = a_0 + a_1X + a_2X^2 + \cdots + a_{n-1}X^{n-1}$
+  \end{blueBox}
+  
+  \teaching{Motivate practical improvements}
+\end{frame}
+
+% Slide 3.1.10: Module-LWE - The Sweet Spot
+\begin{frame}
+  \slideheader{Module-LWE - The Sweet Spot}
+  
+  \begin{center}
+    \textbf{\large The Spectrum of LWE Variants}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{tikzpicture}[scale=1.2,
+      gradient/.style={
+        left color=blue!60,
+        right color=red!60,
+        middle color=yellow!60
+      }
+    ]
+    % Spectrum bar
+    \draw[thick, gradient] (0,0) rectangle (10,1);
+    
+    % Labels
+    \node[above] at (0,1) {\textbf{Plain LWE}};
+    \node[above] at (5,1) {\textbf{Module-LWE}};
+    \node[above] at (10,1) {\textbf{Ring-LWE}};
+    
+    % Properties
+    \node[below, align=center] at (0,0) {
+      \small
+      Maximum security\\
+      Huge keys\\
+      No structure
+    };
+    
+    \node[below, align=center] at (5,0) {
+      \small
+      Balanced\\
+      Moderate keys\\
+      Some structure
+    };
+    
+    \node[below, align=center] at (10,0) {
+      \small
+      Most efficient\\
+      Compact keys\\
+      Full structure
+    };
+    
+    % NIST choice indicator
+    \draw[ultra thick, green, ->] (5,2) -- (5,1.2);
+    \node[above, green] at (5,2) {\textbf{NIST Choice}};
+  \end{tikzpicture}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}
+    \begin{column}{0.33\textwidth}
+      \begin{blueBox}
+        \textbf{Plain LWE:}\\
+        Work with $\mathbb{Z}_q^n$\\
+        Full flexibility\\
+        Conservative choice
+      \end{blueBox}
+    \end{column}
+    
+    \begin{column}{0.33\textwidth}
+      \begin{greenBox}
+        \textbf{Module-LWE:}\\
+        Work with $R_q^k$\\
+        $k$ small (2-4)\\
+        Best of both worlds
+      \end{greenBox}
+    \end{column}
+    
+    \begin{column}{0.33\textwidth}
+      \begin{redBox}
+        \textbf{Ring-LWE:}\\
+        Work with $R_q$\\
+        Maximum efficiency\\
+        More assumptions
+      \end{redBox}
+    \end{column}
+  \end{columns}
+  
+  \teaching{Explain the practical choice for standards}
+\end{frame}
+
+% ==================================================
+% Section 3.2: NIST Standards & Your Future
+% ==================================================
+
+\section{NIST Standards \& Your Future}
+
+% Slide 3.2.1: The NIST Competition - Global Effort
+\begin{frame}
+  \slideheader{The NIST Competition - Global Effort}
+  
+  \begin{center}
+    \textbf{\large The Largest Cryptographic Competition in History}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{tikzpicture}[scale=1]
+    % Timeline
+    \draw[ultra thick, ->] (0,0) -- (10,0) node[right] {Time};
+    
+    % Major milestones
+    \draw[thick] (0,-0.2) -- (0,0.2) node[above] {2016};
+    \draw[thick] (2,-0.2) -- (2,0.2) node[above] {2017};
+    \draw[thick] (4,-0.2) -- (4,0.2) node[above] {2019};
+    \draw[thick] (6,-0.2) -- (6,0.2) node[above] {2020};
+    \draw[thick] (8,-0.2) -- (8,0.2) node[above] {2022};
+    \draw[thick] (10,-0.2) -- (10,0.2) node[above] {2024};
+    
+    % Events
+    \node[below, align=center] at (0,-0.3) {Call for\\Proposals};
+    \node[below, align=center] at (2,-0.3) {82\\Submissions};
+    \node[below, align=center] at (4,-0.3) {Round 2\\26 candidates};
+    \node[below, align=center] at (6,-0.3) {Round 3\\7 finalists};
+    \node[below, align=center] at (8,-0.3) {Selection\\4 algorithms};
+    \node[below, align=center] at (10,-0.3) {Final\\Standards};
+    
+    % Stats boxes
+    \node[draw, thick, fill=blue!20] at (2,2) {
+      \begin{tabular}{c}
+        \textbf{82} submissions\\
+        \textbf{25} countries\\
+        \textbf{1000+} researchers
+      \end{tabular}
+    };
+    
+    \node[draw, thick, fill=green!20] at (8,2) {
+      \begin{tabular}{c}
+        \textbf{5} years\\
+        \textbf{3} rounds\\
+        \textbf{4} winners
+      \end{tabular}
+    };
+  \end{tikzpicture}
+  
+  \vspace{0.5cm}
+  
+  \begin{redBox}
+    \textbf{Why This Matters:}
+    \begin{itemize}
+      \item Global consensus on best algorithms
+      \item Extensive cryptanalysis by top experts
+      \item Industry and government backing
+      \item Your future encryption standard!
+    \end{itemize}
+  \end{redBox}
+  
+  \teaching{Show scope and credibility of the process}
+\end{frame}
+
+% Slide 3.2.2: The Winners - Lattice Domination
+\begin{frame}
+  \slideheader{The Winners - Lattice Domination}
+  
+  \begin{center}
+    \textbf{\large NIST Post-Quantum Cryptography Standards}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{table}
+    \centering
+    \begin{tabular}{|l|l|l|l|}
+      \hline
+      \textbf{Algorithm} & \textbf{Type} & \textbf{Based On} & \textbf{Purpose} \\
+      \hline
+      \cellcolor{green!30}ML-KEM (Kyber) & KEM & Module-LWE & Encryption \\
+      \cellcolor{green!30}ML-DSA (Dilithium) & Signature & Module-LWE & Digital Signatures \\
+      \cellcolor{green!30}Falcon & Signature & NTRU Lattices & Signatures (alt.) \\
+      \cellcolor{yellow!30}SPHINCS+ & Signature & Hash-based & Backup option \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}
+    \begin{column}{0.6\textwidth}
+      \begin{tikzpicture}[scale=0.8]
+        % Pie chart
+        \pie[radius=2]{75/Lattice-based (Green), 25/Hash-based (Yellow)}
+      \end{tikzpicture}
+    \end{column}
+    
+    \begin{column}{0.4\textwidth}
+      \begin{redBox}
+        \textbf{Key Takeaway:}\\
+        3 of 4 winners are lattice-based!\\
+        ~\\
+        Lattices dominate PQC
+      \end{redBox}
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Why Lattices Won:}
+    Best balance of security, efficiency, and flexibility
+  \end{greenBox}
+  
+  \teaching{Present the new standards landscape}
+\end{frame}
+
+% Slide 3.2.3: ML-KEM (Kyber) Overview
+\begin{frame}
+  \slideheader{ML-KEM (Kyber) Overview}
+  
+  \begin{center}
+    \textbf{\large The New Encryption Standard}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Purpose:} Replace ECDH/RSA for key exchange
+    
+    \vspace{0.3cm}
+    
+    \textbf{Key Features:}
+    \begin{itemize}
+      \item Based on Module-LWE
+      \item IND-CCA2 secure
+      \item Three security levels
+      \item Often faster than ECC!
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Performance:}
+    \begin{itemize}
+      \item KeyGen: 12-38 μs
+      \item Encaps: 16-48 μs
+      \item Decaps: 17-55 μs
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tabular}{|l|r|r|r|}
+      \hline
+      \textbf{Level} & \textbf{PK} & \textbf{CT} & \textbf{Security} \\
+      \hline
+      ML-KEM-512 & 800 B & 768 B & 128-bit \\
+      ML-KEM-768 & 1184 B & 1088 B & 192-bit \\
+      ML-KEM-1024 & 1568 B & 1568 B & 256-bit \\
+      \hline
+    \end{tabular}
+    
+    \vspace{0.5cm}
+    
+    \begin{tikzpicture}[scale=0.7]
+      % Size comparison
+      \node[draw, thick, minimum width=0.5cm, minimum height=0.5cm, fill=blue!30] at (0,0) {};
+      \node[below] at (0,-0.5) {ECC};
+      \node[above] at (0,0.5) {32 B};
+      
+      \node[draw, thick, minimum width=3cm, minimum height=0.5cm, fill=red!30] at (3,0) {};
+      \node[below] at (3,-0.5) {ML-KEM};
+      \node[above] at (3,0.5) {1184 B};
+      
+      \draw[<->, thick] (0.5,1.5) -- (5.5,1.5) node[midway, above] {37× larger};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{Already deployed:} Chrome, Cloudflare, AWS, Signal...
+  \end{blueBox}
+  
+  \teaching{Introduce primary encryption standard}
+\end{frame}
+
+% Slide 3.2.4: ML-DSA (Dilithium) Overview
+\begin{frame}
+  \slideheader{ML-DSA (Dilithium) Overview}
+  
+  \begin{center}
+    \textbf{\large The New Signature Standard}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Purpose:} Replace ECDSA/RSA signatures
+    
+    \vspace{0.3cm}
+    
+    \textbf{Key Features:}
+    \begin{itemize}
+      \item ``Fiat-Shamir with Aborts''
+      \item Rejection sampling for security
+      \item Deterministic signatures
+      \item Very fast verification
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{How it Works:}
+    \begin{enumerate}
+      \item Create candidate signature
+      \item Check if it leaks secret
+      \item If yes: reject and retry
+      \item If no: output signature
+    \end{enumerate}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tabular}{|l|r|r|r|}
+      \hline
+      \textbf{Level} & \textbf{PK} & \textbf{Sig} & \textbf{Security} \\
+      \hline
+      ML-DSA-44 & 1312 B & 2420 B & 128-bit \\
+      ML-DSA-65 & 1952 B & 3309 B & 192-bit \\
+      ML-DSA-87 & 2592 B & 4627 B & 256-bit \\
+      \hline
+    \end{tabular}
+    
+    \vspace{0.5cm}
+    
+    \textbf{Performance:}
+    \begin{itemize}
+      \item Sign: 100-300 μs
+      \item Verify: 50-150 μs
+      \item Faster than RSA verify!
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \begin{redBox}
+      \textbf{Challenge:}\\
+      Signatures 50-100× larger than ECDSA
+    \end{redBox}
+  
+    \end{column}
+  \end{columns}
+  
+  \teaching{Introduce primary signature standard}
+\end{frame}
+
+% Slide 3.2.5: Real-World Deployment - Cloudflare
+\begin{frame}
+  \slideheader{Real-World Deployment - Cloudflare}
+  
+  \begin{center}
+    \textbf{\large Case Study: 20+ Million Websites Protected}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Cloudflare's PQC Timeline:}
+    \begin{itemize}
+      \item 2019: Initial experiments
+      \item 2022: Beta testing with Chrome
+      \item 2023: Hybrid mode default
+      \item 2024: Full production
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Deployment Strategy:}
+    \begin{itemize}
+      \item Hybrid: X25519 + Kyber768
+      \item Gradual rollout
+      \item Extensive monitoring
+      \item Fallback mechanisms
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Performance impact chart
+      \draw[thick, ->] (0,0) -- (4,0) node[right] {Latency};
+      \draw[thick, ->] (0,0) -- (0,3) node[above] {\%};
+      
+      % Bars
+      \draw[fill=blue!60] (0.5,0) rectangle (1,2);
+      \draw[fill=red!60] (1.5,0) rectangle (2,2.1);
+      \draw[fill=green!60] (2.5,0) rectangle (3,0.5);
+      
+      \node[below] at (0.75,-0.3) {Classic};
+      \node[below] at (1.75,-0.3) {Hybrid};
+      \node[below] at (2.75,-0.3) {Impact};
+      
+      \node[above] at (0.75,2) {100\%};
+      \node[above] at (1.75,2.1) {105\%};
+      \node[above] at (2.75,0.5) {+0.1ms};
+    \end{tikzpicture}
+    
+    \vspace{0.5cm}
+    
+    \begin{greenBox}
+      \textbf{Results:}\\
+      $<$0.1ms latency increase\\
+      Zero user complaints\\
+      Quantum-safe today!
+    \end{greenBox}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{Lesson:} PQC works at massive scale with minimal impact
+  \end{blueBox}
+  
+  \teaching{Prove practical deployment feasibility}
+\end{frame}
+
+% Slide 3.2.6: The Size Challenge
+\begin{frame}
+  \slideheader{The Size Challenge}
+  
+  \begin{center}
+    \textbf{\large The Elephant in the Room: Key and Signature Sizes}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{table}
+    \centering
+    \begin{tabular}{|l|r|r|r|}
+      \hline
+      \textbf{Algorithm} & \textbf{Public Key} & \textbf{Signature/CT} & \textbf{vs Classic} \\
+      \hline
+      ECDSA P-256 & 64 B & 64 B & 1× \\
+      RSA-2048 & 256 B & 256 B & 4× \\
+      \hline
+      ML-KEM-768 & 1,184 B & 1,088 B & 18× \\
+      ML-DSA-65 & 1,952 B & 3,309 B & 52× \\
+      Falcon-512 & 897 B & 666 B & 10× \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Impact Areas:}
+    \begin{itemize}
+      \item TLS handshakes
+      \item Certificate chains
+      \item IoT devices
+      \item Blockchain systems
+      \item Storage requirements
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Mitigation Strategies:}
+    \begin{itemize}
+      \item Caching public keys
+      \item Compression techniques
+      \item Protocol optimizations
+      \item Hybrid modes (transitional)
+      \item Hardware acceleration
+    \end{itemize}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{redBox}
+    \textbf{Reality Check:} Size increase is the price of quantum security
+  \end{redBox}
+  
+  \teaching{Address the main practical concern honestly}
+\end{frame}
+
+% Slide 3.2.7: Migration Timeline
+\begin{frame}
+  \slideheader{Migration Timeline}
+  
+  \begin{center}
+    \textbf{\large The Post-Quantum Transition Roadmap}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{tikzpicture}[scale=0.9]
+    % Timeline base
+    \draw[ultra thick, ->] (0,0) -- (10,0) node[right] {Year};
+    
+    % Year markers
+    \foreach \year/\x in {2024/0, 2025/2, 2027/4, 2030/6, 2035/8, 2040/10} {
+      \draw[thick] (\x,-0.2) -- (\x,0.2) node[above] {\year};
+    }
+    
+    % Phases
+    \draw[fill=green!30, draw=green, thick] (0,1) rectangle (2,2);
+    \node at (1,1.5) {Standards};
+    
+    \draw[fill=blue!30, draw=blue, thick] (2,1) rectangle (4,2);
+    \node at (3,1.5) {Early Adopters};
+    
+    \draw[fill=yellow!30, draw=yellow!80!black, thick] (4,1) rectangle (6,2);
+    \node at (5,1.5) {Mainstream};
+    
+    \draw[fill=red!30, draw=red, thick] (6,1) rectangle (8,2);
+    \node at (7,1.5) {Legacy Sunset};
+    
+    % Danger zone
+    \draw[ultra thick, red, dashed] (8,0) -- (8,3);
+    \node[red, right, align=left] at (8.2,2.5) {Quantum\\Threat\\Real};
+    
+    % Harvest now, decrypt later
+    \draw[<->, thick, purple] (0,-1.5) -- (8,-1.5);
+    \node[purple, below] at (4,-1.7) {``Harvest Now, Decrypt Later'' Risk};
+  \end{tikzpicture}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{blueBox}
+        \textbf{NOW (2024-2025):}
+        \begin{itemize}
+          \item Inventory systems
+          \item Test implementations
+          \item Plan migration
+        \end{itemize}
+      \end{blueBox}
+    \end{column}
+    
+    \begin{column}{0.5\textwidth}
+      \begin{redBox}
+        \textbf{URGENT:}
+        \begin{itemize}
+          \item Long-term secrets
+          \item Critical infrastructure
+          \item Financial systems
+        \end{itemize}
+      \end{redBox}
+    \end{column}
+  \end{columns}
+  
+  \teaching{Create urgency for action}
+\end{frame}
+
+% Slide 3.2.8: Hybrid Modes - Belt and Suspenders
+\begin{frame}
+  \slideheader{Hybrid Modes - Belt and Suspenders}
+  
+  \begin{center}
+    \textbf{\large Safe Transition Strategy: Use Both!}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{tikzpicture}[scale=1]
+    % Classical crypto
+    \node[draw, thick, minimum width=2.5cm, minimum height=1.5cm, fill=blue!20] (classical) at (-3,0) {
+      \textbf{Classical}\\
+      (ECDH)
+    };
+    
+    % PQC
+    \node[draw, thick, minimum width=2.5cm, minimum height=1.5cm, fill=green!20] (pqc) at (3,0) {
+      \textbf{Post-Quantum}\\
+      (ML-KEM)
+    };
+    
+    % Combination
+    \node[draw, ultra thick, minimum width=2cm, minimum height=1cm, fill=yellow!30] (combine) at (0,-2) {
+      \textbf{Combine}\\
+      Keys
+    };
+    
+    % Arrows
+    \draw[->, thick] (classical) -- (combine);
+    \draw[->, thick] (pqc) -- (combine);
+    
+    % Result
+    \node[draw, ultra thick, minimum width=3cm, minimum height=1cm, fill=red!30] (result) at (0,-4) {
+      \textbf{Hybrid Security}
+    };
+    
+    \draw[->, ultra thick] (combine) -- (result);
+    
+    % Annotations
+    \node[right] at (4,0) {
+      \begin{tabular}{l}
+        ✓ Proven today\\
+        ✗ Quantum vulnerable
+      \end{tabular}
+    };
+    
+    \node[left] at (-4,0) {
+      \begin{tabular}{l}
+        ✓ Quantum safe\\
+        ? New, less tested
+      \end{tabular}
+    };
+    
+    \node[below] at (0,-5) {
+      \textbf{Must break BOTH to compromise!}
+    };
+  \end{tikzpicture}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Recommended during transition:}
+    Best of both worlds - no security regression
+  \end{greenBox}
+  
+  \teaching{Explain safe migration approach}
+\end{frame}
+
+% Slide 3.2.9: Your Unique Advantages as Physicists
+\begin{frame}
+  \slideheader{Your Unique Advantages as Physicists}
+  
+  \begin{center}
+    \textbf{\large Why YOU Are Perfectly Positioned}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \begin{greenBox}
+      \textbf{Technical Advantages:}
+      \begin{itemize}
+        \item[\checkmark] Real quantum intuition
+        \item[\checkmark] Lattice experience (crystals)
+        \item[\checkmark] Noise/error understanding
+        \item[\checkmark] Hardware knowledge
+        \item[\checkmark] Mathematical maturity
+      \end{itemize}
+    \end{greenBox}
+    
+    \vspace{0.3cm}
+    
+    \begin{greenBox}
+      \textbf{Perspective Advantages:}
+      \begin{itemize}
+        \item[\checkmark] Bridge theory \& experiment
+        \item[\checkmark] Systems thinking
+        \item[\checkmark] Physical constraints focus
+        \item[\checkmark] Different viewpoint from CS
+      \end{itemize}
+    \end{greenBox}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.8]
+      % Venn diagram
+      \draw[thick, fill=blue!20] (0,0) circle (2cm);
+      \draw[thick, fill=red!20] (2.5,0) circle (2cm);
+      \draw[thick, fill=green!20] (1.25,-2) circle (2cm);
+      
+      \node at (-0.5,1) {\small \textbf{Quantum}};
+      \node at (3,1) {\small \textbf{Crypto}};
+      \node at (1.25,-3) {\small \textbf{Physics}};
+      
+      \node[font=\large\bfseries] at (1.25,0) {YOU!};
+      
+      % Arrows pointing to opportunities
+      \draw[->, ultra thick] (3.5,2) -- (2,0.5);
+      \node[right] at (3.5,2) {Research};
+      
+      \draw[->, ultra thick] (3.5,-2) -- (2,-0.5);
+      \node[right] at (3.5,-2) {Industry};
+      
+      \draw[->, ultra thick] (-2,2) -- (0.5,0.5);
+      \node[left] at (-2,2) {Academia};
+    \end{tikzpicture}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{redBox}
+    \textbf{The Field Needs You:}
+    Your physics background provides insights that pure CS/Math people miss
+  \end{redBox}
+  
+  \teaching{Reinforce their unique qualifications}
+\end{frame}
+
+% Slide 3.2.10: Research Opportunities
+\begin{frame}
+  \slideheader{Research Opportunities}
+  
+  \begin{center}
+    \textbf{\large Open Problems Where Physics Meets PQC}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \textbf{Theoretical Directions:}
+      \begin{itemize}
+        \item Quantum algorithms for lattices
+        \item New hardness assumptions
+        \item Connections to condensed matter
+        \item Quantum reduction improvements
+        \item Novel cryptographic constructions
+      \end{itemize}
+      
+      \vspace{0.3cm}
+      
+      \textbf{Physical Perspectives:}
+      \begin{itemize}
+        \item Thermodynamic crypto bounds
+        \item Photonic implementations
+        \item Quantum error analogies
+        \item Phase transition insights
+      \end{itemize}
+    \end{column}
+    
+    \begin{column}{0.5\textwidth}
+      \textbf{Practical Challenges:}
+      \begin{itemize}
+        \item Side-channel resistance
+        \item Hardware acceleration
+        \item Quantum RNG design
+        \item Hybrid protocol optimization
+        \item IoT implementations
+      \end{itemize}
+      
+      \vspace{0.3cm}
+      
+      \textbf{Interdisciplinary:}
+      \begin{itemize}
+        \item Quantum-classical interfaces
+        \item Error correction crossover
+        \item Physical unclonable functions
+        \item Quantum key distribution + PQC
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.5cm}
+  
+  \begin{blueBox}
+    \textbf{Your PhD could:} Pioneer new connections between quantum physics and post-quantum cryptography
+  \end{blueBox}
+  
+  \teaching{Inspire research directions}
+\end{frame}
+
+% Slide 3.2.11: Practical Next Steps
+\begin{frame}
+  \slideheader{Practical Next Steps}
+  
+  \begin{center}
+    \textbf{\large Your Action Plan}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{tikzpicture}[scale=1]
+    % Timeline
+    \draw[ultra thick, ->] (0,0) -- (10,0);
+    
+    % This week
+    \node[draw, thick, fill=green!30, minimum width=2cm, minimum height=1.5cm] at (1,2) {
+      \begin{tabular}{c}
+        \textbf{This Week}\\
+        Download NIST\\
+        standards\\
+        Try liboqs\\
+        Run demos
+      \end{tabular}
+    };
+    \draw[->, thick] (1,1) -- (1,0.2);
+    
+    % This month
+    \node[draw, thick, fill=blue!30, minimum width=2cm, minimum height=1.5cm] at (4,2) {
+      \begin{tabular}{c}
+        \textbf{This Month}\\
+        Implement\\
+        baby Kyber\\
+        Join forums\\
+        Read papers
+      \end{tabular}
+    };
+    \draw[->, thick] (4,1) -- (4,0.2);
+    
+    % This year
+    \node[draw, thick, fill=yellow!30, minimum width=2cm, minimum height=1.5cm] at (7,2) {
+      \begin{tabular}{c}
+        \textbf{This Year}\\
+        Research\\
+        project\\
+        Conference\\
+        Contribute
+      \end{tabular}
+    };
+    \draw[->, thick] (7,1) -- (7,0.2);
+    
+    % Career
+    \node[draw, thick, fill=red!30, minimum width=2cm, minimum height=1.5cm] at (10,2) {
+      \begin{tabular}{c}
+        \textbf{Career}\\
+        Lead PQC\\
+        transition\\
+        Shape the\\
+        future!
+      \end{tabular}
+    };
+    \draw[->, thick] (10,1) -- (10,0.2);
+  \end{tikzpicture}
+  
+  \vspace{0.5cm}
+  
+  \begin{greenBox}
+    \textbf{Start Today:}
+    \url{https://github.com/open-quantum-safe/liboqs}
+  \end{greenBox}
+  
+  \teaching{Concrete actionable steps}
+\end{frame}
+
+% Slide 3.2.12: Resources for Deep Dive
+\begin{frame}
+  \slideheader{Resources for Deep Dive}
+  
+  \begin{center}
+    \textbf{\large Your Learning Toolkit}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Essential Papers:}
+    \begin{itemize}
+      \item Regev (2005) - LWE introduction
+      \item Peikert (2016) - ``A Decade of Lattice''
+      \item NIST standards (2024)
+      \item Micciancio-Regev survey
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Online Courses:}
+    \begin{itemize}
+      \item Coursera - Post-Quantum Crypto
+      \item MIT OCW - Lattice Cryptography
+      \item YouTube - Simons Institute
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Code Libraries:}
+    \begin{itemize}
+      \item \texttt{liboqs} - All NIST algorithms
+      \item \texttt{PQClean} - Reference implementations
+      \item \texttt{CRYSTALS} - Kyber/Dilithium
+      \item \texttt{FrodoKEM} - Learning project
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Communities:}
+    \begin{itemize}
+      \item NIST PQC Forum
+      \item IACR ePrint Archive
+      \item PQC Standardization list
+      \item Stack Exchange - Crypto
+    \end{itemize}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.5cm}
+  
+  \begin{blueBox}
+    \textbf{Pro Tip:} Start with Peikert's survey, then implement toy LWE encryption
+  \end{blueBox}
+  
+  \teaching{Enable continued self-learning}
+\end{frame}
+
+% Slide 3.2.13: The Big Picture
+\begin{frame}
+  \slideheader{The Big Picture}
+  
+  \begin{center}
+    \textbf{\Huge Remember These Four Things}
+  \end{center}
+  
+  \vspace{1cm}
+  
+  \begin{enumerate}
+    \item \begin{redBox}
+      \textbf{Current crypto WILL fail against quantum computers}\\
+      RSA, ECDSA, DH - all broken by Shor's algorithm
+    \end{redBox}
+    
+    \vspace{0.5cm}
+    
+    \item \begin{greenBox}
+      \textbf{Lattice-based solutions are ready NOW}\\
+      NIST standards published, real-world deployments working
+    \end{greenBox}
+    
+    \vspace{0.5cm}
+    
+    \item \begin{blueBox}
+      \textbf{Migration must start IMMEDIATELY}\\
+      ``Harvest now, decrypt later'' means secrets already at risk
+    \end{blueBox}
+    
+    \vspace{0.5cm}
+    
+    \item \begin{yellowBox}
+      \textbf{YOU can make unique contributions}\\
+      Physics background + quantum knowledge = perfect combination
+    \end{yellowBox}
+  \end{enumerate}
+  
+  \teaching{Reinforce the four key messages}
+\end{frame}
+
+% Slide 3.2.14: Your Mission
+\begin{frame}
+  \slideheader{Your Mission}
+  
+  \vfill
+  
+  \begin{center}
+    \begin{tikzpicture}[scale=1.2]
+      % Quote box
+      \node[draw, ultra thick, minimum width=10cm, minimum height=4cm, fill=blue!10] at (0,0) {
+        \begin{minipage}{9cm}
+          \centering
+          \Large
+          \textit{``In 2074, historians will write about the post-quantum transition.}
+          
+          \vspace{0.5cm}
+          
+          \textit{Will they write:}
+          
+          \vspace{0.3cm}
+          
+          \textit{`Scientists acted in time'}
+          
+          \textit{or}
+          
+          \textit{`If only they had started sooner'?''}
+          
+          \vspace{0.5cm}
+          
+          \normalsize
+          \textbf{That story is being written by YOUR actions.}
+        \end{minipage}
+      };
+    \end{tikzpicture}
+  \end{center}
+  
+  \vfill
+  
+  \begin{center}
+    \Huge \textbf{The future needs you. Act now.}
+  \end{center}
+  
+  \vfill
+  
+  \teaching{Inspirational call to action}
+\end{frame}
+
+% Slide 3.2.15: Questions & Discussion
+\begin{frame}
+  \slideheader{Questions \& Discussion}
+  
+  \begin{center}
+    \textbf{\Large Thank you for your attention!}
+  \end{center}
+  
+  \vspace{1cm}
+  
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{blueBox}
+        \textbf{Contact Information:}\\
+        Dr. [Your Name]\\
+        [Your Email]\\
+        [Your Institution]\\
+        Office Hours: [Times]
+      \end{blueBox}
+      
+      \vspace{0.5cm}
+      
+      \begin{greenBox}
+        \textbf{Research Opportunities:}\\
+        - PhD positions available\\
+        - Summer research projects\\
+        - Industry collaborations
+      \end{greenBox}
+    \end{column}
+    
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+        \begin{tikzpicture}[scale=0.8]
+          % Question marks in creative arrangement
+          \node[font=\Huge, rotate=20, color=blue] at (0,2) {?};
+          \node[font=\huge, rotate=-15, color=red] at (1.5,1) {?};
+          \node[font=\Large, rotate=35, color=green] at (-1,1) {?};
+          \node[font=\LARGE, rotate=-25, color=purple] at (0.5,0) {?};
+          \node[font=\large, rotate=10, color=orange] at (-0.5,2.5) {?};
+        \end{tikzpicture}
+      \end{center}
+      
+      \vspace{0.5cm}
+      
+      \textbf{Discussion Starters:}
+      \begin{itemize}
+        \item What excites you most?
+        \item What concerns you?
+        \item How does this connect to your research?
+        \item Where do you see opportunities?
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.5cm}
+  
+  \begin{center}
+    \large
+    \textbf{Remember:} You're not just learning about the future of cryptography\\
+    --- you're going to help build it!
+  \end{center}
+  
+  \teaching{Open dialogue, gauge understanding, inspire action}
+\end{frame}
+
+% ==================================================
+% BACKUP/OVERFLOW SLIDES
+% ==================================================
+
+\section*{Backup Slides}
+
+% Slide B.1: Why Not Just Bigger RSA Keys?
+\begin{frame}
+  \slideheader{Why Not Just Bigger RSA Keys?}
+  
+  \begin{center}
+    \textbf{\large Common Question: Can't We Just Use RSA-1000000?}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{The Fundamental Problem:}
+    
+    \begin{itemize}
+      \item Classical: $\exp(n^{1/3})$ time
+      \item Quantum: $n^3$ time
+      \item Gap: $\frac{\exp(n^{1/3})}{n^3}$
+    \end{itemize}
+    
+    \vspace{0.3cm}
+    
+    \textbf{No key size saves you!}
+    
+    \begin{tabular}{|l|r|r|}
+      \hline
+      \textbf{RSA Size} & \textbf{Classical} & \textbf{Quantum} \\
+      \hline
+      2048 bits & $10^{20}$ years & 8 hours \\
+      10,000 bits & $10^{100}$ years & 1 day \\
+      1M bits & $10^{10000}$ years & 1 year \\
+      \hline
+    \end{tabular}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \begin{tikzpicture}[scale=0.7]
+      % Log-log plot
+      \draw[thick, ->] (0,0) -- (5,0) node[right] {Key size (log)};
+      \draw[thick, ->] (0,0) -- (0,4) node[above] {Time (log)};
+      
+      % Classical exponential
+      \draw[red, ultra thick, domain=0.5:4.5] plot (\x, {0.5*exp(0.3*\x)});
+      \node[red, right] at (4.5,3.8) {Classical};
+      
+      % Quantum polynomial
+      \draw[blue, ultra thick] plot[smooth] coordinates {
+        (0.5,0.2) (1,0.3) (2,0.5) (3,0.7) (4,0.9) (4.5,1)
+      };
+      \node[blue, right] at (4.5,1) {Quantum};
+      
+      % Gap grows
+      \draw[<->, green, thick] (3,0.7) -- (3,3.2);
+      \node[green, right] at (3,2) {Gap grows!};
+    \end{tikzpicture}
+    
+    \vspace{0.3cm}
+    
+    \textbf{Plus practical issues:}
+    \begin{itemize}
+      \item GB-sized keys
+      \item Minutes per operation
+      \item Completely unusable
+    \end{itemize}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{redBox}
+    \textbf{Answer:} No amount of key size increase can overcome exponential vs polynomial gap
+  \end{redBox}
+  
+  \teaching{Address common misconception}
+\end{frame}
+
+% Slide B.2: Detailed Shor Circuit
+\begin{frame}
+  \slideheader{Detailed Shor Circuit}
+  
+  \begin{center}
+    \textbf{\large For Those Who Want the Quantum Details}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{tikzpicture}[scale=0.8]
+    % Quantum circuit
+    % Register 1
+    \node[left] at (-1,4) {$|0\rangle$};
+    \draw[thick] (0,4) -- (11,4);
+    
+    \node[left] at (-1,3.5) {$|0\rangle$};
+    \draw[thick] (0,3.5) -- (11,3.5);
+    
+    \node at (0,3) {$\vdots$};
+    
+    \node[left] at (-1,2.5) {$|0\rangle$};
+    \draw[thick] (0,2.5) -- (11,2.5);
+    
+    % Register 2
+    \draw[thick, double] (0,1.5) -- (11,1.5);
+    \node[left] at (-1,1.5) {$|0\rangle^{\otimes n}$};
+    
+    % Hadamards
+    \foreach \y in {4,3.5,2.5} {
+      \draw[thick, fill=blue!20] (0.5,\y-0.2) rectangle (1,\y+0.2);
+      \node at (0.75,\y) {$H$};
+    }
+    
+    % Controlled modular exponentiation
+    \draw[thick, fill=red!20] (2,2) rectangle (5,4.5);
+    \node[align=center] at (3.5,3.25) {Controlled\\$U^{2^j}$};
+    
+    % Control dots
+    \foreach \y in {4,3.5,2.5} {
+      \node[circle, fill=black, inner sep=1.5pt] at (3.5,\y) {};
+      \draw[thick] (3.5,\y) -- (3.5,2);
+    }
+    
+    % QFT inverse
+    \draw[thick, fill=green!20] (6,2.3) rectangle (8,4.5);
+    \node at (7,3.4) {QFT$^{-1}$};
+    
+    % Measurements
+    \foreach \y in {4,3.5,2.5} {
+      \draw[thick] (9,\y-0.2) -- (9,\y+0.2) -- (9.5,\y+0.2) -- (9.5,\y-0.2) -- (9,\y-0.2);
+      \draw[thick] (9.25,\y) -- (9.25,\y-0.3) -- (9.5,\y-0.5);
+    }
+    
+    % Classical processing
+    \draw[thick, dashed, ->] (10,3.5) -- (12,3.5) node[right] {Classical: extract period};
+  \end{tikzpicture}
+  
+  \vspace{0.5cm}
+  
+  \textbf{Gate Counts (for RSA-2048):}
+  \begin{itemize}
+    \item Total gates: $\sim 10^9$
+    \item Depth: $\sim 10^8$
+    \item Logical qubits: $\sim 4000$
+    \item T gates (costly): $\sim 10^8$
+  \end{itemize}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{Key Resource:} Modular exponentiation dominates cost ($>99\%$ of circuit)
+  \end{blueBox}
+  
+  \teaching{Technical deep dive for interested students}
+\end{frame}
+
+% Slide B.3: LWE Security Proof Sketch
+\begin{frame}
+  \slideheader{LWE Security Proof Sketch}
+  
+  \begin{center}
+    \textbf{\large High-Level Idea of Regev's Reduction}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \textbf{Goal:} Show that solving average-case LWE $\Rightarrow$ solving worst-case lattice problems
+  
+  \vspace{0.3cm}
+  
+  \begin{enumerate}
+    \item \textbf{Start with worst-case lattice:}
+    \begin{itemize}
+      \item Given: Arbitrary lattice $\mathcal{L}$
+      \item Want: Short vector in $\mathcal{L}$
+    \end{itemize}
+    
+    \item \textbf{Quantum step - create superposition:}
+    \begin{align}
+      |\psi\rangle = \sum_{\mathbf{v} \in \mathcal{L}} \rho(||\mathbf{v}||) |\mathbf{v}\rangle
+    \end{align}
+    where $\rho$ is Gaussian weight
+    
+    \item \textbf{Measure to get LWE samples:}
+    \begin{itemize}
+      \item Measurement produces LWE distribution
+      \item Secret related to dual lattice
+    \end{itemize}
+    
+    \item \textbf{Use LWE solver:}
+    \begin{itemize}
+      \item Feed samples to assumed LWE solver
+      \item Get information about dual lattice
+    \end{itemize}
+    
+    \item \textbf{Recover short vector:}
+    \begin{itemize}
+      \item Use dual information to find short primal vector
+      \item Quantum amplitude amplification helps
+    \end{itemize}
+  \end{enumerate}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{Key Insight:} LWE samples are ``quantum snapshots'' of the lattice
+  \end{greenBox}
+  
+  \teaching{High-level theoretical understanding}
+\end{frame}
+
+% Slide B.4: Implementation Code Example
+\begin{frame}[fragile]
+  \slideheader{Implementation Code Example}
+  
+  \begin{center}
+    \textbf{\large Simple Python LWE Encryption}
+  \end{center}
+  
+  \vspace{0.3cm}
+  
+  \begin{lstlisting}[language=Python, basicstyle=\tiny]
+import numpy as np
+
+class ToyLWE:
+    def __init__(self, n=10, q=97, sigma=3):
+        self.n, self.q, self.sigma = n, q, sigma
+        
+    def keygen(self):
+        # Secret key
+        self.s = np.random.randint(0, self.q, self.n)
+        
+        # Public key: (A, b = As + e)
+        self.A = np.random.randint(0, self.q, (self.n, self.n))
+        e = np.random.normal(0, self.sigma, self.n).astype(int)
+        self.b = (self.A @ self.s + e) % self.q
+        
+        return (self.A, self.b), self.s
+    
+    def encrypt(self, bit):
+        # Random subset
+        r = np.random.randint(0, 2, self.n)
+        
+        # Encryption
+        a_prime = (r @ self.A) % self.q
+        b_prime = (r @ self.b + bit * (self.q // 2)) % self.q
+        
+        return (a_prime, b_prime)
+    
+    def decrypt(self, ct, sk):
+        a_prime, b_prime = ct
+        v = (b_prime - np.dot(a_prime, sk)) % self.q
+        
+        # Closer to 0 or q/2?
+        if v < self.q // 4 or v > 3 * self.q // 4:
+            return 0
+        else:
+            return 1
+
+# Test it!
+lwe = ToyLWE()
+pk, sk = lwe.keygen()
+ct = lwe.encrypt(1)
+print(f"Decrypted: {lwe.decrypt(ct, sk)}")  # Should print 1
+  \end{lstlisting}
+  
+  \vspace{0.3cm}
+  
+  \begin{blueBox}
+    \textbf{Try during break:} Modify parameters and see when decryption fails!
+  \end{blueBox}
+  
+  \begin{greenBox}
+    \textbf{QR Code to full repository:} [QR code would go here]
+  \end{greenBox}
+  
+  \teaching{Hands-on learning opportunity}
+\end{frame}
+
+% Slide B.5: Current PQC Adoption Status
+\begin{frame}
+  \slideheader{Current PQC Adoption Status}
+  
+  \begin{center}
+    \textbf{\large Who's Already Using Post-Quantum Crypto?}
+  \end{center}
+  
+  \vspace{0.5cm}
+  
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{|l|l|l|l|}
+      \hline
+      \textbf{Company} & \textbf{Product} & \textbf{Algorithm} & \textbf{Status} \\
+      \hline
+      Google & Chrome & Kyber & Default 2024 \\
+      Cloudflare & CDN & Kyber & Production \\
+      AWS & S3, KMS & Kyber & Available \\
+      Microsoft & Azure & Multiple & Preview \\
+      Signal & Messaging & Kyber & Deployed \\
+      Apple & iMessage & Kyber & Announced \\
+      Zoom & Video & Kyber & Testing \\
+      \hline
+    \end{tabular}
+  \end{table}
+  
+  \vspace{0.5cm}
+  
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Government Initiatives:}
+    \begin{itemize}
+      \item US: NSA mandate 2025
+      \item EU: Quantum flagship
+      \item China: Massive investment
+      \item UK: National strategy
+    \end{itemize}
+  
+    \end{column}
+    \begin{column}{0.5\textwidth}
+
+    \textbf{Success Metrics:}
+    \begin{itemize}
+      \item Billions of PQC handshakes daily
+      \item No significant issues reported
+      \item Performance acceptable
+      \item Transparent to users
+    \end{itemize}
+  
+    \end{column}
+  \end{columns}
+  
+  \vspace{0.3cm}
+  
+  \begin{greenBox}
+    \textbf{The transition is happening NOW - be part of it!}
+  \end{greenBox}
+  
+  \teaching{Show real-world momentum}
+\end{frame}
+
+% ==================================================
+% END OF PRESENTATION
+% ==================================================
+
+\end{document}
