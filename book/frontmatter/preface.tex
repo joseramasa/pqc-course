@@ -8,7 +8,7 @@ The post-quantum cryptography literature sits uncomfortably between two communit
 
 \medskip
 \noindent\textbf{Who this book is for.}\enspace
-The primary audience is graduate students in quantum science and technology programmes who need to understand post-quantum cryptography as part of their professional formation.  The book is also intended for physicists and engineers entering the cybersecurity field, computer science students who wish to engage seriously with the quantum aspects of cryptographic security, and practitioners in industry or government who are responsible for planning and executing post-quantum migration.  Readers will benefit most if they bring curiosity about both the physics and the mathematics; the book aims to reward that curiosity with rigour rather than hand-waving.
+The primary audience is graduate students in quantum science and technology programmes who need to understand post-quantum cryptography as part of their professional formation.  The book is also intended for physicists and engineers entering the cybersecurity field, computer science students who wish to engage seriously with the quantum aspects of cryptographic security, and practitioners in industry or government who are responsible for planning and executing post-quantum migration---including those who must make technical decisions about algorithm selection, certification requirements, and deployment timelines without a research background in cryptography.  Readers will benefit most if they bring curiosity about both the physics and the mathematics; the book aims to reward that curiosity with rigour rather than hand-waving.
 
 \medskip
 \noindent\textbf{Prerequisites.}\enspace
@@ -16,7 +16,7 @@ We assume a working knowledge of linear algebra (vector spaces, norms, inner pro
 
 \medskip
 \noindent\textbf{How to read this book.}\enspace
-The book is organised in three parts.  Part~I (Chapters~1--4, Foundations) should be read sequentially, as each chapter builds on the previous one.  Part~II (Chapters~5--11, Post-Quantum Cryptographic Primitives) begins with three core chapters: Chapter~5 surveys the post-quantum landscape, Chapter~6 develops lattice theory, and Chapter~7 builds lattice-based encryption culminating in ML-KEM.  These three chapters are prerequisites for the rest of Part~II.  After them, Chapters~8--11---covering lattice-based signatures, code-based cryptography, hash-based signatures, and other approaches---can be read in any order according to the reader's interest.  Part~III (Chapters~12--15, Practice and Future) addresses implementation, migration, advanced primitives, and open problems; it assumes familiarity with at least one cryptographic family from Part~II.  A reader focused on the NIST standards can proceed efficiently through Chapters~1--7, then Chapter~8, and then jump to Part~III.  A reader with a background in coding theory may prefer to continue from Chapter~5 directly to Chapter~9.
+The book is organised in three parts.  Part~I (Chapters~1--4, Foundations) should be read sequentially, as each chapter builds on the previous one.  Part~II (Chapters~5--11, Post-Quantum Cryptographic Primitives) begins with three core chapters: Chapter~5 surveys the post-quantum landscape, Chapter~6 develops lattice theory, and Chapter~7 builds lattice-based encryption culminating in ML-KEM.  These three chapters are prerequisites for the rest of Part~II.  After them, Chapters~8--11---covering lattice-based signatures, code-based cryptography, hash-based signatures, and other approaches---can be read in any order according to the reader's interest.  Part~III (Chapters~12--17, Practice and Future) covers software and hardware implementation security, migration strategies, the standards and regulatory landscape, advanced cryptographic primitives, and open research problems; it assumes familiarity with at least one cryptographic family from Part~II.  A reader focused on the NIST standards can proceed efficiently through Chapters~1--7, then Chapter~8, and then jump to Part~III.  A reader with a background in coding theory may prefer to continue from Chapter~5 directly to Chapter~9.
 
 \medskip
 \noindent\textbf{A note on tools used.}\enspace
@@ -32,10 +32,10 @@ AI-assisted tools were used during the preparation of this manuscript for struct
 % TODO: Acknowledge specific collaborators, reviewers, and mentors by name.
 % TODO: Acknowledge Springer editor by name.
 % TODO: Acknowledge family.
-I owe a debt to the students of the Master of Quantum Science and Technology at Bari, whose sharp questions and refusal to accept vague answers shaped every chapter of this book.  I am grateful to my colleagues at Quside Technologies for many conversations on the practical side of quantum-safe security, and for the environment that made writing possible alongside the demands of industry.
+The students of the Master of Quantum Science and Technology at Bari shaped this book through their questions---and, more importantly, through their refusal to accept vague answers.  Colleagues at Quside Technologies provided a practical counterweight to the theoretical material, particularly on hardware implementation and random number generation.
 % TODO: Add remaining personal acknowledgments before submission.
 
 \vspace{\baselineskip}
 \begin{flushright}\noindent
-Bari, Month 2026\hfill {\it Jos\'{e} Ram\'{o}n Mart\'{\i}nez Saavedra}
+Castelldefels, Barcelona, 2026\hfill {\it Dr.\ Jos\'{e} Ram\'{o}n Mart\'{\i}nez Saavedra}
 \end{flushright}
