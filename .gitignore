@@ -11,3 +11,7 @@
 *.bbl
 *.blg
 .DS_Store
+*.idx
+*.ilg
+*.ind
+*.spl

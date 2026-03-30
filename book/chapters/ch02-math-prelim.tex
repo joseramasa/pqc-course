@@ -1,0 +1,69 @@
+\chapter{Mathematical Preliminaries}
+\label{ch:math-prelim}
+
+\abstract*{This chapter establishes the algebraic, number-theoretic, and complexity-theoretic foundations required throughout the book. Readers comfortable with abstract algebra and computational complexity may skim this chapter and return to it as a reference; others should work through it carefully, as the security of every post-quantum scheme rests on these mathematical structures.}
+
+% =============================================================
+% SOURCE: notes.tex Appendix A (lines 9811–10021)
+% REUSE: ~30%. Currently very brief. Major expansion needed.
+% =============================================================
+
+\section{Groups, Rings, and Fields}
+\label{sec:algebra}
+
+% TODO: Expand from notes.tex §A.2
+% - Groups: definition, order, generators, cyclic groups, Lagrange's theorem
+% - Rings: Z_q, polynomial rings Z_q[x], quotient rings Z_q[x]/(f(x))
+% - Fields: finite fields F_q, extension fields
+% - Focus on structures used in PQC: Z_q, R_q = Z_q[x]/(x^n+1)
+% - Cite: any standard algebra textbook (e.g., Dummit & Foote)
+
+\section{Modular Arithmetic and the Chinese Remainder Theorem}
+\label{sec:modular}
+
+% TODO: Expand from notes.tex §A.2
+% - Modular exponentiation, Euler's theorem, Fermat's little theorem
+% - CRT: statement, proof, algorithmic application
+% - Number Theoretic Transform (NTT) — preview for lattice chapters
+
+\section{Probability and Statistical Distance}
+\label{sec:probability}
+
+% TODO: New section
+% - Discrete probability distributions
+% - Statistical distance and its properties
+% - The leftover hash lemma (statement)
+% - Discrete Gaussian distributions: definition, tail bounds
+% - Smoothing parameter of a lattice (preview)
+
+\section{Computational Complexity}
+\label{sec:complexity}
+
+% TODO: Expand from notes.tex §A.3
+% - Turing machines (brief), P, NP, coNP
+% - Reductions: Karp, Cook, Turing
+% - Average-case vs worst-case complexity
+% - The role of reductions in cryptographic security proofs
+% - Quantum complexity: BQP, relationship to P and NP
+% - Cite: Arora-Barak, Goldreich
+
+\section{Security Definitions and Reductions}
+\label{sec:security-defs}
+
+% TODO: New section (critical for the book's rigor)
+% - Semantic security / IND-CPA
+% - Chosen-ciphertext security / IND-CCA2
+% - Existential unforgeability / EUF-CMA
+% - Security reductions: structure, tightness, loss
+% - The random oracle model and its quantum variant (QROM)
+
+%% Exercises
+\begin{prob}
+\label{prob:ch02-ring}
+Let $R_q = \Z_q[x]/(x^n + 1)$ with $q = 17$ and $n = 4$. Compute the product of $a(x) = 3x^3 + x + 2$ and $b(x) = 2x^2 + x + 1$ in $R_q$.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch02-reduction}
+Explain why a polynomial-time reduction from Problem~A to Problem~B, combined with a known lower bound for Problem~A, provides evidence for the hardness of Problem~B. Illustrate with a concrete example from classical cryptography.
+\end{prob}

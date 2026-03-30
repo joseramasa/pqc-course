@@ -1,0 +1,76 @@
+\chapter{Quantum Algorithms and Cryptanalysis}
+\label{ch:quantum-algorithms}
+
+\abstract*{This chapter provides a precise treatment of the two quantum algorithms that reshape the cryptographic landscape: Shor's algorithm, which renders integer factorization and discrete logarithms tractable, and Grover's algorithm, which provides a quadratic speedup for unstructured search. We analyze the quantum resources required to break deployed cryptographic parameters and establish the boundary between quantum-vulnerable and quantum-resistant problems.}
+
+% =============================================================
+% SOURCE: notes.tex §3.1 (lines 1870–2501)
+% REUSE: ~70%. Add formal circuit descriptions, resource
+%        estimate tables, QRAM discussion.
+% =============================================================
+
+\section{The Quantum Computing Model}
+\label{sec:qc-model}
+
+% TODO: Brief recap (readers are assumed to know QM)
+% - Qubits, gates, circuits, measurement
+% - Quantum Fourier transform
+% - The circuit model vs adiabatic/measurement-based
+% - Focus on what's needed for Shor and Grover
+
+\section{Shor's Algorithm}
+\label{sec:shor}
+
+% TODO: Adapt from notes.tex §3.1.1
+% - Period finding as the core subroutine
+% - Reduction of factoring to period finding
+% - Quantum circuit: Hadamard, modular exponentiation, QFT, measurement
+% - Continued fractions for period extraction
+% - Extension to discrete logarithms and elliptic curves
+% - Physics analogy: diffraction and interference (from notes)
+% - Cite: Shor 1994/1997
+
+\section{Grover's Algorithm and Amplitude Amplification}
+\label{sec:grover}
+
+% TODO: Adapt from notes.tex §3.1.2
+% - Unstructured search problem
+% - Grover iteration: oracle, diffusion
+% - Optimality: BBBV lower bound
+% - Impact on symmetric cryptography: AES-128 → AES-256
+% - Amplitude amplification as generalization
+% - Cite: Grover 1996, BBBV 1997
+
+\section{Quantum Resource Estimates}
+\label{sec:resource-estimates}
+
+% TODO: Expand from notes.tex §3.1.1 (resource discussion)
+% - Table: RSA-2048, RSA-4096, ECC-256 — logical qubits, T-gates, time
+% - Physical qubit overhead with surface codes
+% - Current hardware vs requirements (orders of magnitude gap)
+% - Cite: Gidney-Eker\aa{} 2021, recent resource estimates
+
+\section{What Quantum Computers Cannot Do}
+\label{sec:quantum-limits}
+
+% TODO: New section
+% - NP-complete problems: no known exponential quantum speedup
+% - Lattice problems: best quantum algorithms are polynomial speedup only
+% - The polynomial/exponential divide as design criterion for PQC
+% - Cite: Bennett et al. 1997, Regev 2004
+
+%% Exercises
+\begin{prob}
+\label{prob:ch04-shor}
+Walk through Shor's algorithm to factor $N = 15$ using the base $a = 7$. Show each step: modular exponentiation, QFT, measurement, continued fractions, and extraction of the factors.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch04-grover}
+Grover's algorithm achieves a quadratic speedup for unstructured search. Explain why this means AES-128 offers only 64-bit security against a quantum adversary, while AES-256 retains 128-bit security. What is the implication for key size recommendations?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch04-resources}
+Using the estimates from Gidney and Eker\aa{} (2021), calculate the number of physical qubits required to factor RSA-2048 assuming a surface code with physical error rate $10^{-3}$ and code distance $d = 27$. Compare this with the qubit counts of current quantum processors.
+\end{prob}

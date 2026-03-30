@@ -1,0 +1,93 @@
+\chapter{Lattice-Based Digital Signatures}
+\label{ch:lattice-signatures}
+
+\abstract*{Constructing digital signatures from lattices requires fundamentally different techniques than encryption. This chapter develops two paradigms: the Fiat-Shamir-with-aborts approach underlying ML-DSA (CRYSTALS-Dilithium) and the hash-and-sign paradigm with Gaussian sampling used by Falcon. Both are NIST standards, and their contrasting designs illuminate deep tradeoffs in lattice-based cryptographic engineering.}
+
+% =============================================================
+% SOURCE: notes.tex §4.4.3–4.4.4 (lines 6145–6425)
+% REUSE: ~35%. Currently overview-level. Largest expansion in Part II.
+% NEW: Fiat-Shamir with aborts, rejection sampling, NTRU lattices,
+%      GPV framework, QROM security.
+% =============================================================
+
+\section{The Challenge of Lattice-Based Signatures}
+\label{sec:sig-challenge}
+
+% TODO: New section
+% - Why "encrypt in reverse" doesn't work for lattices
+% - The information leakage problem: signatures leak secret key info
+% - Two solutions: rejection sampling (Dilithium) and preimage sampling (Falcon)
+
+\section{The Fiat-Shamir Framework}
+\label{sec:fiat-shamir}
+
+% TODO: New section
+% - Interactive identification protocols
+% - The Fiat-Shamir transform: removing interaction with a hash
+% - Security in the random oracle model
+% - Extension to the quantum random oracle model (QROM)
+% - Cite: Fiat-Shamir 1986, Kiltz et al. 2018
+
+\section{Fiat-Shamir with Aborts}
+\label{sec:fs-aborts}
+
+% TODO: New section (core technique for Dilithium)
+% - Lyubashevsky's framework: commit, challenge, respond, reject
+% - Why rejection sampling is necessary: preventing secret leakage
+% - The rejection sampling lemma
+% - Uniform distribution of signatures regardless of secret key
+% - Cite: Lyubashevsky 2009, 2012
+
+\section{ML-DSA (CRYSTALS-Dilithium)}
+\label{sec:ml-dsa}
+
+% TODO: Expand from notes.tex §4.4.3
+% - KeyGen, Sign, Verify: complete algorithms
+% - Module-LWE and Module-SIS foundations
+% - Parameter sets: ML-DSA-44, ML-DSA-65, ML-DSA-87
+% - Hints and compression: reducing signature size
+% - Security proof sketch
+% - Cite: FIPS 204, Ducas et al. (Dilithium paper)
+
+\section{NTRU Lattices and the GPV Framework}
+\label{sec:ntru-gpv}
+
+% TODO: New section (foundation for Falcon)
+% - NTRU lattices: definition and properties
+% - The GPV framework: hash-and-sign from lattice trapdoors
+% - Preimage sampling: Gaussian sampling with a trapdoor basis
+% - The quality of the trapdoor: Gram-Schmidt norms
+% - Cite: NTRU (Hoffstein et al. 1998), GPV 2008
+
+\section{Falcon}
+\label{sec:falcon}
+
+% TODO: Expand from notes.tex §4.4.4
+% - Construction: NTRU lattice + fast Fourier sampling
+% - KeyGen: generating quality NTRU bases
+% - Sign: tree-based Gaussian sampling (the "Falcon tree")
+% - Verify: checking norm bounds
+% - Parameters and security levels
+% - Implementation challenge: constant-time floating-point
+% - Cite: Fouque et al. (Falcon specification)
+
+\section{ML-DSA vs Falcon: A Comparative Analysis}
+\label{sec:sig-comparison}
+
+% TODO: New section
+% - Table: key sizes, signature sizes, speed (sign/verify)
+% - Security assumptions: Module-LWE+SIS vs NTRU
+% - Implementation complexity: Dilithium is simpler
+% - Side-channel resistance: Dilithium is easier to protect
+% - When to use which
+
+%% Exercises
+\begin{prob}
+\label{prob:ch08-leakage}
+Explain why a na\"ive lattice signature scheme that outputs $\mathbf{z} = \mathbf{s} \cdot c + \mathbf{y}$ (where $\mathbf{s}$ is the secret, $c$ the challenge, and $\mathbf{y}$ a random mask) leaks information about $\mathbf{s}$ after multiple signatures. How does rejection sampling solve this?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch08-dilithium}
+In ML-DSA, the signer rejects and restarts if $\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$. Explain the role of this check in security. What happens to the signing time as the bound $\gamma_1$ decreases?
+\end{prob}

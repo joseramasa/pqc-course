@@ -1,0 +1,84 @@
+\chapter{Implementation and Side-Channel Resistance}
+\label{ch:implementation}
+
+\abstract*{Mathematical security is necessary but not sufficient: more cryptographic deployments are compromised through implementation flaws than through mathematical breakthroughs. This chapter addresses the engineering challenges of post-quantum cryptography, from constant-time programming and side-channel resistance to random number generation and the bandwidth implications of larger keys and ciphertexts.}
+
+% =============================================================
+% SOURCE: notes.tex §5.1 (lines 6426–6943)
+% REUSE: ~60%. Add masking for NTT, fault injection, CMVP.
+% =============================================================
+
+\section{The Constant-Time Imperative}
+\label{sec:constant-time}
+
+% TODO: Adapt from notes.tex §5.1.1
+% - Why timing variations leak secrets
+% - The Barrett reduction example (from notes)
+% - Constant-time programming patterns: no branches, no table lookups
+% - Tools: ctgrind, timecop, dudect
+
+\section{Side Channels in Lattice Cryptography}
+\label{sec:side-channels}
+
+% TODO: Expand from notes.tex §5.1.1
+% - Timing attacks on NTT and polynomial arithmetic
+% - Power analysis: SPA and DPA on lattice operations
+% - Electromagnetic emanation attacks
+% - Cache-timing attacks on table-based implementations
+% - Masking countermeasures for NTT
+% - Cite: Primas et al. 2017, Ravi et al. 2020
+
+\section{Fault Injection Attacks}
+\label{sec:fault-injection}
+
+% TODO: New section
+% - Fault models: instruction skip, bit flip, random value
+% - Attacks on Dilithium: skipping rejection sampling
+% - Attacks on Kyber: faulting decapsulation
+% - Countermeasures: redundancy, checksums, detection
+% - The physics perspective: laser fault injection, EM pulses
+
+\section{Random Number Generation}
+\label{sec:rng}
+
+% TODO: Adapt from notes.tex §5.1.2
+% - Why randomness quality is critical for PQC
+% - DRBG requirements: NIST SP 800-90A
+% - Hardware RNG: quantum RNG advantages (connection to Quside!)
+% - Deterministic key generation: avoiding randomness failures
+
+\section{Key and Ciphertext Sizes}
+\label{sec:sizes}
+
+% TODO: Adapt from notes.tex §5.1.3
+% - Comprehensive comparison table: all NIST standards
+% - Impact on protocols: TLS handshake overhead
+% - Impact on storage: certificate databases, blockchain
+% - Compression techniques for lattice elements
+
+\section{Testing and Validation}
+\label{sec:validation}
+
+% TODO: New section
+% - Known-answer tests (KATs)
+% - NIST CMVP and FIPS 140-3 for PQC modules
+% - Formal verification of PQC implementations
+% - Cite: NIST validation program documentation
+
+%% Exercises
+\begin{prob}
+\label{prob:ch12-timing}
+The following C function performs modular reduction. Identify the timing side channel and rewrite it in constant time.
+\begin{lstlisting}[language=C]
+int16_t reduce(int32_t a, int16_t q) {
+    int16_t r = a % q;
+    if (r < 0) r += q;
+    return r;
+}
+\end{lstlisting}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch12-bandwidth}
+A TLS 1.3 handshake currently fits in a single TCP round trip. Compute the additional bytes introduced by replacing X25519 + Ed25519 with ML-KEM-768 + ML-DSA-65. Will the handshake still fit in one round trip assuming a typical MTU of 1500 bytes?
+\end{prob}

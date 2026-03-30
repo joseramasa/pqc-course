@@ -1,0 +1,97 @@
+\chapter{Learning With Errors and Lattice-Based Encryption}
+\label{ch:lwe-encryption}
+
+\abstract*{The Learning With Errors (LWE) problem is the computational foundation of the most widely deployed post-quantum schemes. This chapter develops LWE from its definition through its hardness guarantees, introduces the structured variants Ring-LWE and Module-LWE that enable practical efficiency, and culminates in a complete description of ML-KEM (CRYSTALS-Kyber)---the NIST standard for post-quantum key encapsulation.}
+
+% =============================================================
+% SOURCE: notes.tex §4.2–4.3, §4.4.2 (lines 4955–6252)
+% REUSE: ~55%. Add Regev's reduction sketch, FO transform,
+%        complete ML-KEM spec with NTT.
+% =============================================================
+
+\section{The LWE Problem}
+\label{sec:lwe-definition}
+
+% TODO: Adapt from notes.tex §4.2.1
+% - Search-LWE and Decision-LWE: formal definitions
+% - The "noisy linear equations" interpretation
+% - Parameters: n (dimension), q (modulus), χ (error distribution)
+% - The physics analogy: signal + thermal noise
+% - Cite: Regev 2005
+
+\section{Hardness of LWE}
+\label{sec:lwe-hardness}
+
+% TODO: Adapt from notes.tex §4.2.2, expand significantly
+% - Regev's quantum reduction: GapSVP → LWE (proof sketch)
+% - Classical reductions: Peikert 2009, Brakerski et al. 2013
+% - Decision-LWE ≈ Search-LWE equivalence
+% - Concrete hardness: the primal and dual attacks
+% - Cite: Regev 2009, Peikert 2009, BLPRS 2013
+
+\section{LWE-Based Encryption}
+\label{sec:lwe-encryption}
+
+% TODO: Adapt from notes.tex §4.2.3
+% - Regev's encryption scheme: construction, correctness, IND-CPA security
+% - Dual Regev encryption
+% - From bits to bytes: encoding and error tolerance
+
+\section{Ring-LWE: Efficiency Through Structure}
+\label{sec:ring-lwe}
+
+% TODO: Adapt from notes.tex §4.3.1–4.3.2
+% - Polynomial rings R_q = Z_q[x]/(x^n + 1)
+% - Ring-LWE definition: structured version of LWE
+% - Hardness: reduction from ideal lattice problems
+% - The Number Theoretic Transform (NTT): fast polynomial multiplication
+% - Security considerations: does structure weaken security?
+% - Cite: LPR 2010/2013
+
+\section{Module-LWE: The Middle Ground}
+\label{sec:module-lwe}
+
+% TODO: Adapt from notes.tex §4.3 (module discussion)
+% - Module-LWE: vectors of ring elements
+% - Interpolation between LWE and Ring-LWE
+% - Parameter flexibility: adjusting module rank vs ring dimension
+% - Why NIST chose Module-LWE for ML-KEM
+% - Cite: LS 2015, Albrecht-Deo 2017
+
+\section{The Fujisaki-Okamoto Transform}
+\label{sec:fo-transform}
+
+% TODO: New section (critical for understanding ML-KEM)
+% - The CPA-to-CCA2 compiler
+% - Construction: re-encryption check
+% - Security proof sketch in ROM and QROM
+% - Implicit vs explicit rejection
+% - Cite: Fujisaki-Okamoto 1999, Hofheinz et al. 2017
+
+\section{ML-KEM (CRYSTALS-Kyber)}
+\label{sec:ml-kem}
+
+% TODO: Adapt from notes.tex §4.4.2, expand to full specification
+% - KeyGen, Encaps, Decaps: complete algorithms
+% - Parameter sets: ML-KEM-512, ML-KEM-768, ML-KEM-1024
+% - NTT-based implementation
+% - Compression and decompression
+% - Decryption failure probability
+% - Security levels and parameter rationale
+% - Cite: FIPS 203, Bos et al. (Kyber paper)
+
+%% Exercises
+\begin{prob}
+\label{prob:ch07-lwe}
+Consider LWE with $n = 4$, $q = 23$, and uniform ternary errors $e_i \in \{-1, 0, 1\}$. Given the secret $\mathbf{s} = (3, 7, 11, 15)^\top$ and random vectors $\mathbf{a}_i$, construct 6 LWE samples $(\mathbf{a}_i, b_i = \ip{\mathbf{a}_i}{\mathbf{s}} + e_i \bmod q)$. Verify that recovering $\mathbf{s}$ from these samples is non-trivial even at this small scale.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch07-ntt}
+Implement the Number Theoretic Transform for $n = 8$ and $q = 17$. Verify that polynomial multiplication via NTT matches na\"ive multiplication in $\Zq[x]/(x^8 + 1)$. What are the conditions on $q$ for the NTT to exist?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch07-fo}
+Explain why a CPA-secure encryption scheme is insufficient for use as a KEM in practice. Describe the Fujisaki-Okamoto transform and explain how it achieves CCA2 security. What is the role of the re-encryption check?
+\end{prob}

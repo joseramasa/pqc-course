@@ -1,0 +1,90 @@
+\chapter{Code-Based Cryptography}
+\label{ch:code-based}
+
+\abstract*{Code-based cryptography, rooted in the theory of error-correcting codes, offers the longest track record of any post-quantum approach: the McEliece cryptosystem has resisted cryptanalysis since 1978. This chapter develops the algebraic coding theory needed to understand Classic McEliece (a NIST candidate) and the structured-code schemes HQC and BIKE, connecting throughout to the quantum error correction and information theory familiar to physicists.}
+
+% =============================================================
+% SOURCE: notes.tex §3.4.2 (lines 3655–3944)
+% REUSE: ~20%. Currently one subsection. Mostly new chapter.
+% =============================================================
+
+\section{Error-Correcting Codes}
+\label{sec:ecc-basics}
+
+% TODO: New section
+% - Linear codes: generator and parity-check matrices
+% - Minimum distance, error detection, error correction
+% - Decoding: syndrome decoding, bounded distance decoding
+% - The physics connection: Hamming distance as energy, Shannon capacity
+
+\section{Goppa Codes}
+\label{sec:goppa}
+
+% TODO: New section
+% - Classical Goppa codes: definition, parameters
+% - Efficient decoding: Patterson's algorithm
+% - Why Goppa codes are suitable for cryptography: look random, decode efficiently
+% - Binary Goppa codes: the specific family used in McEliece
+
+\section{The Syndrome Decoding Problem}
+\label{sec:syndrome-decoding}
+
+% TODO: Adapt from notes.tex §3.4.2 (definition)
+% - Formal definition and NP-completeness
+% - Best known algorithms: Information Set Decoding (ISD)
+% - ISD variants: Prange, Lee-Brickell, Stern, MMT, BJMM
+% - Quantum speedup for ISD: Bernstein's analysis
+% - Concrete security estimates
+
+\section{The McEliece Cryptosystem}
+\label{sec:mceliece}
+
+% TODO: Expand from notes.tex §3.4.2
+% - Construction: KeyGen, Encrypt, Decrypt
+% - Security: 45+ years of resistance
+% - The key size problem: ~1 MB public keys
+% - Classic McEliece: the NIST candidate, parameters
+% - Cite: McEliece 1978, Bernstein et al. (Classic McEliece spec)
+
+\section{HQC: Hamming Quasi-Cyclic}
+\label{sec:hqc}
+
+% TODO: New section
+% - Quasi-cyclic codes: structure and efficiency
+% - HQC construction: public-key encryption from QC codes
+% - Parameters and security levels
+% - NIST 4th round selection (2024)
+% - Cite: Melchor et al. (HQC specification)
+
+\section{BIKE: Bit Flipping Key Encapsulation}
+\label{sec:bike}
+
+% TODO: New section
+% - QC-MDPC codes
+% - BIKE construction
+% - The decoding failure rate challenge
+% - Current status in NIST process
+
+\section{Comparative Analysis}
+\label{sec:code-comparison}
+
+% TODO: New section
+% - Classic McEliece vs HQC vs BIKE
+% - Tradeoffs: key size, ciphertext size, security confidence, speed
+% - When code-based crypto is the right choice
+
+%% Exercises
+\begin{prob}
+\label{prob:ch09-hamming}
+Construct the $[7,4,3]$ Hamming code. Write its generator matrix $G$ and parity-check matrix $H$. Encode the message $\mathbf{m} = (1,0,1,1)$, introduce a single-bit error, and decode using syndrome decoding.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch09-mceliece}
+In the McEliece cryptosystem with a $[1024, 524, 101]$ Goppa code, compute the public key size in bytes. Compare this with the public key sizes of ML-KEM-768 and RSA-2048. Discuss the practical implications.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch09-isd}
+Describe Prange's Information Set Decoding algorithm. Estimate the expected number of iterations to decode a random $[n, k, t]$ code. For $n = 2048$, $k = 1024$, $t = 50$, compute the work factor and compare with the security claims of Classic McEliece.
+\end{prob}

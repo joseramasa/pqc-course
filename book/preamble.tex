@@ -1,0 +1,113 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Preamble — packages, commands, and environments
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% --- Mathematics ---
+\usepackage{amsmath,amsthm,amsfonts,amssymb}
+\usepackage{mathtools}
+
+%% --- Graphics and figures ---
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes.geometric,calc,arrows.meta,patterns}
+
+%% --- Tables ---
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{array}
+
+%% --- Algorithms ---
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+%% --- Code listings ---
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue!70!black},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  frame=single,
+  breaklines=true,
+  captionpos=b,
+}
+
+%% --- References ---
+\usepackage{hyperref}
+\usepackage{cleveref}
+
+%% --- Index ---
+\usepackage{makeidx}
+\makeindex
+
+%% --- Misc ---
+\usepackage{pifont}
+\usepackage{xcolor}
+
+%% =====================================================
+%% Custom mathematical commands
+%% =====================================================
+
+% Number sets
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\Zq}{\mathbb{Z}_q}
+\newcommand{\Rq}{R_q}
+
+% Complexity
+\newcommand{\bigO}{\mathcal{O}}
+\newcommand{\polylog}{\operatorname{polylog}}
+\newcommand{\poly}{\operatorname{poly}}
+\newcommand{\negl}{\operatorname{negl}}
+
+% Cryptographic notation
+\newcommand{\Gen}{\mathsf{Gen}}
+\newcommand{\Enc}{\mathsf{Enc}}
+\newcommand{\Dec}{\mathsf{Dec}}
+\newcommand{\Sign}{\mathsf{Sign}}
+\newcommand{\Verify}{\mathsf{Verify}}
+\newcommand{\KeyGen}{\mathsf{KeyGen}}
+\newcommand{\Encaps}{\mathsf{Encaps}}
+\newcommand{\Decaps}{\mathsf{Decaps}}
+
+% Lattice notation
+\newcommand{\lat}{\mathcal{L}}
+\newcommand{\svp}{\textsc{SVP}}
+\newcommand{\cvp}{\textsc{CVP}}
+\newcommand{\sivp}{\textsc{SIVP}}
+\newcommand{\gapsvp}{\textsc{GapSVP}}
+\newcommand{\lwe}{\textsc{LWE}}
+\newcommand{\rlwe}{\textsc{Ring-LWE}}
+\newcommand{\mlwe}{\textsc{Module-LWE}}
+
+% Probability and distributions
+\newcommand{\getsr}{\xleftarrow{\$}}
+\newcommand{\Pr}{\operatorname{Pr}}
+\newcommand{\E}{\mathbb{E}}
+\DeclareMathOperator{\Var}{Var}
+
+% Norms
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\ip}[2]{\left\langle #1, #2 \right\rangle}
+
+% Misc
+\newcommand{\xmark}{\ding{55}}
+\newcommand{\cmark}{\ding{51}}
+
+%% =====================================================
+%% Theorem-like environments (svmono provides these,
+%% but we configure them for consistency)
+%% =====================================================
+
+% svmono defines: definition, theorem, lemma, proposition,
+% corollary, example, exercise, remark, proof
+% They are numbered per chapter due to envcountchap option.

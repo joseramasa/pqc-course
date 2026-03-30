@@ -1,0 +1,92 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Post-Quantum Cryptography: Mathematical Foundations
+%% for the Quantum Age
+%%
+%% Main file — compile with: pdflatex book.tex
+%%
+%% Requires Springer's svmono class:
+%%   https://www.springer.com/gp/authors-editors/book-authors-editors/your-publication-journey/manuscript-preparation
+%%   Download "Author package for contributed books / monographs"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[graybox,envcountchap,sectrefs]{svmono}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\input{preamble}
+
+\begin{document}
+
+\author{Jos\'{e} Ram\'{o}n Mart\'{\i}nez Saavedra}
+\title{Post-Quantum Cryptography}
+\subtitle{Mathematical Foundations for the Quantum Age}
+\maketitle
+
+%% -------------------------------------------------------
+%% Front Matter
+%% -------------------------------------------------------
+\frontmatter
+
+\include{frontmatter/preface}
+\include{frontmatter/notation}
+
+\tableofcontents
+
+%% -------------------------------------------------------
+%% Part I — Foundations
+%% -------------------------------------------------------
+\mainmatter
+
+\part{Foundations}
+\label{part:foundations}
+
+\include{chapters/ch01-quantum-threat}
+\include{chapters/ch02-math-prelim}
+\include{chapters/ch03-classical-crypto}
+\include{chapters/ch04-quantum-algorithms}
+
+%% -------------------------------------------------------
+%% Part II — Post-Quantum Cryptographic Primitives
+%% -------------------------------------------------------
+
+\part{Post-Quantum Cryptographic Primitives}
+\label{part:primitives}
+
+\include{chapters/ch05-pqc-landscape}
+\include{chapters/ch06-lattice-theory}
+\include{chapters/ch07-lwe-encryption}
+\include{chapters/ch08-lattice-signatures}
+\include{chapters/ch09-code-based}
+\include{chapters/ch10-hash-based}
+\include{chapters/ch11-other-approaches}
+
+%% -------------------------------------------------------
+%% Part III — Practice and Future
+%% -------------------------------------------------------
+
+\part{Practice and Future}
+\label{part:practice}
+
+\include{chapters/ch12-implementation}
+\include{chapters/ch13-migration}
+\include{chapters/ch14-advanced-primitives}
+\include{chapters/ch15-open-problems}
+
+%% -------------------------------------------------------
+%% Back Matter
+%% -------------------------------------------------------
+\backmatter
+
+\appendix
+
+\include{appendices/appA-proofs}
+\include{appendices/appB-implementations}
+\include{appendices/appC-solutions}
+
+\bibliographystyle{spmpsci}
+\bibliography{references}
+
+\printindex
+
+\end{document}

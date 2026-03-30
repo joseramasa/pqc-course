@@ -1,0 +1,85 @@
+\chapter{Lattice Theory}
+\label{ch:lattice-theory}
+
+\abstract*{Lattices---discrete subgroups of $\R^n$---form the mathematical bedrock of the most important post-quantum cryptographic schemes. This chapter develops lattice theory from definitions familiar to physicists through crystallography, progresses to the fundamental computational problems (SVP, CVP, and their variants), and establishes the worst-case to average-case reductions that make lattice-based cryptography uniquely well-founded.}
+
+% =============================================================
+% SOURCE: notes.tex §4.1–4.2 (lines 4489–4955)
+% REUSE: ~60%. Add LLL/BKZ algorithms, Ajtai's reduction,
+%        concrete hardness estimates.
+% PRIORITY: Write this chapter first — it sets the mathematical
+%           tone for the entire book.
+% =============================================================
+
+\section{Definitions and Basic Properties}
+\label{sec:lattice-defs}
+
+% TODO: Adapt from notes.tex §4.1.1
+% - Lattice definition, basis, rank
+% - Determinant and volume of fundamental domain
+% - Successive minima λ_1, ..., λ_n
+% - Dual lattice
+% - The physics connection: Bravais lattices, reciprocal lattice
+% - Cite: Micciancio-Goldwasser textbook
+
+\section{Fundamental Computational Problems}
+\label{sec:lattice-problems}
+
+% TODO: Adapt from notes.tex §4.1.2
+% - Shortest Vector Problem (SVP) and γ-approximate SVP
+% - Closest Vector Problem (CVP) and γ-approximate CVP
+% - Shortest Independent Vectors Problem (SIVP)
+% - GapSVP: the decision version
+% - Relationships between problems
+% - Known NP-hardness results: SVP is NP-hard under randomized reductions
+% - Cite: Ajtai 1998, Micciancio 2001, Khot 2005
+
+\section{Lattice Basis Reduction}
+\label{sec:basis-reduction}
+
+% TODO: New section (critical for understanding security)
+% - Gram-Schmidt orthogonalization and quality of a basis
+% - The LLL algorithm: description, correctness proof sketch, output guarantee
+% - BKZ (Block Korkin-Zolotarev): the practical workhorse
+% - Root Hermite factor δ as hardness measure
+% - BKZ-β runtime estimates and the core-SVP model
+% - Cite: LLL 1982, Schnorr-Euchner 1994, Chen-Nguyen 2011
+
+\section{Worst-Case to Average-Case Reductions}
+\label{sec:worst-avg-case}
+
+% TODO: New section (the crown jewel of lattice crypto)
+% - Why average-case hardness matters for cryptography
+% - Ajtai's breakthrough: worst-case SIVP → average-case SIS
+% - Proof intuition: Gaussian sampling and smoothing
+% - The smoothing parameter η_ε(L)
+% - Implications: breaking a random lattice instance is as hard as solving the worst case
+% - Cite: Ajtai 1996, Micciancio-Regev 2007, Peikert 2016 survey
+
+\section{Computational Complexity of Lattice Problems}
+\label{sec:lattice-complexity}
+
+% TODO: Adapt from notes.tex §4.1.3
+% - Classical complexity: NP-hard for exact SVP, in NP ∩ coNP for GapSVP_√n
+% - Quantum complexity: no known exponential quantum speedup
+% - Best known classical algorithms: sieving (2^{0.292n}), enumeration
+% - Best known quantum algorithms: sieving (2^{0.265n}) — only polynomial improvement
+% - The quantum gap: why lattices survive Shor
+% - Concrete security estimates for cryptographic parameters
+% - Cite: ADRS 2015, BDGL 2016, Laarhoven 2015
+
+%% Exercises
+\begin{prob}
+\label{prob:ch06-basis}
+Consider the lattice $\lat \subset \R^2$ with basis $\mathbf{b}_1 = (1, 0)$ and $\mathbf{b}_2 = (1/2, \sqrt{3}/2)$. Compute the determinant, the first successive minimum $\lambda_1(\lat)$, and identify this as a familiar physical lattice. Find an alternative basis for the same lattice.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch06-lll}
+Apply the LLL algorithm to the basis $\mathbf{b}_1 = (1, 1, 1)$, $\mathbf{b}_2 = (-1, 0, 2)$, $\mathbf{b}_3 = (3, 5, 6)$. Show each step and verify that the output basis satisfies the LLL conditions with $\delta = 3/4$.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch06-hardness}
+The core-SVP model estimates the cost of solving SVP in dimension $\beta$ as $2^{c\beta}$ for a constant $c$. Using $c = 0.292$ (classical sieving) and $c = 0.265$ (quantum sieving), compute the security level in bits for BKZ with block size $\beta = 400$. Compare both estimates.
+\end{prob}

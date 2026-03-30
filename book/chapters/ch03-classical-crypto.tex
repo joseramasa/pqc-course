@@ -1,0 +1,76 @@
+\chapter{Classical Cryptographic Systems}
+\label{ch:classical-crypto}
+
+\abstract*{Before understanding what quantum computers break, we must understand what exists to be broken. This chapter develops the mathematical foundations of symmetric and asymmetric cryptography, from AES to elliptic curves, and traces their deployment through the TLS protocol that protects virtually all internet communications.}
+
+% =============================================================
+% SOURCE: notes.tex §2 (lines 225–1869)
+% REUSE: ~80%. Remove \begin{frame} artifacts, add formal
+%        security definitions, tighten TLS case study.
+% =============================================================
+
+\section{Symmetric Cryptography}
+\label{sec:symmetric}
+
+% TODO: Adapt from notes.tex §2.1.1
+% - Block ciphers: AES construction, security margin
+% - Modes of operation: focus on GCM (used in TLS)
+% - Hash functions: SHA-2, SHA-3, security properties
+% - MACs and authenticated encryption
+
+\section{Public-Key Cryptography}
+\label{sec:public-key}
+
+% TODO: Adapt from notes.tex §2.1.2 (The Two-Key Revolution)
+% - The key distribution problem and Diffie-Hellman's insight
+% - RSA: construction, correctness, security assumption (factoring)
+% - Diffie-Hellman key exchange: DLP, CDH, DDH assumptions
+% - Elliptic curve cryptography: group law, ECDLP, efficiency gains
+% - Cite: Diffie-Hellman 1976, RSA 1978, Koblitz 1987, Miller 1985
+
+\section{Digital Signatures}
+\label{sec:signatures}
+
+% TODO: Adapt from notes.tex §2.1.2 (signatures portion)
+% - RSA signatures (RSA-PSS)
+% - Schnorr signatures and the Fiat-Shamir heuristic
+% - ECDSA
+% - Security notion: EUF-CMA
+
+\section{Public Key Infrastructure}
+\label{sec:pki}
+
+% TODO: Adapt from notes.tex §2.1.3 (PKI)
+% - Certificate authorities and chains of trust
+% - X.509 certificates
+% - Certificate transparency
+% - The web of trust vs hierarchical PKI
+
+\section{The TLS Protocol}
+\label{sec:tls}
+
+% TODO: Adapt from notes.tex §2.1.4 (TLS Case Study)
+% - TLS 1.3 handshake: full walkthrough
+% - Cipher suites and negotiation
+% - Where each cryptographic primitive is used
+% - Why every component is quantum-vulnerable
+
+\section{The Computational Hardness Foundation}
+\label{sec:hardness}
+
+% TODO: Adapt from notes.tex §2.2
+% - Factoring and the RSA assumption
+% - Discrete logarithm and CDH/DDH
+% - The elliptic curve discrete logarithm problem
+% - Why these problems are believed hard (classically)
+
+%% Exercises
+\begin{prob}
+\label{prob:ch03-rsa}
+Construct an RSA key pair with small primes $p = 61$ and $q = 53$. Encrypt and decrypt the message $m = 42$ to verify correctness. Then explain why this key pair would be trivially broken.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch03-tls}
+Enumerate every cryptographic operation in a TLS~1.3 handshake using the cipher suite \texttt{TLS\_AES\_256\_GCM\_SHA384} with X25519 key exchange. For each operation, state whether it is vulnerable to Shor's algorithm, Grover's algorithm, or neither.
+\end{prob}

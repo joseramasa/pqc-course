@@ -1,0 +1,64 @@
+\chapter{The Post-Quantum Landscape}
+\label{ch:pqc-landscape}
+
+\abstract*{With the quantum threat established, this chapter surveys the families of mathematical problems proposed as quantum-resistant foundations for cryptography. We trace the NIST standardization process from its 2016 call for proposals through the selection of ML-KEM, ML-DSA, and SLH-DSA as federal standards, and examine the complementary roles of post-quantum cryptography and quantum key distribution.}
+
+% =============================================================
+% SOURCE: notes.tex §3.2–3.3, §4.4.1 (scattered)
+% REUSE: ~60%. Consolidate NIST process, add 4th-round candidates.
+% =============================================================
+
+\section{Algorithm Families at a Glance}
+\label{sec:families-overview}
+
+% TODO: Adapt from notes.tex §3.3
+% - Lattice-based, code-based, hash-based, multivariate, isogeny-based
+% - One paragraph + key characteristics table per family
+% - Comparative table: key sizes, signature sizes, speed, maturity
+
+\section{The NIST Standardization Process}
+\label{sec:nist-process}
+
+% TODO: Consolidate from notes.tex §4.4.1 and scattered references
+% - Round 1 (2017): 69 submissions
+% - Round 2 (2019): 26 candidates
+% - Round 3 (2020): 7 finalists + 8 alternates
+% - Round 4 (2022): additional signatures
+% - Standards (2024): FIPS 203, 204, 205
+% - Ongoing: HQC selected (2024), additional signature schemes
+% - Cite: NIST status reports for each round
+
+\section{PQC vs QKD: Complementary, Not Competing}
+\label{sec:pqc-vs-qkd}
+
+% TODO: Adapt from notes.tex §3.2
+% - Fundamental differences: computational vs information-theoretic
+% - Deployment realities: software update vs fiber infrastructure
+% - Use case analysis: when to use which
+% - Hybrid QKD + PQC approaches
+% - Cite: ETSI QSC white papers, BSI recommendations
+
+\section{Hybrid Classical/Post-Quantum Approaches}
+\label{sec:hybrid-intro}
+
+% TODO: Adapt from notes.tex §3.2.3
+% - Motivation: defense in depth during transition
+% - Composite KEMs: concatenated shared secrets
+% - Composite signatures: dual signing
+% - Standardization: X.509 hybrid certificates
+
+\section{Evaluating a PQC Candidate}
+\label{sec:evaluation-criteria}
+
+% TODO: New section
+% - Security: reduction quality, parameter margins, cryptanalytic history
+% - Performance: speed, key/ciphertext sizes, memory
+% - Implementation: side-channel resistance, misuse resistance
+% - Maturity: years of study, diversity of analysis
+% - Flexibility: parameter scaling, algebraic structure for advanced protocols
+
+%% Exercises
+\begin{prob}
+\label{prob:ch05-compare}
+Construct a comparison table of ML-KEM, Classic McEliece, and HQC as KEM candidates. Include: underlying hard problem, public key size, ciphertext size, security reduction quality, and years of cryptanalytic study. Which would you recommend for (a)~a resource-constrained IoT device, (b)~a government classified network?
+\end{prob}

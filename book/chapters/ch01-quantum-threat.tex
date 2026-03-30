@@ -1,0 +1,55 @@
+\chapter{The Quantum Threat to Modern Cryptography}
+\label{ch:quantum-threat}
+
+\abstract*{The advent of large-scale quantum computers poses an existential threat to the cryptographic infrastructure underpinning modern digital communications. This chapter introduces the scope of the problem, from the theoretical certainty of Shor's algorithm to the practical urgency of the ``harvest now, decrypt later'' attack model. We establish the timeline for the post-quantum transition and motivate the mathematical journey ahead.}
+
+% =============================================================
+% SOURCE: notes.tex §1 (lines 52–224)
+% REUSE: ~70%. Remove lecture framing, expand historical context.
+% NEW: Formal threat model, detailed HNDL timeline with data.
+% =============================================================
+
+\section{The Cryptographic Infrastructure of the Digital Age}
+\label{sec:crypto-infrastructure}
+
+% TODO: Adapt from notes.tex §1.1
+% - Remove "Three hours ago..." framing
+% - Quantify: daily TLS connections, certificates issued, economic value protected
+% - Cite: Diffie-Hellman 1976, RSA 1978, Koblitz/Miller 1985
+
+\section{Harvest Now, Decrypt Later}
+\label{sec:hndl}
+
+% TODO: Expand from notes.tex §1.1 (HNDL timeline)
+% - Add concrete examples: state-level data collection programs
+% - Quantify data sensitivity lifetimes by sector
+% - Cite: NSA/CNSA guidance, ETSI QSC reports
+
+\section{From Shor's Algorithm to NIST Standards: A Historical Arc}
+\label{sec:historical-arc}
+
+% TODO: New section
+% - 1994: Shor's algorithm
+% - 2006: NIST workshop on post-quantum
+% - 2016: NIST call for proposals
+% - 2017-2022: Rounds 1-4
+% - 2024: FIPS 203, 204, 205 finalized
+% - Cite: NIST PQC project reports
+
+\section{Scope and Organization of This Book}
+\label{sec:scope}
+
+% TODO: New section — roadmap through the 15 chapters
+% - What we assume (quantum mechanics, linear algebra, basic number theory)
+% - What we build (cryptographic foundations, lattice theory, PQC schemes)
+% - How to read: dependency graph between chapters
+
+\begin{svgraybox}
+\textbf{Chapter dependencies.} Chapters~\ref{ch:math-prelim}--\ref{ch:quantum-algorithms} are prerequisites for the rest of the book. Within Part~II, Chapter~\ref{ch:lattice-theory} is required before Chapters~\ref{ch:lwe-encryption} and~\ref{ch:lattice-signatures}. Chapters~\ref{ch:code-based}, \ref{ch:hash-based}, and~\ref{ch:other-approaches} can be read independently. Part~III assumes familiarity with at least one family from Part~II.
+\end{svgraybox}
+
+%% Exercises
+\begin{prob}
+\label{prob:ch01-hndl}
+A government agency encrypts classified documents with RSA-2048. The documents have a 30-year sensitivity period. Assuming a cryptographically relevant quantum computer becomes available in 2035, determine the latest date by which the agency must complete its migration to post-quantum cryptography. Justify your answer with a concrete threat model.
+\end{prob}

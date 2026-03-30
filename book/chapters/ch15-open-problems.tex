@@ -1,0 +1,86 @@
+\chapter{Open Problems and Research Directions}
+\label{ch:open-problems}
+
+\abstract*{Post-quantum cryptography is a field in rapid motion. This final chapter identifies concrete open problems and research directions, with particular attention to opportunities where a physics background provides a decisive advantage. From quantum cryptanalysis of lattice problems to hardware optimization and fundamental complexity questions, the field needs researchers who understand both quantum mechanics and cryptographic security.}
+
+% =============================================================
+% SOURCE: notes.tex §6.1, §6.3 (lines 7877–9409)
+% REUSE: ~50%. Add concrete numbered open problems,
+%        recent developments 2024-2025.
+% =============================================================
+
+\section{Quantum Cryptanalysis}
+\label{sec:quantum-cryptanalysis}
+
+% TODO: Adapt from notes.tex §6.1.1
+% - Quantum algorithms for lattice problems: current state
+% - Quantum speedups for lattice sieving and enumeration
+% - Quantum walks on lattice graphs
+% - The holy grail: is there a polynomial-time quantum algorithm for SVP?
+
+\section{Physical Side-Channel Research}
+\label{sec:physical-research}
+
+% TODO: Adapt from notes.tex §6.1.2
+% - EM analysis of PQC implementations
+% - Deep learning for side-channel attacks
+% - Countermeasure design: physics-informed approaches
+% - Quantum side channels: a new frontier
+
+\section{Hardware Optimization}
+\label{sec:hardware}
+
+% TODO: Adapt from notes.tex §6.1.3
+% - FPGA and ASIC implementations of NTT
+% - Gaussian sampling hardware
+% - Energy-efficient PQC for IoT
+% - Photonic computing for lattice operations
+
+\section{Cryptographic Agility}
+\label{sec:crypto-agility}
+
+% TODO: Adapt from notes.tex §6.3.1
+% - Design principles for algorithm-agnostic systems
+% - Protocol negotiation and version management
+% - The cost of agility vs the cost of replacement
+% - Lessons from the SHA-1 and MD5 transitions
+
+\section{Preparing for New Breaks}
+\label{sec:preparing-breaks}
+
+% TODO: Adapt from notes.tex §6.3.2
+% - What if Module-LWE is broken?
+% - Defense in depth: diversification of assumptions
+% - Monitoring the cryptanalytic landscape
+% - The role of crypto competitions and challenges
+
+\section{The 50-Year Horizon}
+\label{sec:horizon}
+
+% TODO: Adapt from notes.tex §6.3.3
+% - Quantum internet and its cryptographic implications
+% - Post-quantum + quantum: the full security stack
+% - Information-theoretic vs computational security in the long term
+% - New computational models: quantum advantage beyond Shor
+
+\section{Concrete Open Problems}
+\label{sec:open-problem-list}
+
+% TODO: New section — numbered list for reference by PhD students
+% Example format:
+% \begin{enumerate}
+%   \item \textbf{Quantum SVP:} Is there a polynomial-time quantum algorithm ...
+%   \item \textbf{Tight reductions:} Can the security loss in ... be eliminated?
+%   \item ...
+% \end{enumerate}
+
+%% Exercises
+\begin{prob}
+\label{prob:ch15-agility}
+Design a cryptographic agility framework for a web service currently using TLS~1.3 with X25519 and Ed25519. Your framework must allow swapping to any NIST-standardized PQC algorithm within 48 hours of a break announcement. Identify the components that need abstraction and the operational procedures required.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch15-research}
+Choose one of the open problems listed in Section~\ref{sec:open-problem-list}. Write a 2-page research proposal outlining: (a)~the problem's significance, (b)~your proposed approach, (c)~what tools or techniques from physics you would bring to bear, and (d)~what a successful outcome would look like.
+\end{prob}

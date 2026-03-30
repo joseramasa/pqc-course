@@ -1,0 +1,72 @@
+\chapter{Multivariate, Isogeny-Based, and Other Approaches}
+\label{ch:other-approaches}
+
+\abstract*{Not every post-quantum proposal has survived scrutiny. This chapter examines the multivariate and isogeny-based families---including the spectacular collapse of SIKE in 2022---not merely as historical curiosities, but as case studies in what makes a cryptographic assumption trustworthy. Understanding how schemes break is as important as understanding how they work.}
+
+% =============================================================
+% SOURCE: notes.tex §3.4.4 (lines 4237–4488)
+% REUSE: ~40%. Good narrative on failures. Expand isogeny math,
+%        add CSIDH, draw lessons.
+% =============================================================
+
+\section{Multivariate Polynomial Cryptography}
+\label{sec:multivariate}
+
+% TODO: Adapt from notes.tex §3.4.4
+% - The MQ problem: definition, NP-completeness
+% - Oil-Vinegar construction
+% - The pattern of breaks: C*, HFE, SFLASH, Rainbow
+% - Rainbow's fall (Beullens 2022): the attack explained
+% - Why structure keeps leaking: a fundamental design tension
+% - UOV: the survivor — current status
+% - Cite: Kipnis-Shamir 1999, Beullens 2022
+
+\section{Isogeny-Based Cryptography}
+\label{sec:isogenies}
+
+% TODO: Expand significantly
+% - Elliptic curves and isogenies: mathematical background
+% - Supersingular isogeny graphs: the expander graph structure
+% - SIDH/SIKE: the construction and its elegant key exchange
+% - The Castryck-Decru attack (2022): exploiting auxiliary points
+% - Why the break was possible: the torsion point information leak
+% - Timeline: from NIST finalist to broken in a weekend
+% - Cite: Jao-De Feo 2011, Castryck-Decru 2022
+
+\section{Group Actions and CSIDH}
+\label{sec:csidh}
+
+% TODO: New section
+% - Class group actions on elliptic curves
+% - CSIDH: commutative supersingular isogeny DH
+% - Why CSIDH survives the SIKE attack
+% - Challenges: class group computation, constant-time implementation
+% - Current status and open problems
+% - Cite: Castryck et al. (CSIDH) 2018
+
+\section{Lessons Learned}
+\label{sec:lessons}
+
+% TODO: New section (pedagogically valuable)
+% - What makes a cryptographic assumption trustworthy?
+% - The role of time: 45 years (McEliece) vs 10 years (SIKE)
+% - Structured vs unstructured problems
+% - The danger of auxiliary information
+% - Diversification: why multiple families matter
+% - Crypto-agility as a survival strategy
+
+%% Exercises
+\begin{prob}
+\label{prob:ch11-mq}
+Consider a system of 2 quadratic equations in 3 variables over $\F_2$. Enumerate all solutions by brute force. Then explain why this approach becomes infeasible as the number of variables grows, despite the problem being NP-complete.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch11-sike}
+Explain the key exchange protocol of SIDH at a high level. Identify the auxiliary torsion point information that Alice sends to Bob. Why is this information necessary for the protocol, and how did Castryck and Decru exploit it?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch11-trust}
+Propose a set of criteria for evaluating the trustworthiness of a post-quantum cryptographic assumption. Apply your criteria to: (a)~Module-LWE, (b)~the syndrome decoding problem, (c)~the MQ problem, (d)~the supersingular isogeny problem (post-SIKE). Rank them and justify your ranking.
+\end{prob}

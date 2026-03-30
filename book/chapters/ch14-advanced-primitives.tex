@@ -1,0 +1,58 @@
+\chapter{Advanced Cryptographic Primitives}
+\label{ch:advanced-primitives}
+
+\abstract*{Lattice-based cryptography enables capabilities far beyond encryption and signatures. This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical. For physicists, these protocols offer striking parallels: noise accumulation mirrors thermodynamics, zero-knowledge echoes quantum measurement, and multiparty computation resembles distributed quantum systems.}
+
+% =============================================================
+% SOURCE: notes.tex §6.2 (lines 8327–8905)
+% REUSE: ~40%. Good overviews with physics analogies.
+% Keep focused — this is a gateway chapter, not a treatise.
+% =============================================================
+
+\section{Fully Homomorphic Encryption}
+\label{sec:fhe}
+
+% TODO: Adapt from notes.tex §6.2.1
+% - The concept: computing on encrypted data
+% - Gentry's blueprint: somewhat HE + bootstrapping
+% - LWE-based FHE: BGV, BFV, CKKS, TFHE
+% - The noise growth challenge (physics: thermal noise analogy)
+% - Bootstrapping: the noise reset operation
+% - Practical FHE today: Microsoft SEAL, TFHE-rs, Zama
+% - Cite: Gentry 2009, BGV 2012, CKKS 2017
+
+\section{Zero-Knowledge Proofs}
+\label{sec:zkp}
+
+% TODO: Adapt from notes.tex §6.2.2
+% - The concept: proving without revealing
+% - Interactive proofs and the Fiat-Shamir heuristic (callback to Ch. 8)
+% - Lattice-based ZK proofs: Stern-type protocols
+% - Post-quantum SNARKs and STARKs
+% - Applications: privacy-preserving authentication, anonymous credentials
+% - Cite: Goldwasser et al. 1989, Stern 1993, Ben-Sasson et al. (STARKs)
+
+\section{Secure Multiparty Computation}
+\label{sec:mpc}
+
+% TODO: Adapt from notes.tex §6.2.3
+% - The millionaires' problem and general MPC
+% - Secret sharing: Shamir's scheme
+% - Garbled circuits: Yao's protocol
+% - MPC from lattice-based OT (oblivious transfer)
+% - Applications: private set intersection, federated learning
+
+\section{Lattice-Based Advanced Constructions}
+\label{sec:lattice-advanced}
+
+% TODO: Adapt from notes.tex §6.2.4
+% - Attribute-based encryption
+% - Identity-based encryption from lattices
+% - Threshold signatures and distributed key generation
+% - Functional encryption: computing specific functions on encrypted data
+
+%% Exercises
+\begin{prob}
+\label{prob:ch14-fhe}
+In an LWE-based FHE scheme, a fresh ciphertext has noise magnitude $\sigma$. After one homomorphic multiplication, the noise grows to approximately $\sigma^2 \cdot n$ where $n$ is the lattice dimension. If the modulus is $q$ and decryption fails when noise exceeds $q/2$, compute the maximum multiplicative depth as a function of $\sigma$, $n$, and $q$. For $\sigma = 3.2$, $n = 1024$, $q = 2^{27}$, how many multiplications can be performed before bootstrapping is required?
+\end{prob}

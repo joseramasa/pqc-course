@@ -1,0 +1,58 @@
+\chapter{Reference Implementations}
+\label{app:implementations}
+
+% Python examples using liboqs and standard libraries.
+% Each listing is self-contained and tested.
+
+% =============================================================
+% SOURCE: notes.tex Appendix B (lines 10022–10373)
+% REUSE: ~40%. Update APIs, add ML-DSA and SLH-DSA examples.
+% =============================================================
+
+\section{LWE Encryption (Educational)}
+\label{app:lwe-impl}
+
+% TODO: Adapt from notes.tex §B.1
+% - Simple LWE encryption/decryption in pure Python
+% - Small parameters for illustration (NOT secure)
+% - Demonstrate noise growth and decryption failures
+
+\section{ML-KEM with liboqs}
+\label{app:mlkem-impl}
+
+% TODO: Adapt from notes.tex §B.2
+% - Key generation, encapsulation, decapsulation
+% - All three parameter sets
+% - Performance timing
+
+\section{ML-DSA with liboqs}
+\label{app:mldsa-impl}
+
+% TODO: New section
+% - Key generation, signing, verification
+% - All three parameter sets
+% - Signature size demonstration
+
+\section{SLH-DSA with liboqs}
+\label{app:slhdsa-impl}
+
+% TODO: New section
+% - Small vs fast parameter sets
+% - Signing time comparison
+% - Signature size comparison with ML-DSA
+
+\section{Hybrid TLS with Post-Quantum KEM}
+\label{app:hybrid-tls}
+
+% TODO: New section
+% - Using OpenSSL 3.x with oqs-provider
+% - Setting up a hybrid TLS connection
+% - Capturing and analyzing the handshake
+
+\section{Performance Benchmarks}
+\label{app:benchmarks}
+
+% TODO: Adapt from notes.tex §B.3
+% - Benchmark script for all NIST standards
+% - Comparison table: keygen, encaps/sign, decaps/verify times
+% - Comparison with classical algorithms (RSA, ECDSA, X25519)

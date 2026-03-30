@@ -1,0 +1,86 @@
+\chapter{Hash-Based Signatures}
+\label{ch:hash-based}
+
+\abstract*{Hash-based signatures achieve quantum resistance using only the assumption that hash functions are one-way---the most minimal and conservative foundation in all of post-quantum cryptography. This chapter traces the evolution from Lamport's one-time signatures through Merkle trees to the stateless SPHINCS+ scheme standardized by NIST as SLH-DSA, developing each construction with full algorithmic detail.}
+
+% =============================================================
+% SOURCE: notes.tex §3.4.3 (lines 3945–4236)
+% REUSE: ~20%. Currently one subsection. Mostly new chapter.
+% =============================================================
+
+\section{One-Time Signatures}
+\label{sec:ots}
+
+% TODO: Adapt from notes.tex §3.4.3 (Lamport)
+% - Lamport signatures: construction, correctness, security proof
+% - Key and signature sizes: the efficiency problem
+% - Winternitz OTS (WOTS+): trading size for computation
+% - WOTS+ parameters: Winternitz parameter w, chains
+% - Cite: Lamport 1979
+
+\section{Merkle's Tree-Based Signatures}
+\label{sec:merkle}
+
+% TODO: Expand from notes.tex §3.4.3
+% - From one-time to many-time: the Merkle tree construction
+% - Authentication paths
+% - Key generation, signing, verification algorithms
+% - The state management requirement
+% - Cite: Merkle 1979
+
+\section{Stateful Schemes: XMSS and LMS}
+\label{sec:stateful}
+
+% TODO: New section
+% - XMSS: eXtended Merkle Signature Scheme
+% - Multi-tree XMSS (XMSS^MT)
+% - LMS: Leighton-Micali Signature scheme
+% - State management: the critical operational challenge
+% - Standards: RFC 8391 (XMSS), RFC 8554 (LMS), NIST SP 800-208
+% - When stateful schemes are appropriate: firmware signing, CA roots
+
+\section{FORS: Few-Time Signatures from Random Subsets}
+\label{sec:fors}
+
+% TODO: New section
+% - The FORS construction: key idea
+% - Security analysis: few-time signature bounds
+% - Role in SPHINCS+ as the bottom layer
+
+\section{SLH-DSA (SPHINCS+)}
+\label{sec:slh-dsa}
+
+% TODO: New section (the main event of this chapter)
+% - The hypertree construction: layers of XMSS trees
+% - FORS at the bottom, WOTS+ at internal nodes
+% - Removing state: the randomized message hash trick
+% - Parameter sets: SLH-DSA-128s/f, -192s/f, -256s/f
+% - "s" (small) vs "f" (fast) parameter tradeoffs
+% - Security proof: reduction to hash function properties
+% - Cite: FIPS 205, Bernstein et al. (SPHINCS+ paper)
+
+\section{Security Analysis}
+\label{sec:hash-security}
+
+% TODO: New section
+% - Minimal assumptions: one-wayness, second-preimage resistance
+% - Multi-target attacks and parameter adjustments
+% - Grover's impact: doubling hash output lengths
+% - Comparison with lattice-based assumptions: strength of foundation
+% - The quantum random oracle model for hash-based schemes
+
+%% Exercises
+\begin{prob}
+\label{prob:ch10-lamport}
+Implement a Lamport one-time signature scheme using SHA-256. Sign a 256-bit message, verify the signature, then demonstrate why the scheme is insecure if the same key is used to sign two different messages.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch10-merkle}
+Construct a Merkle tree of height $h = 3$ (supporting 8 one-time signatures). Draw the tree, show the authentication path for the 5th leaf, and explain the verification procedure.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch10-wots}
+In WOTS+ with Winternitz parameter $w = 16$ and $n = 256$ (security parameter in bits), compute: (a)~the number of chains, (b)~the signature size in bytes, (c)~the average number of hash evaluations for signing and verification. Compare with Lamport for the same security level.
+\end{prob}
