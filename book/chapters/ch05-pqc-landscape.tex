@@ -44,7 +44,7 @@ Isogeny-based cryptography uses maps between elliptic curves as the hard mathema
 \subsection{Comparative Overview}
 \label{subsec:family-comparison}
 
-Table~\ref{tab:family-comparison} summarises the key characteristics of each family.  Readers should note that ``years of study'' refers to the age of the underlying hard problem, not any individual scheme.
+Table~\ref{tab:family-comparison} summarises the key characteristics of each family.  Readers should note that ``years of study'' refers to the age of the underlying hard problem, not any individual scheme.  How these families were tested, compared, and ultimately winnowed down to a handful of federal standards is the subject of the next section.
 
 \begin{table}[t]
 \caption{Comparative overview of PQC algorithm families}
@@ -68,7 +68,7 @@ Isogeny     & Isogeny computation      & Small     & Slow      & $\sim$15  & SIK
 \section{The NIST Standardization Process}
 \label{sec:nist-process}
 
-The NIST Post-Quantum Cryptography Standardization Process is the largest coordinated cryptographic evaluation in history, deliberately modelled on the successful AES and SHA-3 competitions but unprecedented in scope~\cite{BernsteinLange2017}.
+Five families of hard problems, dozens of candidate schemes, and no consensus on which to trust---this was the state of affairs in 2016.  Choosing post-quantum standards required more than academic debate; it required a structured, adversarial, multi-year evaluation.  The NIST Post-Quantum Cryptography Standardization Process became that evaluation---the largest coordinated cryptographic competition in history, deliberately modelled on the successful AES and SHA-3 processes but unprecedented in scope~\cite{BernsteinLange2017}.
 
 \subsection{Timeline}
 \label{subsec:nist-timeline}
@@ -136,7 +136,7 @@ The literature uses both names interchangeably; this book follows the FIPS namin
 \section{PQC vs QKD: Complementary, Not Competing}
 \label{sec:pqc-vs-qkd}
 
-A persistent misconception frames Post-Quantum Cryptography (PQC) and Quantum Key Distribution (QKD) as competitors.  This is a false dichotomy.  The two technologies solve different problems, operate on different principles, and have different failure modes.  Most critically, QKD \emph{cannot} provide digital signatures, making PQC mandatory regardless of QKD deployment.
+The NIST process settled the question of \emph{which} algorithms to standardize, but it did not settle a different and surprisingly persistent question: do we even need PQC, or does quantum physics itself offer a better solution?  A persistent misconception frames Post-Quantum Cryptography (PQC) and Quantum Key Distribution (QKD) as competitors.  This is a false dichotomy.  The two technologies solve different problems, operate on different principles, and have different failure modes.  Most critically, QKD \emph{cannot} provide digital signatures, making PQC mandatory regardless of QKD deployment.
 
 \subsection{Security Paradigms}
 \label{subsec:security-paradigms}
@@ -217,7 +217,7 @@ QKD is elegant physics with rigorous security proofs, but engineering reality is
 \section{Hybrid Classical/Post-Quantum Approaches}
 \label{sec:hybrid-intro}
 
-During the transition to post-quantum cryptography, a prudent strategy is \emph{hybrid deployment}: combining a classical algorithm (e.g., ECDH, ECDSA) with a post-quantum algorithm so that the system remains secure as long as \emph{at least one} of the two underlying assumptions holds.  This defense-in-depth approach hedges against both premature quantum computers and undiscovered weaknesses in new PQC schemes.
+PQC is necessary; QKD is complementary.  But even within PQC, a practical concern remains: the new algorithms are young, and trusting them \emph{exclusively} on day one is a leap of faith that many organisations are unwilling to take.  The prudent strategy during the transition is \emph{hybrid deployment}: combining a classical algorithm (e.g., ECDH, ECDSA) with a post-quantum algorithm so that the system remains secure as long as \emph{at least one} of the two underlying assumptions holds.  This defense-in-depth approach hedges against both premature quantum computers and undiscovered weaknesses in new PQC schemes.
 
 \subsection{Composite KEMs}
 \label{subsec:composite-kems}
@@ -267,62 +267,48 @@ The mathematical security of hybrid constructions is well-understood; the diffic
 \section{Evaluating a PQC Candidate}
 \label{sec:evaluation-criteria}
 
-Whether selecting an algorithm for deployment or assessing a new research proposal, a systematic evaluation framework prevents both unwarranted enthusiasm and excessive conservatism.  The five criteria below---adapted from NIST's evaluation methodology---apply to any PQC candidate.
+The preceding sections surveyed the families, the standardization gauntlet, and the hybrid strategies that hedge our bets during the transition.  But one question recurs every time a new scheme appears on the ePrint archive or a vendor markets a ``quantum-safe'' product: \emph{how do we know it is any good?}  Enthusiasm and conservatism are both dangerous here---the former leads to premature deployment of fragile constructions, the latter to paralysis.  What we need is a systematic evaluation framework, and the five criteria below---adapted from NIST's own methodology---provide one that applies to any PQC candidate, whether it is a FIPS standard or a preprint posted last week.
 
 \subsection{Security}
 \label{subsec:eval-security}
 
-\begin{itemize}
-\item \textbf{Reduction quality.}  Does the scheme reduce to a well-studied worst-case problem, or does security rest on an ad-hoc assumption?  Lattice-based schemes enjoy worst-case to average-case reductions (Sect.~\ref{sec:worst-avg-case}); most code-based and multivariate schemes rely on average-case hardness only.
+Security is the first and heaviest criterion, but it is not a single number.  Three dimensions matter, and they do not always point in the same direction.
 
-\item \textbf{Parameter margins.}  How much headroom exists between the concrete security estimate and the target security level?  A scheme operating at exactly 128 bits of security with zero margin is fragile; a 20\% margin absorbs algorithmic improvements without requiring re-parameterization.
+The most informative signal is the quality of a scheme's \emph{security reduction}: what exactly must an attacker break in order to compromise the cryptosystem?  Lattice-based schemes such as ML-KEM enjoy worst-case to average-case reductions (Sect.~\ref{sec:worst-avg-case}), meaning that breaking any random instance is at least as hard as solving the hardest instance of a well-studied lattice problem.  This is a powerful guarantee---it turns every failed attack on the worst case into a blanket assurance for the average case.  Most code-based and multivariate schemes lack this luxury; their security rests on average-case hardness, which is weaker in principle even if it has held up well in practice for decades.
 
-\item \textbf{Cryptanalytic history.}  How many years has the underlying hard problem been studied, and by how many independent groups?  A problem that has resisted three decades of attacks (e.g., syndrome decoding) inspires more confidence than one studied for a single decade (e.g., supersingular isogeny problems---whose confidence was justified by the SIKE break~\cite{CastryckDecru2023}).
-\end{itemize}
+Equally important is the \emph{parameter margin} between the concrete security estimate and the target security level.  A scheme operating at exactly 128 bits of security is walking a tightrope: a single algorithmic improvement---a better sieving constant, a new lattice reduction technique---can push it below the threshold overnight.  Schemes with 15--20\% headroom absorb such improvements gracefully, without forcing emergency re-parameterization.  Finally, the \emph{cryptanalytic history} of the underlying hard problem deserves weight.  Syndrome decoding has resisted attacks for over four decades from hundreds of independent groups; supersingular isogeny problems had barely a decade of scrutiny before the SIKE collapse~\cite{CastryckDecru2023} vindicated exactly this concern.  Longevity alone proves nothing, but a problem that has survived sustained, diverse assault provides a qualitatively different kind of confidence than one that has merely been neglected.
 
 \subsection{Performance}
 \label{subsec:eval-performance}
 
-\begin{itemize}
-\item \textbf{Speed.}  Key generation, encapsulation/signing, and decapsulation/verification times on representative platforms (server, desktop, embedded).
+Security without deployability is an academic exercise.  Performance determines whether a scheme can actually protect real systems, and it must be evaluated across three interrelated dimensions.
 
-\item \textbf{Sizes.}  Public key, secret key, ciphertext, and signature sizes directly impact bandwidth, storage, and protocol round-trips.  ML-KEM-768 public keys are 1\,184~bytes; Classic McEliece public keys exceed 261\,000~bytes.  This three-order-of-magnitude difference determines which protocols and devices can support each scheme.
-
-\item \textbf{Memory footprint.}  Embedded devices and smart cards may have only a few kilobytes of RAM.  Schemes requiring large intermediate buffers (e.g., Falcon's FFT-based signing) may be unsuitable for constrained environments.
-\end{itemize}
+Speed---of key generation, encapsulation or signing, and decapsulation or verification---varies enormously across families and across platforms.  A scheme that runs in microseconds on a server with AVX-512 instructions may take seconds on an ARM Cortex-M4 microcontroller.  Benchmarks on a single platform are misleading; what matters is the speed profile across the range of hardware the scheme will actually encounter.  Closely linked to speed are the \emph{sizes} of public keys, secret keys, ciphertexts, and signatures.  These are not abstract numbers: they translate directly into bandwidth consumption, storage requirements, and protocol round-trips.  ML-KEM-768 public keys are 1\,184~bytes; Classic McEliece public keys exceed 261\,000~bytes.  That three-order-of-magnitude difference determines whether a scheme fits inside a TLS handshake, a DNSSEC record, or the flash memory of a smart card.  The third dimension, often overlooked, is \emph{memory footprint}.  Embedded devices and smart cards may have only a few kilobytes of RAM available for cryptographic operations.  Schemes that require large intermediate buffers---Falcon's FFT-based signing is the canonical example---may deliver excellent speed and compact outputs while remaining entirely unsuitable for constrained environments.
 
 \subsection{Implementation Quality}
 \label{subsec:eval-implementation}
 
-\begin{itemize}
-\item \textbf{Side-channel resistance.}  Is the algorithm naturally resistant to timing and power-analysis attacks, or does constant-time implementation require complex masking?  ML-KEM's operations are largely linear and amenable to constant-time implementation; Falcon's floating-point discrete Gaussian sampling is notoriously difficult to implement securely.
+A mathematically secure scheme that is routinely implemented insecurely is, for all practical purposes, broken.  Implementation quality addresses the gap between theoretical security and what happens when real engineers write real code on real hardware.
 
-\item \textbf{Misuse resistance.}  Does the scheme fail catastrophically on nonce reuse, bad randomness, or parameter misuse?  An IND-CCA2 KEM (such as ML-KEM, via the Fujisaki--Okamoto transform~\cite{FujisakiOkamoto1999}) provides stronger guarantees than a CPA-secure scheme that leaks secrets on ciphertext manipulation.
-
-\item \textbf{Simplicity.}  Fewer lines of code and simpler control flow reduce the likelihood of implementation bugs.  This is a practical consideration that theoretical analyses often neglect.
-\end{itemize}
+The most critical dimension is \emph{side-channel resistance}: does the algorithm lend itself to constant-time implementation, or does securing it against timing and power-analysis attacks require heroic countermeasures?  ML-KEM's core operations are largely linear algebra over small moduli---additions, multiplications, and NTT transforms that can be implemented in constant time with straightforward effort.  Falcon, by contrast, requires floating-point discrete Gaussian sampling during signing, and making that constant-time across different floating-point units is notoriously difficult.  A related concern is \emph{misuse resistance}: how badly does the scheme fail when something goes wrong?  Nonce reuse, bad randomness, and parameter misuse are not hypothetical---they occur regularly in deployed systems.  An IND-CCA2 KEM such as ML-KEM, hardened by the Fujisaki--Okamoto transform~\cite{FujisakiOkamoto1999}, degrades gracefully; a CPA-secure scheme may leak the secret key entirely on ciphertext manipulation.  Finally, raw \emph{simplicity} deserves consideration.  Fewer lines of code and simpler control flow mean fewer places for bugs to hide.  This is a practical consideration that theoretical analyses, focused on asymptotic security, almost always neglect---yet it is precisely the dimension where deployed systems most often fail.
 
 \subsection{Maturity}
 \label{subsec:eval-maturity}
 
-\begin{itemize}
-\item \textbf{Years of public analysis} of the specific scheme (not just the problem family).
-\item \textbf{Diversity of analysis:} has the scheme been examined by cryptanalysts, side-channel experts, formal-methods researchers, and implementers?
-\item \textbf{Deployed implementations:} production deployment surfaces bugs that no amount of academic review can find.
-\end{itemize}
+Maturity is the criterion that cannot be bought, accelerated, or simulated.  It is the difference between a scheme that has survived a decade of scrutiny from cryptanalysts, side-channel experts, formal-methods researchers, and production engineers---and one that has survived only the review of its own authors.
+
+The relevant metric is not merely the number of years since publication, but the \emph{diversity and intensity} of the analysis the scheme has received.  A scheme examined only by algebraic cryptanalysts may harbour implementation vulnerabilities that a side-channel expert would spot immediately; one studied only in academia may contain engineering assumptions that shatter on contact with production workloads.  ML-KEM and ML-DSA have benefited from seven years of public scrutiny within the NIST process, adversarial implementation in dozens of libraries, and large-scale deployment experiments by Google, Cloudflare, and others.  That operational history surfaces classes of bugs---memory safety issues, platform-specific timing leaks, interoperability failures---that no amount of paper analysis can anticipate.  Classic McEliece and SLH-DSA carry even longer pedigrees, their underlying problems dating to the late 1970s.  At the other extreme, a newly proposed scheme, however elegant, carries a maturity debt that only time and diverse adversarial attention can repay.
 
 \subsection{Flexibility}
 \label{subsec:eval-flexibility}
 
-\begin{itemize}
-\item \textbf{Parameter scaling.}  Can the scheme be tuned to different security levels without fundamental redesign?  ML-KEM offers three parameter sets (512, 768, 1024) covering NIST levels I, III, and V.
+The final criterion looks forward rather than backward: how well does a scheme adapt to requirements that do not yet exist?
 
-\item \textbf{Algebraic structure.}  Does the underlying mathematics support advanced constructions---threshold signatures, multi-party computation, homomorphic encryption?  Lattice-based schemes excel here; hash-based schemes offer no algebraic structure at all.
+\emph{Parameter scaling} is the most immediate concern.  A scheme that offers a smooth continuum of security levels---ML-KEM, for instance, provides three parameter sets (512, 768, 1024) covering NIST levels I, III, and V---can be tuned to the needs of each deployment without fundamental redesign.  A scheme that works at a single security level, or whose parameter space has unexplored gaps, is far less useful in a world where different applications demand different trade-offs.  Beyond parameters, the \emph{algebraic structure} of the underlying mathematics determines whether a scheme can participate in advanced protocols.  Lattice-based cryptography supports threshold signatures, multi-party computation, and fully homomorphic encryption; hash-based signatures, by design, offer no algebraic structure whatsoever.  For an organisation building infrastructure that may need these capabilities in five or ten years, this distinction is decisive.  The broadest version of flexibility is \emph{crypto-agility}\index{crypto-agility}: how easily can the scheme be swapped out if a better alternative emerges or if a new attack renders it obsolete?  Systems that abstract the cryptographic layer behind clean interfaces---rather than hard-coding algorithm-specific assumptions into protocols and data formats---can migrate with a configuration change.  Those that do not will face the same painful, multi-year transition that the quantum threat is imposing on classical cryptography today.
 
-\item \textbf{Crypto-agility.}  How easily can the scheme be swapped into existing protocols and infrastructure if a better alternative emerges?
-\end{itemize}
+\medskip
 
-Table~\ref{tab:eval-summary} applies the framework to the three NIST-standardized algorithms and two notable alternatives.
+Table~\ref{tab:eval-summary} applies this framework to the three NIST-standardized algorithms and two notable alternatives.  No single scheme dominates every column---which is precisely why NIST selected a portfolio rather than a single winner.
 
 \begin{table}[t]
 \caption{Evaluation framework applied to selected PQC algorithms}

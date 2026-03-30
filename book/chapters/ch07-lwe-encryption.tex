@@ -51,7 +51,7 @@ This equivalence is essential for cryptographic applications, which typically re
 \subsection{Parameters}
 \label{subsec:lwe-params}
 
-\lwe{} security depends on three parameters in tension:
+The definition of \lwe{} leaves three quantities free: the dimension~$n$, the modulus~$q$, and the noise width~$\sigma$.  These parameters are not independent---they pull against each other in a three-way tension that determines both the security and the usability of any scheme built on \lwe{}.
 
 \begin{table}[t]
 \caption{\lwe{} parameter tradeoffs}
@@ -73,6 +73,8 @@ The noise-to-modulus ratio $\alpha = \sigma/q$ is the key quantity: too small an
 \subsection{The Error Distribution}
 \label{subsec:error-distribution}
 
+The parameter~$\sigma$ controls the noise, but we have not yet said what \emph{shape} the noise takes.  The theoretical treatment of \lwe{} uses a discrete Gaussian, while practical implementations substitute a simpler distribution that is easier to sample in constant time.
+
 \begin{definition}[Discrete Gaussian Distribution]
 \label{def:discrete-gaussian}
 \index{discrete Gaussian}
@@ -86,10 +88,12 @@ In the physics of thermal noise, $\sigma$ plays the role of temperature: higher 
 \section{Hardness of LWE}
 \label{sec:lwe-hardness}
 
-\lwe{} enjoys a security guarantee unmatched in classical cryptography: solving random \lwe{} instances is as hard as solving worst-case lattice problems.
+We have defined \lwe{} and tuned its parameters, but definition is not destiny---many plausible-looking problems turn out to be easy.  What makes \lwe{} exceptional among cryptographic assumptions is the strength of its hardness evidence.  Unlike RSA or discrete logarithms, whose security rests on decades of failed attacks but no formal worst-case guarantee, \lwe{} enjoys a security guarantee unmatched in classical cryptography: solving random \lwe{} instances is as hard as solving worst-case lattice problems.
 
 \subsection{Regev's Quantum Reduction}
 \label{subsec:regev-reduction}
+
+The centrepiece of \lwe{} hardness theory is Regev's 2005 reduction, which established a remarkable connection: any algorithm that solves \lwe{} efficiently can be transformed into a quantum algorithm that solves worst-case lattice problems.
 
 \begin{theorem}[Regev~\cite{Regev2009}]
 \label{thm:regev}
@@ -118,11 +122,15 @@ A full proof sketch appears in Appendix~\ref{app:regev-reduction}.
 \subsection{Classical Reductions}
 \label{subsec:classical-reductions}
 
+The word ``quantum'' in Regev's reduction is a persistent source of confusion.  Can we remove it?
+
 Peikert~(2009) and Brakerski et~al.~(2013) proved purely classical reductions from \gapsvp{} to \lwe{}, at the cost of a larger approximation factor or requiring a super-polynomial modulus.  For cryptographic practice, the quantum reduction remains the tightest and most commonly cited.
 
 
 \subsection{Concrete Hardness}
 \label{subsec:lwe-concrete}
+
+Worst-case reductions tell us that \lwe{} is hard in principle, but they do not tell us which specific parameter choices yield 128-bit security.  For that, we need to understand how the best known attacks actually perform.
 
 The best known attacks on \lwe{} reduce to lattice problems via the \emph{primal} and \emph{dual} attack strategies:
 
@@ -138,7 +146,7 @@ Both attacks require BKZ with block size $\beta$, giving security $\approx 0.292
 \section{LWE-Based Encryption}
 \label{sec:lwe-encryption}
 
-Regev's 2005 encryption scheme~\cite{Regev2009} remains the template for all modern \lwe{}-based constructions.  It encrypts a single bit $\mu \in \{0,1\}$.
+Hardness alone does not give us a cryptosystem---we need a construction that turns \lwe{} samples into ciphertexts.  Regev's 2005 encryption scheme~\cite{Regev2009} remains the template for all modern \lwe{}-based constructions.  It encrypts a single bit $\mu \in \{0,1\}$, and its simplicity makes the security argument almost transparent.
 
 \begin{definition}[Regev's Encryption Scheme]
 \label{def:regev-encryption}
@@ -179,7 +187,7 @@ Regev's scheme demonstrates feasibility but is not practical: public keys are $\
 \section{Ring-LWE: Efficiency Through Structure}
 \label{sec:ring-lwe}
 
-Plain \lwe{} requires storing a random matrix $\mathbf{A}\in\Zq^{n\times m}$, yielding megabyte-sized public keys.  \rlwe{}\index{Ring-LWE} replaces this unstructured matrix with multiplication in a polynomial ring, compressing keys by a factor of~$n$.
+Regev's scheme proves that \lwe{} can yield encryption, but the resulting public keys---megabytes of random matrix entries---are impractical for any real protocol.  The question is whether we can compress these keys without destroying the hardness guarantee.  \rlwe{}\index{Ring-LWE} answers affirmatively: it replaces the unstructured random matrix $\mathbf{A}\in\Zq^{n\times m}$ with multiplication in a polynomial ring, compressing keys by a factor of~$n$.
 
 \subsection{The Polynomial Ring $\Rq$}
 \label{subsec:polynomial-ring}
@@ -216,6 +224,8 @@ a_{n-1} & a_{n-2} & \cdots & a_0
 \subsection{Ring-LWE Definition}
 \label{subsec:rlwe-def}
 
+With the ring $\Rq$ in hand, the Ring-\lwe{} problem is the natural adaptation of \lwe{}: replace vectors over~$\Zq$ with elements of~$\Rq$, and replace matrix--vector multiplication with polynomial multiplication.
+
 \begin{definition}[Ring Learning With Errors~\cite{LPR2010}]
 \label{def:rlwe}
 \index{Ring-LWE!definition}
@@ -239,6 +249,8 @@ For the cyclotomic ring $\Rq$ and appropriate parameters, solving \rlwe{} is at 
 \subsection{The Number Theoretic Transform}
 \label{subsec:ntt}
 
+The key size advantage of Ring-\lwe{} would be hollow if polynomial multiplication were slow.  Na\"ive multiplication of two degree-$n$ polynomials costs $\bigO(n^2)$ operations, but the Number Theoretic Transform reduces this to $\bigO(n \log n)$---the same asymptotic speedup that the FFT brings to signal processing.
+
 The NTT\index{NTT} is the finite-field analogue of the FFT\index{FFT}.  For $q$ prime with $q \equiv 1 \pmod{2n}$, a primitive $2n$-th root of unity $\omega \in \Zq$ exists, and every $a(X) \in \Rq$ can be represented in the \emph{NTT domain}:
 \begin{equation}
 \hat{a}_j = a(\omega^{2j+1}) \bmod q, \qquad j = 0, 1, \ldots, n-1.
@@ -254,7 +266,7 @@ ML-KEM uses $n = 256$ and $q = 3329$.  Since $3329 = 13\cdot 256 + 1 \equiv 1 \p
 \subsection{Security of Structured Variants}
 \label{subsec:ring-security}
 
-Adding algebraic structure raises a natural concern: does the structure enable new attacks?\index{Ring-LWE!security}
+Efficiency gains always invite suspicion: the structure that makes Ring-\lwe{} fast might also make it vulnerable.  Adding algebraic structure raises a natural concern: does the structure enable new attacks?\index{Ring-LWE!security}
 
 After 15 years of intensive cryptanalysis, the answer is nuanced:
 \begin{itemize}
@@ -270,6 +282,10 @@ The cryptographic community's pragmatic response to residual concerns about idea
 \section{Module-LWE: The Middle Ground}
 \label{sec:module-lwe}
 
+Ring-\lwe{} compresses keys dramatically, but it does so by placing all security in a single polynomial ring---a single ideal lattice.  If some future algorithm were to exploit the rich algebraic structure of ideal lattices, Ring-\lwe{} would collapse entirely.  The question that motivated the CRYSTALS team, and ultimately NIST's selection, was whether one can reclaim most of Ring-\lwe{}'s efficiency while hedging against this risk.
+
+The answer is Module-\lwe{}: instead of working with scalars in~$\Rq$, we work with short \emph{vectors} of ring elements.  The matrix~$\mathbf{A}$ is now $k \times k$ over~$\Rq$ rather than $1 \times 1$ (Ring-\lwe{}) or $n \times n$ over~$\Zq$ (plain \lwe{}).  An attacker who can break the ring structure of one component still faces a lattice problem in the remaining $k-1$ dimensions.  For small $k$, the overhead relative to Ring-\lwe{} is modest, and the resulting problem sits on a strictly harder security landscape.
+
 \begin{definition}[Module Learning With Errors]
 \label{def:mlwe}
 \index{Module-LWE}
@@ -280,6 +296,8 @@ Work over $\Rq^k$ (vectors of $k$ ring elements) for a small integer $k$:
 \end{definition}
 
 \mlwe{} interpolates between plain \lwe{} ($k = n$, no ring structure) and \rlwe{} ($k = 1$, maximum structure).  For $k = 2,3,4$ it retains most of the efficiency of \rlwe{} while relying on a weaker structural assumption.  NIST selected \mlwe{} as the foundation for both ML-KEM and ML-DSA.
+
+The practical impact of this design choice is visible in key sizes.  Table~\ref{tab:lwe-sizes} shows that Module-\lwe{} pays only a small premium over Ring-\lwe{} while reducing public keys by three orders of magnitude compared to plain~\lwe{}.
 
 \begin{table}[t]
 \caption{Key size comparison across \lwe{} variants ($\approx$128-bit quantum security)}
@@ -295,19 +313,23 @@ Ring-\lwe{}      & $\sim 800$ B & $\sim 768$ B & $n \approx 512$ \\
 \end{tabular}
 \end{table}
 
-The parameter~$k$ also provides a convenient ``knob'' for scaling security: ML-KEM-512 uses $k=2$, ML-KEM-768 uses $k=3$, and ML-KEM-1024 uses $k=4$, all with the same ring dimension $n = 256$.
+The parameter~$k$ also provides a convenient ``knob'' for scaling security: ML-KEM-512 uses $k=2$, ML-KEM-768 uses $k=3$, and ML-KEM-1024 uses $k=4$, all with the same ring dimension $n = 256$.  This modularity is a significant engineering advantage---the same core implementation serves all security levels, with only the matrix dimension changing.
+
+With Module-\lwe{} providing the hard problem and Ring structure providing the efficiency, we have the algebraic foundation for a practical encryption scheme.  But one critical piece remains: upgrading the security guarantee from passive eavesdropping resistance to full chosen-ciphertext security.
 
 
 %% ================================================================
 \section{The Fujisaki--Okamoto Transform}
 \label{sec:fo-transform}
 
-Regev's encryption scheme (and its Ring/Module variants) achieve only IND-CPA security: they are secure against passive eavesdroppers.  Real-world applications require IND-CCA2 security\index{IND-CCA2} (resistance to chosen-ciphertext attacks), where the adversary can submit ciphertexts for decryption.
+We now have an efficient encryption scheme built on Module-\lwe{}, but its security guarantee has a critical limitation.  Regev's encryption scheme (and its Ring/Module variants) achieve only IND-CPA security: they are secure against passive eavesdroppers.  Real-world applications require IND-CCA2 security\index{IND-CCA2} (resistance to chosen-ciphertext attacks), where the adversary can submit ciphertexts for decryption.
 
 The Fujisaki--Okamoto (FO) transform\index{Fujisaki--Okamoto transform}~\cite{FujisakiOkamoto1999} is a generic compiler that upgrades any IND-CPA encryption scheme into an IND-CCA2 key encapsulation mechanism (KEM)\index{KEM}.
 
 \subsection{Construction}
 \label{subsec:fo-construction}
+
+The transform is elegant in its simplicity: it uses hash functions to bind the encryption randomness to the message, so that any tampering with the ciphertext becomes detectable.
 
 Given an IND-CPA-secure public-key encryption scheme $\Pi = (\KeyGen, \Enc, \Dec)$:
 
@@ -329,15 +351,22 @@ In the (quantum) random oracle model, if~$\Pi$ is IND-CPA secure and $\delta$-co
 
 This is why the decryption failure probability of ML-KEM is engineered to be astronomically small ($< 2^{-140}$): the FO security proof requires it.
 
+With the theoretical machinery complete---\mlwe{} for hardness, ring arithmetic for speed, and the FO transform for CCA2 security---we can now assemble the full ML-KEM construction.
+
 
 %% ================================================================
 \section{ML-KEM (CRYSTALS-Kyber)}
 \label{sec:ml-kem}
 
-ML-KEM\index{ML-KEM} (Module-Lattice-Based Key-Encapsulation Mechanism), standardised as FIPS~203~\cite{FIPS203}, instantiates the framework above: \mlwe{} encryption plus the FO transform.
+ML-KEM\index{ML-KEM} (Module-Lattice-Based Key-Encapsulation Mechanism), standardised as FIPS~203~\cite{FIPS203}, welds these ingredients into a single, concrete construction---the first post-quantum KEM to become a NIST standard.  What follows is the complete specification: every line of the algorithms maps directly to the theory developed above.
 
 \subsection{Construction}
 \label{subsec:mlkem-construction}
+
+The construction consists of three algorithms.  Key generation produces an \mlwe{} instance; encapsulation encrypts a random message under it; decapsulation recovers the message and applies the FO consistency check.  We present each algorithm with its design rationale.
+
+\paragraph{Key generation.}
+The goal of key generation is to produce a public \mlwe{} sample $(\mathbf{A}, \mathbf{t} = \mathbf{A}\mathbf{s} + \mathbf{e})$ that anyone can use for encryption, together with the secret~$\mathbf{s}$ needed for decryption.  Two design choices deserve attention.  First, the matrix $\mathbf{A}$ is not transmitted explicitly; instead, a 32-byte seed~$\rho$ is sent, and both parties expand it deterministically using an extendable-output function (XOF).  This reduces the public key from $k^2 \cdot n \cdot 12$~bits to $k \cdot n \cdot 12 + 256$~bits.  Second, all arithmetic is performed in the NTT domain, so the secret and error vectors are transformed immediately after sampling---every subsequent operation is a pointwise multiplication rather than a full polynomial product.
 
 \begin{algorithm}[t]
 \caption{ML-KEM.$\KeyGen$}
@@ -353,6 +382,9 @@ ML-KEM\index{ML-KEM} (Module-Lattice-Based Key-Encapsulation Mechanism), standar
 \State $\mathsf{pk} \gets (\hat{\mathbf{t}}, \rho)$, \enspace $\mathsf{sk} \gets (\hat{\mathbf{s}}, \mathsf{pk}, H(\mathsf{pk}), z)$ with $z\getsr\{0,1\}^{256}$
 \end{algorithmic}
 \end{algorithm}
+
+\paragraph{Encapsulation.}
+Encapsulation is where the FO transform meets \mlwe{} encryption.  The encapsulator samples a random 256-bit message~$m$, then derives \emph{both} the shared key~$K$ and the encryption randomness~$r$ from~$m$ by hashing.  This deterministic derivation of randomness is the crux of the FO transform: it ensures that anyone holding the secret key can re-derive~$r$ from the decrypted~$m'$ and verify that the ciphertext was honestly constructed.  The encryption itself follows the standard \mlwe{} template---multiply by the transposed public matrix, add noise, and encode the message in the high-order bits---but with an additional compression step that rounds ciphertext coefficients to fewer bits.  This lossy compression is safe because the parameters guarantee that the rounding error is small relative to the decision boundary at $\lfloor q/4 \rceil$.
 
 \begin{algorithm}[t]
 \caption{ML-KEM.$\Encaps$}
@@ -370,6 +402,9 @@ ML-KEM\index{ML-KEM} (Module-Lattice-Based Key-Encapsulation Mechanism), standar
 \State \Return $(K, c)$
 \end{algorithmic}
 \end{algorithm}
+
+\paragraph{Decapsulation.}
+Decapsulation is the most security-critical operation.  It first performs standard \mlwe{} decryption: subtract $\mathbf{s}^T \mathbf{u}$ from~$v$ to cancel the shared randomness, leaving (approximately) the encoded message plus accumulated noise.  Rounding recovers the original message~$m'$.  But decryption alone is not enough---a passive decryption oracle would break CCA2 security.  The FO check re-encrypts~$m'$ using the derived randomness~$r'$ and compares the result to the received ciphertext.  If they match, the ciphertext is honest and the shared key is returned.  If they differ, the ciphertext was tampered with or maliciously constructed, and the algorithm returns a pseudorandom key derived from the secret~$z$---the implicit rejection mechanism that denies the adversary any useful signal, including through timing.
 
 \begin{algorithm}[t]
 \caption{ML-KEM.$\Decaps$}
@@ -395,6 +430,10 @@ ML-KEM\index{ML-KEM} (Module-Lattice-Based Key-Encapsulation Mechanism), standar
 \subsection{Parameter Sets}
 \label{subsec:mlkem-params}
 
+Choosing parameters for a lattice-based scheme is an exercise in simultaneous optimisation under conflicting constraints.  The designers of ML-KEM faced four tensions at once: security (measured by the BKZ block size needed to break the scheme) must exceed the target NIST level; the decryption failure probability must stay below $2^{-140}$ to satisfy the FO security proof; key and ciphertext sizes should remain small enough for deployment in TLS and other bandwidth-sensitive protocols; and all arithmetic must be efficient on commodity hardware, which favours NTT-friendly primes and power-of-two dimensions.
+
+Table~\ref{tab:mlkem-params} shows the three standardised parameter sets.
+
 \begin{table}[t]
 \caption{ML-KEM parameter sets~\cite{FIPS203}}
 \label{tab:mlkem-params}
@@ -411,9 +450,13 @@ ML-KEM-1024  & 4 & 2 & 2 & 11 & 5  & 1,568 & 1,568 & V (AES-256) \\
 
 All three parameter sets share $n = 256$ and $q = 3329$.  The choice $q = 3329 = 13\cdot 256 + 1$ satisfies $q \equiv 1 \pmod{512}$ (enabling the NTT), fits in 12~bits, and is the smallest prime meeting the correctness requirement $q > 12\,\eta\sqrt{n}$.  Security is scaled via $k$, the module rank.
 
+The compression parameters $d_u$ and $d_v$ illustrate a subtler tradeoff.  Each bit removed from a ciphertext coefficient halves the ciphertext contribution from that component, but doubles the rounding noise.  ML-KEM-512 uses $d_u = 10$ (dropping 2~bits per coefficient of~$\mathbf{u}$) and $d_v = 4$ (a much more aggressive 8-bit reduction for~$v$), because the scalar component~$v$ carries the encoded message and tolerates less noise than the vector component~$\mathbf{u}$.  Moving from ML-KEM-768 to ML-KEM-1024, the designers increased both $d_u$ and $d_v$ by one bit---the extra module dimension provides more noise margin, which can be traded for tighter compression.  The noise parameters $\eta_1$ and $\eta_2$ follow a similar logic: ML-KEM-512 uses a wider centred binomial ($\eta_1 = 3$) to compensate for its smaller module dimension, while the higher security levels can afford the narrower $\eta_1 = 2$.
+
 
 \subsection{Performance}
 \label{subsec:mlkem-performance}
+
+Parameters determine security and correctness, but the question practitioners care about most is speed.  How does ML-KEM compare to the classical algorithms it aims to replace?
 
 \begin{table}[t]
 \caption{ML-KEM-768 performance vs.\ classical algorithms (Intel Core i7, AVX2)}
@@ -437,7 +480,7 @@ ML-KEM matches or outperforms X25519 in computation speed.  The $\sim 30\times$ 
 \subsection{Decryption Failure Probability}
 \label{subsec:failure-prob}
 
-The rounding in compression and the error terms can occasionally cause decryption failure\index{ML-KEM!decryption failure} (the decrypted message differs from the encrypted one).  The parameters are chosen so that the failure probability is at most $2^{-140}$ for ML-KEM-768---far below $2^{-128}$, as required by the FO security proof (Theorem~\ref{thm:fo-security}).
+Speed and key size are encouraging, but there is a subtlety that has no analogue in RSA or elliptic-curve cryptography: lattice-based encryption can \emph{fail}.  The rounding in compression and the error terms can occasionally cause decryption failure\index{ML-KEM!decryption failure} (the decrypted message differs from the encrypted one).  The parameters are chosen so that the failure probability is at most $2^{-140}$ for ML-KEM-768---far below $2^{-128}$, as required by the FO security proof (Theorem~\ref{thm:fo-security}).
 
 This extraordinarily low failure rate is not merely a convenience; it is a \emph{security} requirement.  An adversary who can provoke decryption failures can mount a \emph{failure-boosting attack}\index{failure-boosting attack} to recover the secret key.
 

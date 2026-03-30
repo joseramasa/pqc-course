@@ -207,6 +207,8 @@ Two hard problems underlie the security of ML-DSA:
 
 The function $\mathsf{Power2Round}$ splits each coefficient of $\mathbf{t}$ into high-order bits $\mathbf{t}_1$ and low-order bits $\mathbf{t}_0$.  Only $\mathbf{t}_1$ is included in the public key, compressing it significantly; $\mathbf{t}_0$ is retained in the secret key for use during signing.
 
+The design of key generation reflects two competing pressures.  On the one hand, the secret vectors $\mathbf{s}_1$ and $\mathbf{s}_2$ must be short enough that the Module-LWE instance is hard---if their coefficients were too large, the noise would overwhelm the structure and make decoding trivial for an adversary with lattice reduction tools.  On the other hand, they must be large enough that the rejection sampling during signing succeeds with reasonable probability; recall that the bound $\beta$ on $\norm{c \cdot \mathbf{s}}_\infty$ depends directly on the coefficient size $\eta$.  The parameter $\eta$ (either~2 or~4, depending on the security level) represents the carefully chosen balance point.  Splitting $\mathbf{t}$ into high and low parts is not merely a compression trick: it is essential to the hint mechanism used during signing, which we describe next.
+
 \subsection{Signing}
 \label{subsec:ml-dsa-sign}
 
@@ -240,13 +242,13 @@ The function $\mathsf{Power2Round}$ splits each coefficient of $\mathbf{t}$ into
 \end{algorithmic}
 \end{algorithm}
 
-Several aspects merit emphasis:
+The algorithm repays close reading, because each step reflects a deliberate design choice---not merely a mathematical convenience.
 
-\begin{itemize}
-\item \textbf{Deterministic nonce generation.}  The mask $\mathbf{y}$ is derived deterministically from the secret key material $K$ and the message, eliminating the risk of nonce-reuse attacks and simplifying QROM security arguments.
-\item \textbf{Two rejection conditions.}  The first ($\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$) ensures that $\mathbf{z}$ does not leak $\mathbf{s}_1$.  The second ($\norm{\mathbf{r}_0}_\infty \geq \gamma_2 - \beta$) ensures that the low-order bits of the commitment do not leak $\mathbf{s}_2$.
-\item \textbf{Hints.}  The vector $\mathbf{h}$ is a sparse binary vector that tells the verifier how to recover the high-order bits of $\mathbf{w} - c\,\mathbf{s}_2$ from $\mathbf{A}\mathbf{z} - c\,\mathbf{t}$.  This avoids transmitting $\mathbf{w}_1$ directly, saving bandwidth.
-\end{itemize}
+Consider first the generation of the mask~$\mathbf{y}$.  In a classical Schnorr signature, the randomness is freshly sampled; if an implementation ever reuses a nonce, the secret key is immediately recoverable.  ML-DSA sidesteps this catastrophic failure mode by deriving~$\mathbf{y}$ deterministically from the secret seed~$K$ and the message.  Signing the same message twice always produces the same mask---and therefore the same signature---so there is no ``nonce reuse'' scenario to guard against.  This deterministic derivation also simplifies the QROM security proof: the simulator can predict the signer's randomness from the message, which is essential when the adversary can query the signing oracle on quantum superpositions of messages.
+
+The two rejection conditions protect different secrets.  The first check, $\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$, ensures that the response~$\mathbf{z}$ does not betray~$\mathbf{s}_1$.  Without it, large-magnitude entries in~$\mathbf{z}$ would correlate with the secret, as we saw in Sect.~\ref{subsec:info-leakage}.  The second check, $\norm{\mathbf{r}_0}_\infty \geq \gamma_2 - \beta$, is subtler: it guards~$\mathbf{s}_2$.  The low-order bits of the commitment~$\mathbf{w}$ shift when multiplied by the challenge~$c$ and the second secret vector, and if that shift is too large, the resulting signature leaks statistical information about~$\mathbf{s}_2$ through the rounding behaviour.  Both checks must pass simultaneously; failing either sends the signer back to step~1 with a fresh counter~$\kappa$.
+
+Finally, the hint vector~$\mathbf{h}$ deserves attention because it solves a problem that arises nowhere in the abstract Fiat-Shamir framework.  The signer commits to the high-order bits~$\mathbf{w}_1$ of $\mathbf{A}\mathbf{y}$, but the verifier cannot compute $\mathbf{A}\mathbf{y}$ (since $\mathbf{y}$ is secret).  The verifier instead computes $\mathbf{A}\mathbf{z} - c\,\mathbf{t}$, which \emph{almost} equals $\mathbf{A}\mathbf{y} - c\,\mathbf{s}_2$---close enough that the high-order bits agree in most coefficients, but off by one in a handful due to carries from the low-order part.  The hint~$\mathbf{h}$ is a sparse binary vector recording exactly which coefficients need correction.  Because at most~$\omega$ coefficients differ, encoding~$\mathbf{h}$ costs far fewer bits than transmitting~$\mathbf{w}_1$ directly.  This is a small but consequential bandwidth saving that compounds across the millions of signatures a production system may generate.
 
 \subsection{Verification}
 \label{subsec:ml-dsa-verify}
@@ -265,7 +267,7 @@ Several aspects merit emphasis:
 \end{algorithmic}
 \end{algorithm}
 
-Verification requires only one matrix-vector multiplication $\mathbf{A}\mathbf{z}$, making it fast.  The check $\tilde{c} = H(\mu' \| \mathbf{w}_1')$ ensures that the recovered commitment matches the challenge.
+Verification requires only one matrix-vector multiplication $\mathbf{A}\mathbf{z}$, making it fast.  The check $\tilde{c} = H(\mu' \| \mathbf{w}_1')$ ensures that the recovered commitment matches the challenge.  The asymmetry between signing and verification is striking and deliberate: signing involves a rejection loop that may iterate several times, while verification is a single deterministic pass.  In most deployment scenarios---TLS handshakes, certificate chains, software updates---signatures are created once and verified many times, so front-loading the computational cost into signing is the right engineering choice.
 
 \subsection{Parameter Sets}
 \label{subsec:ml-dsa-params}
@@ -291,12 +293,18 @@ The naming convention encodes the module dimensions: ML-DSA-44 uses a $4 \times 
 \subsection{Hints and Compression}
 \label{subsec:hints-compression}
 
-The hint mechanism is one of ML-DSA's most elegant engineering contributions.  During signing, the signer computes $\mathbf{w} = \mathbf{A}\mathbf{y}$ and extracts its high-order bits $\mathbf{w}_1$.  The verifier, who does not know $\mathbf{y}$, instead computes $\mathbf{A}\mathbf{z} - c\,\mathbf{t} = \mathbf{A}\mathbf{y} - c\,\mathbf{s}_2 + (c\,\mathbf{s}_2 - c\,\mathbf{s}_2)$, which may have slightly different high-order bits due to carries from the low-order part.  The hint $\mathbf{h}$ records exactly which coefficients require correction.  Because $\mathbf{h}$ is sparse (at most $\omega$ ones), it is far cheaper to transmit than $\mathbf{w}_1$ itself.
+The hint mechanism is one of ML-DSA's most elegant engineering contributions, and it illustrates a general principle in lattice cryptography: rounding is cheap but its interaction with arithmetic is treacherous.
+
+During signing, the signer computes $\mathbf{w} = \mathbf{A}\mathbf{y}$ and extracts its high-order bits $\mathbf{w}_1$.  The verifier, who does not know $\mathbf{y}$, instead computes $\mathbf{A}\mathbf{z} - c\,\mathbf{t}$, which equals $\mathbf{A}\mathbf{y} - c\,\mathbf{s}_2$ up to the rounding decomposition.  In most coefficients, the high-order bits agree.  But wherever the low-order perturbation introduced by $c\,\mathbf{s}_2$ crosses a rounding boundary, the verifier's high bits differ from the signer's by exactly~$\pm 1$.  The hint~$\mathbf{h}$ records which coefficients suffer this carry effect, allowing the verifier to patch its computation and recover the original~$\mathbf{w}_1$.  Because $\mathbf{h}$ is sparse---at most~$\omega$ nonzero entries, typically far fewer---encoding it costs a fraction of what transmitting $\mathbf{w}_1$ directly would require.
+
+Why not simply send $\mathbf{w}_1$ in the signature and skip the hint altogether?  Because $\mathbf{w}_1$ has $k \cdot 256$ coefficients, each requiring several bits; encoding it would add hundreds of bytes to every signature.  The hint, by contrast, needs only the positions of the nonzero entries---a list of at most $\omega$ indices---which can be encoded in roughly $\omega \cdot \lceil\log_2(k \cdot 256)\rceil$ bits.  At ML-DSA-44's parameters ($\omega = 80$), this saves over 600~bytes per signature compared to the na\"ive approach.
 
 \subsection{Security}
 \label{subsec:ml-dsa-security}
 
 The security of ML-DSA reduces to the hardness of Module-\lwe{} and Module-SIS in the QROM.  Specifically, if there exists a quantum adversary that produces an existential forgery under a chosen-message attack, then there exists a quantum algorithm that either solves Module-\lwe{} with the scheme's parameters, or solves Module-SIS---both of which reduce (via Chap.~\ref{ch:lattice-theory}) to worst-case lattice problems.
+
+ML-DSA's Fiat-Shamir-with-aborts approach achieves security through careful engineering of the output distribution: rejection sampling forces every signature to look as though it were drawn from a fixed distribution, regardless of which secret key produced it.  The second paradigm takes a different path entirely.  Rather than masking the secret through rejection, it exploits a geometric property of Gaussian distributions---their rotational symmetry---to hide the trapdoor in the sampling process itself.  This is mathematically cleaner but, as we shall see, far harder to implement safely.
 
 
 %% ================================================================
@@ -337,6 +345,8 @@ where $F, G \in R$ satisfy the NTRU equation $f\,G - g\,F = q$.  The rows of $\m
 \textbf{The NTRU hardness assumption.}  Given only $h = g\,f^{-1} \bmod q$, it is computationally infeasible to recover the short pair $(f, g)$ or any equivalently short basis of $\lat_h$.  This is closely related to the problem of finding short vectors in the NTRU lattice, and it has resisted cryptanalysis for over 25~years~\cite{NTRU1998}.
 \end{svgraybox}
 
+The exponential quality gap between the public and secret bases is what makes NTRU lattices useful for signatures.  The public basis has a row of norm~$q$---anyone can see it, but it is too ``long'' to sample short vectors efficiently.  The secret basis, with rows of norm $\bigO(\sqrt{q})$, is short enough to enable the Gaussian sampling that the GPV framework requires.  This gap is the trapdoor: a structural advantage that the key holder possesses and the adversary does not, analogous to the role of the factorisation in RSA.
+
 \subsection{The GPV Hash-and-Sign Framework}
 \label{subsec:gpv-framework}
 
@@ -365,6 +375,8 @@ Given a basis $\mathbf{B}$ of a lattice $\lat$ and a Gaussian parameter $\sigma 
 \end{theorem}
 
 The critical constraint is that $\sigma$ must exceed the Gram-Schmidt norm of the basis.  A shorter basis (smaller $\norm{\widetilde{\mathbf{B}}}$) allows a smaller $\sigma$, which in turn produces shorter signatures.  This is why the trapdoor quality---measured by $\norm{\widetilde{\mathbf{B}}}$---directly determines the scheme's efficiency.
+
+To see why this threshold matters for security (not just correctness), consider what happens when $\sigma$ is too small.  A Gaussian with parameter $\sigma$ is concentrated within a ball of radius roughly $\sigma\sqrt{n}$.  If $\sigma$ is smaller than the longest Gram-Schmidt vector $\widetilde{\mathbf{b}}_i$, the distribution cannot ``wrap around'' the fundamental domain in the $i$-th direction: samples cluster near the centre of that coordinate, and the resulting signature distribution is no longer spherically symmetric.  An adversary collecting many signatures can detect this asymmetry and extract information about the secret basis direction by direction---precisely the kind of statistical leakage that the GPV framework is designed to prevent.  The condition $\sigma \geq \norm{\widetilde{\mathbf{B}}} \cdot \omega(\sqrt{\log n})$ ensures that the Gaussian is wide enough to smooth over the lattice geometry in every direction, making the output statistically indistinguishable regardless of which short basis was used to produce it.
 
 \subsection{Security of GPV Signatures}
 \label{subsec:gpv-security}
@@ -421,6 +433,10 @@ Key generation produces an NTRU pair with controlled quality:
 
 The NTRU equation $fG - gF = q$ is solved using the tower-of-fields approach: one works recursively in $\Z[X]/(X^{n/2}+1)$, then $\Z[X]/(X^{n/4}+1)$, and so on, solving a $2 \times 2$ system at each level.  This yields $F, G$ with entries of size $\bigO(q)$, which are then reduced using lattice reduction in small dimension.
 
+Key generation is by far the most expensive phase of Falcon---it may require hundreds of milliseconds or more, compared to microseconds for ML-DSA.  This cost is acceptable because key generation is a one-time operation (or at worst infrequent), whereas signing and verification happen repeatedly over the key's lifetime.  The quality check on $\norm{\widetilde{\mathbf{B}}_{\mathrm{sec}}}$ is essential: a basis whose Gram-Schmidt norms are too large forces a wider Gaussian parameter~$\sigma$, producing longer signatures that may exceed the verification bound.  Rejecting poor-quality bases during key generation is cheaper than compensating for them in every subsequent signature.
+
+The precomputed Falcon tree~$\mathcal{T}$ deserves emphasis.  Rather than storing the raw basis vectors and recomputing the Gram-Schmidt decomposition at each signing invocation, Falcon precomputes and stores the entire tree of FFT-domain Gram-Schmidt data.  This trades secret key storage (the tree occupies roughly~40~KB for Falcon-512) for signing speed---a worthwhile exchange in most deployment scenarios.
+
 \subsection{Signing: The Falcon Tree}
 \label{subsec:falcon-sign}
 
@@ -447,6 +463,8 @@ The sampling uses the \emph{Falcon tree}\index{Falcon!tree}, a precomputed data 
 \end{algorithm}
 
 The key subroutine $\mathsf{ffSampling}$ exploits the recursive structure of the ring $R = \Z[X]/(X^n+1)$.  Since $X^n + 1 = (X^{n/2} + \zeta)(X^{n/2} - \zeta)$ over a suitable extension, the Gram-Schmidt decomposition splits into two half-sized subproblems.  Applied recursively, this yields a binary tree of depth $\log_2 n$, with a one-dimensional Gaussian sample at each leaf.  The total cost is $\bigO(n \log n)$ operations---the same complexity as an FFT.
+
+The contrast with ML-DSA's signing procedure is instructive.  ML-DSA uses rejection sampling: generate a candidate, check whether it leaks information, and restart if it does.  Falcon avoids rejection almost entirely (the norm check on line~6 triggers with probability less than $10^{-4}$ under typical parameters).  Instead, the Gaussian sampling procedure \emph{inherently} produces output that is independent of the secret basis, provided $\sigma$ is large enough.  This makes Falcon's signing faster in terms of expected iterations---but each iteration is more expensive, requiring $\bigO(n \log n)$ floating-point operations rather than the modular integer arithmetic of ML-DSA.
 
 \subsection{Verification}
 \label{subsec:falcon-verify}
@@ -488,23 +506,26 @@ The signature sizes are the smallest among all NIST post-quantum signature candi
 \subsection{The Constant-Time Challenge}
 \label{subsec:falcon-constant-time}
 
-Falcon's primary implementation difficulty is that the $\mathsf{ffSampling}$ algorithm requires high-precision floating-point arithmetic---specifically, IEEE~754 double-precision (53-bit significand) at minimum:
+Falcon's primary implementation difficulty is that the $\mathsf{ffSampling}$ algorithm requires high-precision floating-point arithmetic---specifically, IEEE~754 double-precision (53-bit significand) at minimum.  This requirement creates a cascade of engineering problems that, taken together, make Falcon one of the hardest cryptographic primitives to implement safely.
 
-\begin{itemize}
-\item \textbf{Floating-point side channels.}  The duration of floating-point operations can depend on the operand values (subnormals, special values), creating timing side channels that leak information about the secret basis.
-\item \textbf{Platform dependence.}  Different CPUs may implement IEEE~754 with different rounding behaviours in edge cases, potentially causing interoperability failures or security vulnerabilities.
-\item \textbf{No FPU on constrained devices.}  Many embedded platforms (e.g., ARM Cortex-M without FPU) cannot run Falcon efficiently, as software floating-point emulation is orders of magnitude slower.
-\item \textbf{Memory access patterns.}  The tree traversal during $\mathsf{ffSampling}$ may produce secret-dependent memory access patterns, opening cache-timing attack vectors.
-\end{itemize}
+The deepest problem is timing.  On most processors, floating-point operations execute in constant time for ``normal'' operands but slow down dramatically when an operand is subnormal---a value so small that its leading significand bit is zero.  The CPU either handles the subnormal in microcode (adding dozens of cycles) or raises a trap that the operating system resolves in software (adding thousands).  During $\mathsf{ffSampling}$, the Gram-Schmidt coefficients at deeper levels of the Falcon tree can become extremely small, especially for certain secret bases, and the intermediate products of these coefficients can land in the subnormal range.  An attacker measuring signature generation time can detect these slowdowns and, from their pattern, reconstruct information about the secret tree---and therefore the secret basis.  Multiple academic works have demonstrated precisely this attack against Falcon implementations.
 
-These challenges are not merely theoretical: multiple academic works have demonstrated timing attacks against Falcon implementations.  NIST's standardisation of Falcon (as FN-DSA) includes explicit guidance that implementers must ensure constant-time behaviour of all floating-point operations---a requirement that few development teams can confidently meet.
+The problem compounds across platforms.  The IEEE~754 standard permits implementations to differ in their treatment of edge cases: flush-to-zero modes, rounding tie-breaking, and the handling of infinities and NaNs are all implementation-defined in certain contexts.  A Falcon implementation that produces correct signatures on one CPU may produce subtly incorrect ones on another, or---worse---may produce signatures that are correct but whose timing profile reveals the secret key on one platform but not on another.  Testing for constant-time behaviour requires not just code review but platform-specific timing analysis, often at the microarchitectural level.
+
+Constrained devices present a separate barrier.  Many embedded processors---ARM Cortex-M0/M3 microcontrollers, for example, which are the workhorses of IoT and smart-card applications---lack a hardware floating-point unit entirely.  On these platforms, every floating-point operation must be emulated in software, multiplying the signing cost by one to two orders of magnitude and often exceeding the real-time budgets that embedded applications demand.  ML-DSA, which uses only modular integer arithmetic, faces no such limitation.
+
+Finally, the tree traversal itself poses a side-channel risk beyond arithmetic timing.  The $\mathsf{ffSampling}$ procedure accesses different nodes of the precomputed Falcon tree depending on the intermediate sampling results, which in turn depend on the secret basis.  On processors with shared caches, an attacker co-located on the same hardware can observe cache-line access patterns and infer which tree nodes were visited---a classic cache-timing attack.  Mitigating this requires loading the entire tree into cache before each signing operation or using constant-time memory access primitives, both of which add complexity and cost.
+
+NIST's standardisation of Falcon (as FN-DSA) includes explicit guidance that implementers must ensure constant-time behaviour of all floating-point operations---a requirement that few development teams can confidently meet without specialised expertise and extensive side-channel testing.
 
 
 %% ================================================================
 \section{ML-DSA vs Falcon: A Comparative Analysis}
 \label{sec:sig-comparison}
 
-The two NIST lattice-based signature standards represent fundamentally different design philosophies.  Table~\ref{tab:sig-comparison} summarises the key differences.
+The two NIST lattice-based signature standards embody fundamentally different answers to the same question: how should a signer prove knowledge of a short lattice vector without revealing it?  ML-DSA says: compute a response, check whether it leaks information, and retry if it does.  Falcon says: sample from a distribution that is inherently independent of the secret, using a trapdoor that only the key holder possesses.  These different philosophies propagate into every aspect of the resulting schemes---size, speed, implementation difficulty, and deployment suitability.
+
+Table~\ref{tab:sig-comparison} collects the quantitative comparison at NIST Level~I, but the numbers alone do not tell the full story.
 
 \begin{table}[t]
 \caption{ML-DSA vs Falcon: comparative overview.  Sizes for NIST Level~I (ML-DSA-44 vs Falcon-512).  Benchmark speeds on Intel Core i7 (AVX2).}
@@ -531,23 +552,37 @@ Implementation complexity & Moderate           & High \\
 \end{tabular}
 \end{table}
 
-\subsection{When to Use Which}
-\label{subsec:when-to-use}
+\subsection{Size vs.\ Simplicity}
+\label{subsec:size-vs-simplicity}
 
-\textbf{ML-DSA is the default recommendation} for nearly all applications.  Its implementation simplicity, natural constant-time behaviour (all operations are modular integer arithmetic), and broad platform support make it the safer engineering choice.  NIST designates ML-DSA as the primary standard for digital signatures.
+The most immediately visible difference is size.  Falcon-512 signatures are roughly $3.6\times$ smaller than ML-DSA-44 signatures, and the combined public-key-plus-signature footprint is less than half.  In protocols where signatures are transmitted frequently---TLS handshakes, certificate chains, blockchain transactions---this difference compounds.  A certificate chain with three signatures saves roughly 5~KB per connection by switching from ML-DSA to Falcon, which can matter at scale or over constrained links.
 
-\textbf{Falcon is preferred when signature size dominates.}  In applications where thousands or millions of signatures are stored or transmitted---blockchain ledgers, certificate transparency logs, bandwidth-constrained satellite links---the $2.5\times$--$3.6\times$ size reduction over ML-DSA may justify the implementation complexity.  However, any deployment of Falcon should be backed by expert cryptographic engineering and security audits.
+But size is not free.  Falcon achieves its compact signatures through the GPV framework's Gaussian sampling, which requires the floating-point arithmetic and tree-based data structures discussed in Sect.~\ref{subsec:falcon-constant-time}.  ML-DSA, by contrast, uses only modular integer arithmetic---addition, multiplication, and comparison in $\Z_q$---which is straightforward to implement in constant time on any platform.  The engineering cost of getting Falcon right is not just higher; it is qualitatively different, requiring expertise in floating-point microarchitecture that most cryptographic engineering teams do not possess.
+
+\subsection{Performance Characteristics}
+\label{subsec:perf-characteristics}
+
+Raw throughput numbers can mislead.  Falcon signs faster than ML-DSA (roughly $5\,000$ vs.\ $3\,700$ operations per second on a modern desktop) and verifies roughly $3\times$ faster.  But ML-DSA's signing speed is highly predictable---each attempt takes the same time, and the rejection loop adds only a constant expected factor.  Falcon's signing time, while fast on average, depends on the floating-point behaviour of the specific secret key and message, creating a variable timing profile that an attacker can exploit unless constant-time countermeasures are in place.
+
+For verification, Falcon's advantage is clear and comes with no side-channel risk: the verifier performs one polynomial multiplication and a norm check, with no secret data involved.  In applications where verification dominates---public ledgers, broadcast authentication---this advantage is significant.
+
+\subsection{Deployment Considerations}
+\label{subsec:deployment-considerations}
+
+For the vast majority of applications, ML-DSA is the right choice.  Its implementation simplicity, natural constant-time behaviour, and broad platform support---including embedded processors without floating-point hardware---make it the safer engineering decision.  NIST designates ML-DSA as the primary standard for digital signatures, and this designation reflects not a judgement about mathematical elegance but a pragmatic assessment of where implementations are most likely to be correct.
+
+Falcon earns its place in a narrower but important niche: applications where signature size dominates all other concerns.  Blockchain ledgers that store millions of signatures, certificate transparency logs, bandwidth-constrained satellite links---in these settings, the $3.6\times$ size reduction over ML-DSA may justify the additional engineering investment.  Any deployment of Falcon should be backed by expert cryptographic engineering and rigorous side-channel testing; this is not a scheme where a competent but non-specialist team can safely ``roll their own'' implementation.
 
 \begin{svgraybox}
-\textbf{The diversity argument.}  Beyond performance, having two standardised schemes based on different lattice problems (Module-LWE/SIS vs NTRU) provides cryptographic diversity.  If a breakthrough algorithm were discovered against one class of lattice problems, the other scheme could serve as a fallback.  This is a key reason NIST standardised both.
+\textbf{The diversity argument.}  Beyond performance and size, standardising two schemes based on different lattice problems---Module-LWE/SIS for ML-DSA, NTRU for Falcon---provides a cryptographic hedge.  If a breakthrough algorithm were discovered against one problem family, the other scheme could serve as a fallback.  Cryptographic diversity is not redundancy; it is insurance.  This consideration was a key factor in NIST's decision to standardise both.
 \end{svgraybox}
 
 \subsection{The Broader Landscape}
 \label{subsec:broader-landscape}
 
-It is worth noting that NIST has also standardised SLH-DSA (SPHINCS+), a hash-based signature scheme that requires no lattice assumptions at all (Chap.~\ref{ch:hash-signatures}).  For applications requiring the strongest possible security assumptions---relying only on the collision resistance of hash functions---SLH-DSA provides an alternative, at the cost of significantly larger signatures ($\sim$7--49~KB).
+The lattice-based schemes do not exhaust the post-quantum signature design space.  NIST has also standardised SLH-DSA (SPHINCS+), a hash-based signature scheme that requires no lattice assumptions at all (Chap.~\ref{ch:hash-signatures}).  SLH-DSA's security rests solely on the collision resistance of its underlying hash function---an assumption that is both older and more conservative than any lattice problem.  The price is size: SLH-DSA signatures range from roughly 7 to 49~KB, an order of magnitude larger than either lattice-based scheme.
 
-The three standards together cover the full spectrum of post-quantum signature needs: ML-DSA for general use, Falcon (FN-DSA) for size-critical applications, and SLH-DSA as a conservative fallback.
+Together, the three standards span the design space along a clear axis.  ML-DSA occupies the practical centre: moderate sizes, straightforward implementation, broad applicability.  Falcon trades implementation complexity for compact signatures.  SLH-DSA trades signature size for the strongest possible security assumptions.  The choice among them is not a matter of which is ``best'' in the abstract, but which tradeoff profile matches the constraints of the application at hand.
 
 
 %% ================================================================

@@ -15,6 +15,8 @@ The idea behind multivariate cryptography is seductively simple: solving systems
 \subsection{The MQ Problem}
 \label{subsec:mq-problem}
 
+Every multivariate scheme rests on a single bet: that systems of quadratic equations in many variables are hard to solve.  To make this precise, we need to state the problem carefully---because the gap between the general problem and the instances that actually appear in cryptosystems is where every attack has lived.
+
 \begin{definition}[Multivariate Quadratic (MQ) Problem]
 \label{def:mq}
 \index{MQ problem}
@@ -37,7 +39,7 @@ This result fuelled optimism that multivariate systems could serve as one-way fu
 \subsection{The Oil-Vinegar Construction}
 \label{subsec:oil-vinegar}
 
-The Oil-Vinegar scheme, introduced by Patarin in 1997, is the ancestor of most surviving multivariate signature schemes\index{Oil-Vinegar}.
+If general quadratic systems are hard but random systems have no trapdoor, how does one build a usable scheme?  The most enduring answer comes from a culinary metaphor.  The Oil-Vinegar scheme, introduced by Patarin in 1997, is the ancestor of most surviving multivariate signature schemes\index{Oil-Vinegar}.  Its central trick is to partition the variables into two classes that interact in a controlled way---just enough structure to invert, but (one hopes) not enough for an adversary to detect.
 
 \begin{definition}[Oil-Vinegar Map]
 \label{def:oil-vinegar}
@@ -108,6 +110,8 @@ Unbalanced Oil-Vinegar (UOV), where the number of vinegar variables greatly exce
 
 The cost is large public keys (tens to hundreds of kilobytes), which has motivated compressed variants such as MAYO and VOX.  Whether these compressed variants introduce new exploitable structure remains an open question.
 
+The multivariate story, then, is one of persistent structural vulnerability---trapdoors that turn out to be visible from the right angle.  But multivariate schemes are not the only post-quantum family to suffer a dramatic collapse.  The isogeny-based approach, built on entirely different mathematics, provides an even more striking cautionary tale.
+
 
 %% ================================================================
 \section{Isogeny-Based Cryptography}
@@ -118,7 +122,7 @@ Isogeny-based cryptography was the newest and most mathematically sophisticated 
 \subsection{Elliptic Curves and Isogenies}
 \label{subsec:ec-isogenies}
 
-We assume familiarity with elliptic curves at the level of an introductory number theory course.
+We assume familiarity with elliptic curves at the level of an introductory number theory course.  The essential objects are the curves themselves and the maps between them.  Where classical elliptic-curve cryptography exploits the difficulty of discrete logarithms \emph{within} a single curve, isogeny-based cryptography exploits the difficulty of finding maps \emph{between} curves.  To make this precise, we need two definitions.
 
 \begin{definition}[Elliptic Curve]
 \label{def:elliptic-curve}
@@ -129,6 +133,8 @@ E \;:\; y^2 \;=\; x^3 + ax + b, \qquad a,b\in K, \quad 4a^3 + 27b^2 \neq 0.
 \end{equation}
 The set $E(K)$ of $K$-rational points forms an abelian group under the chord-and-tangent law.
 \end{definition}
+
+The group structure is what makes elliptic curves useful for classical cryptography, but for isogeny-based schemes the important objects are the \emph{homomorphisms} between curves.
 
 \begin{definition}[Isogeny]
 \label{def:isogeny}
@@ -147,11 +153,15 @@ Let $E\colon y^2 = x^3 + x$ over $\F_p$ and let $P\in E(\F_p)$ have order~$\ell$
 \subsection{Supersingular Isogeny Graphs}
 \label{subsec:ss-graphs}
 
+Not all elliptic curves are equally useful for cryptography.  Among curves over finite fields, a special class---the supersingular curves---has properties that make it uniquely suited to building hard problems from isogenies.  Supersingular curves are rare (roughly $p/12$ of them over $\overline{\F}_p$), and the network of isogenies connecting them has remarkable combinatorial properties.
+
 \begin{definition}[Supersingular Curve]
 \label{def:supersingular}
 \index{supersingular curve}
 An elliptic curve $E$ over $\overline{\F}_p$ is \emph{supersingular} if $E[p] = \{O\}$ (trivial $p$-torsion over the algebraic closure).  Equivalently, $\#E(\F_p) \equiv 1 \pmod{p}$.  Over $\overline{\F}_p$, there are approximately $p/12$ supersingular $j$-invariants.
 \end{definition}
+
+The supersingular curves and the isogenies between them form a graph, and the structure of this graph is what makes the cryptography possible.
 
 \begin{definition}[Supersingular Isogeny Graph]
 \label{def:ss-graph}
@@ -167,7 +177,7 @@ The cryptographic hardness assumption is: given two supersingular curves $E_0$ a
 \subsection{SIDH/SIKE: Construction and Collapse}
 \label{subsec:sidh-sike}
 
-Supersingular Isogeny Diffie--Hellman (SIDH), proposed by Jao and De~Feo in 2011~\cite{JaoDeFeo2011}\index{SIDH}, translates the path-finding problem into a key exchange protocol.
+Supersingular Isogeny Diffie--Hellman (SIDH), proposed by Jao and De~Feo in 2011~\cite{JaoDeFeo2011}\index{SIDH}, translates the path-finding problem into a key exchange protocol.  The construction is elegant, but it demands a critical compromise that classical Diffie--Hellman never required.
 
 \begin{definition}[SIDH Key Exchange]
 \label{def:sidh}
@@ -213,17 +223,19 @@ The attack exploits precisely the auxiliary torsion point information that the p
 \end{itemize}
 \end{example}
 
+The SIKE collapse raises an immediate question: is the entire isogeny-based approach doomed, or was the vulnerability specific to SIDH's design?  The answer turns on a single architectural difference.
+
 
 %% ================================================================
 \section{Group Actions and CSIDH}
 \label{sec:csidh}
 
-The destruction of SIDH/SIKE did not kill all isogeny-based cryptography.  Commutative Supersingular Isogeny Diffie--Hellman (CSIDH, pronounced ``seaside''), proposed by Castryck, Lange, Martindale, Panny, and Renes in 2018~\cite{CSIDH2018}\index{CSIDH}, survives because it avoids the fatal flaw.
+The wreckage of SIDH left one isogeny-based construction standing.  Commutative Supersingular Isogeny Diffie--Hellman (CSIDH, pronounced ``seaside''), proposed by Castryck, Lange, Martindale, Panny, and Renes in 2018~\cite{CSIDH2018}\index{CSIDH}, was designed around a fundamentally different mathematical object---a commutative group action rather than a path-finding problem in an isogeny graph.  This difference is not cosmetic.  It eliminates the auxiliary torsion point information that destroyed SIKE, but it introduces its own challenges.
 
 \subsection{Class Group Actions}
 \label{subsec:class-group}
 
-CSIDH is built on the action of an abelian group on a set of elliptic curves, rather than on the path-finding problem in supersingular isogeny graphs.
+The core idea of CSIDH is to replace the non-commutative isogeny walk of SIDH with the action of an abelian group on a set of elliptic curves.  In classical Diffie--Hellman, the protocol works because the group of integers modulo a prime is commutative: $g^{ab} = g^{ba}$.  CSIDH achieves the same commutativity, but in a setting where discrete logarithms are hard even for quantum computers---at least, as far as we currently know.  The group that plays this role is the ideal class group of an imaginary quadratic order.
 
 \begin{definition}[Group Action on Elliptic Curves]
 \label{def:group-action}
@@ -236,7 +248,7 @@ where $E[\mathfrak{a}] = \{P \in E(\overline{\F}_p) : \alpha(P) = O \;\text{for 
 This action is free, transitive, and---crucially---\emph{commutative}, since $\mathrm{cl}(\Z[\sqrt{-p}])$ is abelian.
 \end{definition}
 
-The commutativity means that a Diffie--Hellman-style protocol works directly:
+The commutativity means that a Diffie--Hellman-style protocol works directly, and---this is the crucial point---without any auxiliary information.
 
 \begin{definition}[CSIDH Key Exchange]
 \label{def:csidh}
@@ -264,19 +276,13 @@ The underlying hard problem for CSIDH is the \emph{vectorisation problem}\index{
 \subsection{Challenges}
 \label{subsec:csidh-challenges}
 
-Despite surviving the SIKE catastrophe, CSIDH faces significant practical hurdles:
+Despite surviving the SIKE catastrophe, CSIDH faces significant practical hurdles that have so far prevented it from reaching standardisation.
 
-\begin{enumerate}
-\item \textbf{Class group computation:} The class group $\mathrm{cl}(\Z[\sqrt{-p}])$ must be large enough for security, but its structure is difficult to compute for large~$p$.  This complicates parameter selection.
+The first is computational: the class group $\mathrm{cl}(\Z[\sqrt{-p}])$ must be large enough for security, but its structure is difficult to compute for large~$p$, complicating parameter selection.  The second is implementational.  The group action is computed by walking through small-degree isogenies, and the number of steps depends on the secret key, creating timing side channels.  Constant-time implementations (CTIDH) exist but are significantly slower.
 
-\item \textbf{Constant-time implementation:} The group action is computed by walking through small-degree isogenies.  The number of steps depends on the secret key, creating timing side channels.  Constant-time implementations (CTIDH) exist but are significantly slower.
+The third challenge is the most fundamental: quantum security estimates remain unsettled.  Kuperberg's algorithm places CSIDH in an uncomfortable middle ground---not clearly broken by quantum computers, but not clearly safe either.  Achieving NIST Level~I security requires primes of 4096 bits or more, yielding public keys of 64~bytes but slow computation ($\sim$100\,ms).  Finally, the algebraic structure of a commutative group action, while elegant, is less flexible than lattices for building advanced primitives.  The action enables key exchange and, with extensions, signatures via CSI-FiSh, but constructing fully homomorphic encryption or attribute-based schemes from group actions remains an open problem.
 
-\item \textbf{Quantum security estimates:}  Kuperberg's algorithm places CSIDH in an uncomfortable middle ground---not clearly broken by quantum computers, but not clearly safe either.  Achieving NIST Level~I security requires primes of 4096 bits or more, yielding public keys of 64~bytes but slow computation ($\sim$100\,ms).
-
-\item \textbf{Limited functionality:}  The commutative group action enables key exchange (and with extensions, signatures via CSI-FiSh), but the algebraic structure is less flexible than lattices for building advanced primitives.
-\end{enumerate}
-
-CSIDH remains an active research area.  Its theoretical elegance---a true group-action-based analogue of classical Diffie--Hellman---ensures continued interest, even if practical deployment is uncertain.
+CSIDH remains an active research area.  Its theoretical elegance---a true group-action-based analogue of classical Diffie--Hellman---ensures continued interest, even if practical deployment is uncertain.  Whether isogeny-based cryptography will eventually produce a standardised scheme, or whether the family will remain a theoretical laboratory, depends on resolving these challenges.  In the meantime, the contrasting fates of SIKE and CSIDH offer sharp lessons about what makes cryptographic assumptions trustworthy---the subject of our final section.
 
 
 %% ================================================================
@@ -288,17 +294,15 @@ The failures of multivariate and isogeny-based schemes, combined with the surviv
 \subsection{What Makes an Assumption Trustworthy?}
 \label{subsec:trustworthy}
 
-Not all NP-hard problems make good cryptographic foundations.  The following criteria distinguish assumptions that have survived from those that have not:
+Not all NP-hard problems make good cryptographic foundations.  The collapses catalogued in this chapter suggest four criteria that distinguish assumptions which have survived from those which have not.
 
-\begin{enumerate}
-\item \textbf{Worst-case to average-case reductions.}  Lattice problems enjoy provable connections between worst-case and average-case hardness (Chap.~\ref{ch:lattice-theory}).  The MQ problem and the supersingular isogeny problem have no such reductions.  The presence of a worst-case/average-case connection does not guarantee security, but its absence should be a warning flag.
+The first, and arguably the most important, is the existence of \emph{worst-case to average-case reductions}.  Lattice problems enjoy provable connections between worst-case and average-case hardness (Chap.~\ref{ch:lattice-theory}): breaking a random instance is at least as hard as solving the worst case.  Neither the MQ problem nor the supersingular isogeny problem has such a reduction.  The presence of a worst-case/average-case connection does not guarantee security---it is a necessary condition, not a sufficient one---but its absence should be treated as a warning.
 
-\item \textbf{Time under scrutiny.}  McEliece's cryptosystem has withstood 45~years of cryptanalysis.  Lattice-based schemes have been studied for 25+ years.  SIKE survived only 11 years.  There is no shortcut to cryptographic confidence.
+The second criterion is time under sustained cryptanalytic pressure.  McEliece's cryptosystem has withstood 45~years of concerted attack.  Lattice-based schemes have survived over 25 years of scrutiny from a large and active community.  SIKE lasted 11 years before a classical attack, using techniques available since the 1990s, dismantled it entirely.  There is no shortcut to cryptographic confidence; years of failed attacks are themselves evidence, because each failure constrains the space of possible vulnerabilities.
 
-\item \textbf{Size of the research community.}  More researchers examining a scheme means more diverse attack strategies.  The isogeny community, while brilliant, was small.  The lattice community is an order of magnitude larger.
+Third, the \emph{size and diversity of the research community} matters more than is commonly acknowledged.  More researchers examining a scheme means more diverse attack strategies, more independent verification of security claims, and a higher probability that structural weaknesses are detected early.  The isogeny community, while technically brilliant, was small---perhaps a few dozen active researchers worldwide.  The lattice community is an order of magnitude larger, encompassing algebraists, complexity theorists, and practitioners.  The probability that a fundamental vulnerability escapes notice is simply lower when more eyes are looking.
 
-\item \textbf{Structural simplicity.}  The hard problems underlying lattice cryptography (find short vectors) and code-based cryptography (decode a random linear code) are simple to state.  The problems underlying multivariate and isogeny schemes involve layers of algebraic structure that provide more surfaces for attack.
-\end{enumerate}
+The fourth criterion is structural simplicity of the underlying hard problem.  The problems at the heart of lattice cryptography (find short vectors in a lattice) and code-based cryptography (decode a random linear code) are simple to state and have been studied as mathematical objects for decades, long before their cryptographic relevance was recognised.  The problems underlying multivariate and isogeny schemes involve layers of algebraic structure---hidden field maps, torsion point actions, class group computations---that provide more surfaces for attack.  Complexity is not inherently bad, but each additional structural component is a potential entry point for cryptanalysis.
 
 
 \subsection{Structured vs.\ Unstructured Problems}
@@ -344,6 +348,8 @@ This is not hindsight bias.  Galbraith, Petit, Shani, and Ti raised concerns abo
 
 NIST's decision to standardise schemes from multiple mathematical families---lattices (ML-KEM, ML-DSA), hash-based signatures (SLH-DSA), and codes (under evaluation)---reflects a hard-won lesson: no single family should be trusted unconditionally.
 
+The concept of crypto-agility captures this insight at the systems level.  A system that can swap out its cryptographic algorithms without a full redesign is resilient to precisely the kind of sudden collapse that SIKE suffered.  Without this flexibility, a broken algorithm means a broken system.
+
 \begin{definition}[Crypto-Agility]
 \label{def:crypto-agility}
 \index{crypto-agility}
@@ -358,7 +364,7 @@ A system exhibits \emph{crypto-agility} if its cryptographic algorithms can be r
 
 The SIKE collapse vindicated this approach.  Had SIKE been the sole post-quantum standard, the 2022 attack would have been a civilisation-scale infrastructure crisis.  Because NIST had diversified across families, SIKE's failure was a research setback, not an operational catastrophe.
 
-The practical implication for system designers: architect systems so that the cryptographic layer is a replaceable module, not a load-bearing wall.  The history of cryptography guarantees that algorithms will break; the only question is when.
+The practical implication for system designers: architect systems so that the cryptographic layer is a replaceable module, not a load-bearing wall.  The history of cryptography guarantees that algorithms will break; the only question is when.  The migration strategies and protocol-level mechanisms for achieving this agility in practice are the subject of Chapter~\ref{ch:migration}.
 
 
 %% ================================================================

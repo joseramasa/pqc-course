@@ -14,20 +14,22 @@
 \section{One-Time Signatures}
 \label{sec:ots}
 
-Digital signatures ordinarily allow a signer to authenticate an unlimited number of messages under a single key pair.  A \emph{one-time signature} (OTS)\index{one-time signature} relaxes this requirement: the key pair may be used to sign \emph{exactly one} message.  This seemingly crippling limitation turns out to be the seed from which all hash-based signature schemes grow.
+Every signature scheme we have encountered so far allows a signer to authenticate an unlimited number of messages under a single key pair.  What happens if we relax that guarantee to its absolute minimum---a key pair that can sign \emph{exactly one} message?  The resulting primitive, called a \emph{one-time signature} (OTS),\index{one-time signature} seems cripplingly limited, but it turns out to be the seed from which all hash-based signature schemes grow.  The reason is simple: if we can build a secure OTS from nothing more than a one-way function, then we need no algebraic structure, no lattices, no codes---just hashing.  The challenge, which the rest of this chapter addresses, is scaling that one-shot capability into a practical many-time signature scheme.
 
 \subsection{The Lamport Construction}
 \label{subsec:lamport}
 
-Lamport~\cite{Lamport1979} observed that any one-way function suffices to build a one-time signature.  Let $H\colon\{0,1\}^n\to\{0,1\}^n$ be a one-way function and let messages be $n$-bit strings.\index{Lamport signature}
+Lamport~\cite{Lamport1979} observed in 1979 that any one-way function suffices to build a one-time signature.\index{Lamport signature}  The idea is elegant in its simplicity: pre-commit to two random secrets for every bit of the message, then reveal one secret per bit depending on the message content.  Let us make this precise.
+
+Fix a one-way function $H\colon\{0,1\}^n\to\{0,1\}^n$ and suppose that messages are $n$-bit strings.  The signer prepares two random values for each bit position---one labelled~$0$, one labelled~$1$---and publishes their hash images as the public key.  To sign a message $m = m_1 m_2 \cdots m_n$, the signer reveals, for each position~$i$, whichever secret corresponds to the bit~$m_i$.  The verifier simply hashes each revealed secret and checks it against the appropriate entry in the public key.  Since $H$ is one-way, no adversary can recover the unrevealed secrets, and those are precisely the ones needed to sign a different message.
 
 \begin{definition}[Lamport One-Time Signature]
 \label{def:lamport}
-\begin{itemize}
-\item \textbf{Key generation.}  For $i = 1,\ldots,n$, sample $x_i^0, x_i^1 \getsr \{0,1\}^n$ uniformly at random.  Compute $y_i^b = H(x_i^b)$ for $b\in\{0,1\}$.  The signing key is $\mathsf{sk} = (x_i^b)_{i,b}$ and the verification key is $\mathsf{pk} = (y_i^b)_{i,b}$.
-\item \textbf{Signing.}  Given a message $m = m_1 m_2 \cdots m_n \in \{0,1\}^n$, output $\sigma = (x_1^{m_1}, x_2^{m_2}, \ldots, x_n^{m_n})$.
-\item \textbf{Verification.}  Accept $\sigma = (s_1,\ldots,s_n)$ on $m$ if $H(s_i) = y_i^{m_i}$ for all $i$.
-\end{itemize}
+For $i = 1,\ldots,n$, sample $x_i^0, x_i^1 \getsr \{0,1\}^n$ uniformly at random and compute $y_i^b = H(x_i^b)$ for $b\in\{0,1\}$.  The signing key is $\mathsf{sk} = (x_i^b)_{i,b}$ and the verification key is $\mathsf{pk} = (y_i^b)_{i,b}$.
+
+To sign a message $m = m_1 m_2 \cdots m_n \in \{0,1\}^n$, the signer outputs $\sigma = (x_1^{m_1}, x_2^{m_2}, \ldots, x_n^{m_n})$.
+
+To verify a purported signature $\sigma = (s_1,\ldots,s_n)$ on message~$m$, the verifier accepts if $H(s_i) = y_i^{m_i}$ for all~$i$.
 \end{definition}
 
 Correctness is immediate: the signer reveals exactly those preimages that correspond to the bits of~$m$, and the verifier recomputes the hashes and checks them against the public key.
@@ -45,19 +47,17 @@ An adversary who observes a signature on $m$ learns the preimages $x_i^{m_i}$ fo
 \textbf{Why ``one-time''?}  If the same key signs two distinct messages $m \neq m'$, then for every bit position~$j$ where $m_j \neq m'_j$, the adversary learns \emph{both} preimages $x_j^0$ and $x_j^1$.  After seeing just two signatures, the adversary can forge a signature on any message that agrees with $m$ or $m'$ at every bit position---potentially exponentially many messages.
 \end{svgraybox}
 
-\noindent\textbf{Efficiency.}  Lamport keys and signatures are large.  For $n = 256$:
-\begin{itemize}
-\item Signing key: $2n \cdot n = 2 \cdot 256 \cdot 256 = 16\,384$~bytes.
-\item Verification key: same size.
-\item Signature: $n \cdot n = 256 \cdot 256 = 8\,192$~bytes.
-\end{itemize}
-This motivates the search for more compact OTS constructions.
+The Lamport scheme, however, pays a steep price in size.  Each secret is an $n$-bit string, and the signer maintains two secrets per bit position, so for $n = 256$ the signing key occupies $2n \cdot n = 2 \cdot 256 \cdot 256 = 16\,384$~bytes.  The verification key is equally large.  The signature itself contains one secret per bit position: $n \cdot n = 256 \cdot 256 = 8\,192$~bytes.  These sizes are tolerable for a proof of concept, but entirely impractical for real-world deployment.  We need a way to compress signatures without abandoning the one-way-function-only paradigm---and that is exactly what the Winternitz construction achieves.
 
 
 \subsection{Winternitz OTS (WOTS+)}
 \label{subsec:wots}
 
-The Winternitz one-time signature\index{Winternitz OTS}\index{WOTS+} shrinks signatures by replacing the bit-by-bit approach with a chain-based construction that processes $\log_2 w$ bits at a time, where $w \geq 2$ is the \emph{Winternitz parameter}\index{Winternitz parameter}.
+The fundamental inefficiency of Lamport signatures lies in processing the message one bit at a time: each bit demands its own pair of secrets, yielding signatures with $n$ components.  The Winternitz one-time signature\index{Winternitz OTS}\index{WOTS+} asks a natural question: what if we process several bits at once?
+
+The core idea is to replace the single hash evaluation per bit position with a \emph{hash chain}---a sequence of iterated applications of a hash function.  Instead of revealing a preimage to authenticate a single bit, the signer reveals a value at a particular \emph{depth} in the chain, and that depth encodes a multi-bit digit of the message.  Concretely, if we group bits into base-$w$ digits (each representing $\log_2 w$ bits), then a digit $d \in \{0, 1, \ldots, w-1\}$ is authenticated by revealing the value $F^{(d)}(x)$---the result of applying the hash function $d$ times starting from a secret~$x$.  The verifier can check this by applying $F$ an additional $w - 1 - d$ times and comparing the result against the public key, which is $F^{(w-1)}(x)$.
+
+This is the \emph{Winternitz tradeoff}\index{Winternitz parameter!tradeoff}: larger $w$ means each chain encodes more bits, so fewer chains are needed and signatures shrink.  But longer chains require more hash evaluations during signing and verification, so speed decreases.  Doubling $w$ roughly halves the number of chains but doubles the average chain length.  The parameter $w$ gives the scheme designer a knob to turn between compactness and performance.
 
 \begin{definition}[Hash Chain]
 \label{def:hash-chain}
@@ -68,55 +68,49 @@ F^{(j)}(x) = \underbrace{F(F(\cdots F}_{j}(x)\cdots)),
 with $F^{(0)}(x) = x$.
 \end{definition}
 
-In WOTS+, a message digest of $n$ bits is split into $\ell_1 = \lceil n / \log_2 w \rceil$ base-$w$ digits $d_1,\ldots,d_{\ell_1}$, each in $\{0,1,\ldots,w-1\}$.  A checksum $C = \sum_{i=1}^{\ell_1}(w - 1 - d_i)$ is appended, encoded in $\ell_2 = \lfloor \log_2(\ell_1(w-1)) / \log_2 w \rfloor + 1$ additional base-$w$ digits $d_{\ell_1+1},\ldots,d_\ell$, where $\ell = \ell_1 + \ell_2$.
+With hash chains in hand, we can describe the full construction.  In WOTS+, a message digest of $n$ bits is split into $\ell_1 = \lceil n / \log_2 w \rceil$ base-$w$ digits $d_1,\ldots,d_{\ell_1}$, each in $\{0,1,\ldots,w-1\}$.  A checksum $C = \sum_{i=1}^{\ell_1}(w - 1 - d_i)$ is appended, encoded in $\ell_2 = \lfloor \log_2(\ell_1(w-1)) / \log_2 w \rfloor + 1$ additional base-$w$ digits $d_{\ell_1+1},\ldots,d_\ell$, where $\ell = \ell_1 + \ell_2$.
+
+The checksum is essential.  Without it, an adversary who observes a signature could simply apply additional hash iterations to forge signatures on messages with smaller digit values.  The checksum ensures that any modification that \emph{decreases} a message digit (which the adversary could handle by hashing further along the chain) must \emph{increase} at least one checksum digit---requiring the adversary to invert a hash chain, which is hard.
 
 \begin{definition}[WOTS+ Scheme]
 \label{def:wots-plus}
 Let $w \geq 2$, $n$ the security parameter, and $\ell = \ell_1 + \ell_2$ as above.
-\begin{itemize}
-\item \textbf{Key generation.}  Sample $\ell$ secret values $x_1,\ldots,x_\ell \getsr \{0,1\}^n$.  Compute the public key components $\mathsf{pk}_i = F^{(w-1)}(x_i)$ for $i = 1,\ldots,\ell$.
-\item \textbf{Signing.}  Compute the base-$w$ representation $(d_1,\ldots,d_\ell)$ of the message digest concatenated with its checksum.  Output $\sigma = (F^{(d_1)}(x_1), \ldots, F^{(d_\ell)}(x_\ell))$.
-\item \textbf{Verification.}  Compute $F^{(w-1-d_i)}(\sigma_i)$ for each~$i$ and check equality with $\mathsf{pk}_i$.
-\end{itemize}
-\end{definition}
 
-The checksum ensures that any modification to a message digit that \emph{decreases} some $d_i$ (which the adversary could handle by applying more hash iterations) must \emph{increase} at least one checksum digit---requiring inversion of the hash chain, which is hard.
+The signer generates $\ell$ secret values $x_1,\ldots,x_\ell \getsr \{0,1\}^n$ and computes the public key components $\mathsf{pk}_i = F^{(w-1)}(x_i)$ for $i = 1,\ldots,\ell$---each public key element sits at the far end of its chain.
+
+To sign, the signer computes the base-$w$ representation $(d_1,\ldots,d_\ell)$ of the message digest concatenated with its checksum, then outputs $\sigma = (F^{(d_1)}(x_1), \ldots, F^{(d_\ell)}(x_\ell))$.  Each signature component is the chain value at depth $d_i$---shallow for small digits, deep for large ones.
+
+To verify, the verifier computes $F^{(w-1-d_i)}(\sigma_i)$ for each~$i$ and checks equality with $\mathsf{pk}_i$.  Since the chain is $w-1$ steps long and the signer revealed the value at step $d_i$, the verifier needs exactly $w - 1 - d_i$ more steps to reach the public key.
+\end{definition}
 
 \begin{example}[WOTS+ Sizes with $w = 16$, $n = 256$]
 \label{ex:wots-sizes}
-\begin{itemize}
-\item Message digits: $\ell_1 = \lceil 256/4 \rceil = 64$.
-\item Checksum bound: $\ell_1(w-1) = 64 \cdot 15 = 960$; $\ell_2 = \lfloor\log_{16}(960)\rfloor + 1 = 3$.
-\item Total chains: $\ell = 67$.
-\item Signature size: $67 \times 32 = 2\,144$~bytes (vs.\ Lamport's $8\,192$).
-\item Average hash evaluations per signature: $67 \times 7.5 = 502.5$.
-\item Verification cost: $67 \times 7.5 = 502.5$ evaluations on average.
-\end{itemize}
+With $w = 16$, each digit encodes $\log_2 16 = 4$~bits.  The number of message digits is $\ell_1 = \lceil 256/4 \rceil = 64$.  The checksum bound is $\ell_1(w-1) = 64 \cdot 15 = 960$, requiring $\ell_2 = \lfloor\log_{16}(960)\rfloor + 1 = 3$ additional digits.  The total number of chains is $\ell = 67$.  The signature size drops to $67 \times 32 = 2\,144$~bytes---nearly four times smaller than Lamport's $8\,192$ bytes at the same security level.  The average number of hash evaluations per signature is $67 \times 7.5 = 502.5$, and verification costs the same on average.
 \end{example}
 
-The parameter $w$ controls a \emph{size--speed tradeoff}\index{Winternitz parameter!tradeoff}: larger $w$ yields fewer, longer chains, producing shorter signatures at the cost of more hash evaluations.  Doubling~$w$ roughly halves the number of chains but doubles the average chain length.
+Lamport and WOTS+ solve the one-time problem with differing compactness, but neither addresses the elephant in the room: real-world signing keys must authenticate more than one message.  The next section shows how Ralph Merkle's deceptively simple tree construction extends any OTS into a many-time scheme---at the cost of maintaining state.
 
 
 %% ================================================================
 \section{Merkle's Tree-Based Signatures}
 \label{sec:merkle}
 
-Lamport and Winternitz signatures are one-time: each key pair signs a single message.  Merkle~\cite{Merkle1979} showed how to extend any OTS into a \emph{many-time} signature scheme\index{Merkle tree}\index{Merkle signature scheme} using a binary hash tree, at the cost of maintaining state.
+A one-time signature authenticates a single message.  To sign a thousand messages, we need a thousand key pairs---but publishing a thousand independent public keys defeats the purpose of public-key cryptography.  Merkle~\cite{Merkle1979} solved this problem in 1979 with a construction so natural it seems inevitable in hindsight: arrange the OTS public keys as the leaves of a binary hash tree\index{Merkle tree}\index{Merkle signature scheme} and publish only the root.  The root binds all $2^h$ OTS keys together into a single compact public key, and each signature proves---via a short chain of hashes called an authentication path---that the leaf it used is part of the committed tree.
 
 \subsection{The Merkle Tree Construction}
 \label{subsec:merkle-tree}
 
-Fix a tree height $h$ and an OTS scheme (e.g., WOTS+).  The construction proceeds as follows.
+Fix a tree height $h$ and an OTS scheme (e.g., WOTS+).  The signer generates $2^h$ independent OTS key pairs at setup and organises them into a complete binary tree.  Each leaf stores (the hash of) an OTS public key.  Each internal node stores the hash of its two children concatenated.  The root, which compresses the entire tree into a single hash value, serves as the global public key.
+
+When the signer wishes to authenticate a message, it picks the next unused OTS key pair---say the one at leaf~$i$---signs the message with it, then provides enough information for the verifier to recompute the root starting from that leaf.  That ``enough information'' is the authentication path: the $h$ sibling nodes encountered on the walk from leaf~$i$ up to the root.
 
 \begin{definition}[Merkle Signature Scheme]
 \label{def:merkle-scheme}
-\begin{itemize}
-\item \textbf{Key generation.}  Generate $2^h$ independent OTS key pairs $(\mathsf{sk}_i, \mathsf{pk}_i)$ for $i = 0,\ldots,2^h - 1$.  Assign each $\mathsf{pk}_i$ to a leaf of a complete binary tree of height~$h$.  For each internal node, compute its value as $H(\mathsf{node}_{\mathrm{left}} \,\|\, \mathsf{node}_{\mathrm{right}})$.  The root of the tree is the public key~$\mathsf{PK}$.
+Generate $2^h$ independent OTS key pairs $(\mathsf{sk}_i, \mathsf{pk}_i)$ for $i = 0,\ldots,2^h - 1$.  Assign each $\mathsf{pk}_i$ to a leaf of a complete binary tree of height~$h$.  For each internal node, compute its value as $H(\mathsf{node}_{\mathrm{left}} \,\|\, \mathsf{node}_{\mathrm{right}})$.  The root of the tree is the public key~$\mathsf{PK}$.
 
-\item \textbf{Signing} (message $m$, index~$i$).  Use OTS key $\mathsf{sk}_i$ to sign $m$, producing $\sigma_{\mathrm{ots}}$.  Compute the \emph{authentication path}\index{authentication path} $\mathsf{Auth} = (a_0, a_1, \ldots, a_{h-1})$, where $a_j$ is the sibling node at level~$j$ on the path from leaf~$i$ to the root.  Output $\sigma = (i,\; \sigma_{\mathrm{ots}},\; \mathsf{Auth})$.
+To sign message $m$ using index~$i$, the signer produces the OTS signature $\sigma_{\mathrm{ots}}$ under $\mathsf{sk}_i$, then computes the authentication path\index{authentication path} $\mathsf{Auth} = (a_0, a_1, \ldots, a_{h-1})$, where $a_j$ is the sibling node at level~$j$ on the path from leaf~$i$ to the root.  The full signature is $\sigma = (i,\; \sigma_{\mathrm{ots}},\; \mathsf{Auth})$.
 
-\item \textbf{Verification.}  Verify $\sigma_{\mathrm{ots}}$ on $m$ using $\mathsf{pk}_i$ (reconstructed or stored).  Starting from the leaf hash of $\mathsf{pk}_i$, iteratively hash together each pair of sibling nodes along the authentication path.  Accept if the reconstructed root equals~$\mathsf{PK}$.
-\end{itemize}
+To verify, the verifier first checks $\sigma_{\mathrm{ots}}$ on $m$ using $\mathsf{pk}_i$.  Starting from the leaf hash of $\mathsf{pk}_i$, the verifier iteratively hashes together each pair of sibling nodes along the authentication path.  If the reconstructed root equals~$\mathsf{PK}$, the signature is accepted.
 \end{definition}
 
 \begin{theorem}[Security of the Merkle Scheme]
@@ -131,40 +125,43 @@ Suppose an adversary forges a signature on a new message.  The forged signature 
 \subsection{Authentication Paths}
 \label{subsec:auth-paths}
 
-The authentication path has exactly $h$ nodes---one sibling at each level of the tree.  For a tree of height $h = 20$ (supporting $2^{20} \approx 10^6$ signatures) with a 256-bit hash function, the authentication path is $20 \times 32 = 640$~bytes.
+The authentication path deserves a closer look, because it is the mechanism that makes the entire construction work---and it reappears in every scheme for the rest of this chapter.
+
+Consider a concrete example.  Suppose we have a tree of height $h = 3$ with eight leaves $\ell_0, \ldots, \ell_7$, and we want to verify a signature that used leaf~$\ell_5$.  The path from $\ell_5$ to the root passes through three internal nodes: the parent of $\ell_5$, then its grandparent, and finally the root.  At each level, the verifier needs the \emph{sibling} node---the one it cannot compute from the information it already has---to continue the chain of hashes upward.
 
 \begin{example}[Authentication Path for Leaf 5 in a Height-3 Tree]
 \label{ex:auth-path}
-In a tree with leaves $\ell_0, \ldots, \ell_7$, the path from $\ell_5$ to the root passes through nodes $(\ell_5, N_{23}, N_1, R)$, where $N_{23}$ is the parent of $\ell_4$ and $\ell_5$, and $N_1$ is the left child of the root.  The authentication path is $\mathsf{Auth} = (\ell_4, N_{22}, N_0)$---the siblings at each level.  Verification computes:
+In a tree with leaves $\ell_0, \ldots, \ell_7$, the path from $\ell_5$ to the root passes through nodes $(\ell_5, N_{23}, N_1, R)$, where $N_{23}$ is the parent of $\ell_4$ and $\ell_5$, and $N_1$ is the left child of the root.  The authentication path consists of the three siblings at each level: $\mathsf{Auth} = (\ell_4, N_{22}, N_0)$.
+
+The verifier begins with the hash of $\ell_5$ (obtained from the OTS public key) and proceeds level by level.  At the bottom level, it hashes $\ell_4$ together with $\ell_5$ to reconstruct the parent $N_{23}$.  One level up, it hashes $N_{22}$ (the sibling it received) together with the just-computed $N_{23}$ to reconstruct $N_1$.  At the top, it hashes $N_0$ (the other child of the root) together with $N_1$ to reconstruct the root:
 \begin{align}
 v_0 &= H(\ell_4 \,\|\, \ell_5), \notag\\
 v_1 &= H(N_{22} \,\|\, v_0), \notag\\
 v_2 &= H(N_0 \,\|\, v_1), \notag
 \end{align}
-and accepts if $v_2 = \mathsf{PK}$.
+and accepts if $v_2 = \mathsf{PK}$.  The verifier needed exactly $h = 3$ sibling hashes---one per level---to walk from a single leaf all the way to the root.
 \end{example}
+
+The authentication path has exactly $h$ nodes---one sibling at each level of the tree.  For a tree of height $h = 20$ (supporting $2^{20} \approx 10^6$ signatures) with a 256-bit hash function, the authentication path is $20 \times 32 = 640$~bytes.  This is remarkably compact: a few hundred bytes suffice to prove membership in a tree with a million leaves.
 
 \subsection{Key Generation Cost}
 \label{subsec:keygen-cost}
 
-The main drawback of the Merkle scheme is key generation: generating $2^h$ OTS key pairs and computing the full tree requires $\bigO(2^h)$ OTS key generations and $\bigO(2^h)$ hash evaluations.  For $h = 20$ with WOTS+ ($w = 16$, $n = 256$), this amounts to roughly $2^{20} \times 67 \times 15 \approx 10^9$ hash evaluations---feasible but expensive.  Techniques such as \emph{BDS tree traversal}~\cite{BDS2008} reduce the memory needed to compute authentication paths from $\bigO(2^h)$ to $\bigO(h^2)$, storing only a logarithmic number of nodes.
+The elegance of the Merkle construction comes with a practical burden at key generation time.  Generating $2^h$ OTS key pairs and computing the full tree requires $\bigO(2^h)$ OTS key generations and $\bigO(2^h)$ hash evaluations.  For $h = 20$ with WOTS+ ($w = 16$, $n = 256$), this amounts to roughly $2^{20} \times 67 \times 15 \approx 10^9$ hash evaluations---feasible but expensive.  Techniques such as \emph{BDS tree traversal}~\cite{BDS2008} reduce the memory needed to compute authentication paths from $\bigO(2^h)$ to $\bigO(h^2)$, storing only a logarithmic number of nodes.
+
+The Merkle scheme transforms one-time signing into many-time signing, but at a cost: the signer must track which leaf indices have been used, and must never reuse one.  This state management requirement, as we shall see, is the central tension driving the next two decades of hash-based signature design.
 
 
 %% ================================================================
 \section{Stateful Schemes: XMSS and LMS}
 \label{sec:stateful}
 
-The Merkle construction requires the signer to track which OTS keys have been used.  The \emph{eXtended Merkle Signature Scheme} (XMSS)\index{XMSS} and the \emph{Leighton--Micali Signature} scheme (LMS)\index{LMS} are the two standardized stateful hash-based signature schemes, codified in RFC~8391~\cite{RFC8391} and RFC~8554~\cite{RFC8554}, respectively, with NIST guidance in SP~800-208.
+The Merkle construction proved that OTS keys could be aggregated into a many-time scheme, but it left the signer with a fragile obligation: maintain a counter, increment it faithfully, and \emph{never} reuse an index.  The \emph{eXtended Merkle Signature Scheme} (XMSS)\index{XMSS} and the \emph{Leighton--Micali Signature} scheme (LMS)\index{LMS}---codified in RFC~8391~\cite{RFC8391} and RFC~8554~\cite{RFC8554}, respectively, with NIST guidance in SP~800-208---are two standardised schemes that refine and harden the Merkle construction for real-world deployment.
 
 \subsection{XMSS}
 \label{subsec:xmss}
 
-XMSS improves on the basic Merkle scheme in several ways:
-\begin{enumerate}
-\item \textbf{WOTS+ as the OTS layer.}  Each leaf uses a WOTS+ instance, gaining the size benefits of Winternitz chains.
-\item \textbf{Bitmask XOR.}  Before hashing two child nodes, XMSS XORs each child with a position-dependent bitmask.  This allows the security proof to use a \emph{multi-function multi-target} second-preimage resistance notion, leading to tighter security bounds.
-\item \textbf{$L$-tree compression.}  The $\ell$ components of a WOTS+ public key are compressed into a single $n$-bit value via an unbalanced binary tree (the \emph{$L$-tree}), which is then placed at the Merkle tree leaf.
-\end{enumerate}
+XMSS improves on the basic Merkle scheme in three important ways.  First, it uses WOTS+ as the OTS layer at every leaf, gaining the size benefits of Winternitz chains over Lamport signatures.  Second, before hashing two child nodes, XMSS XORs each child with a position-dependent bitmask.  This seemingly minor change has a major impact on the security proof: it allows the reduction to exploit a \emph{multi-function multi-target} second-preimage resistance notion, leading to tighter security bounds and smaller parameter choices.  Third, the $\ell$ components of a WOTS+ public key are compressed into a single $n$-bit value via an unbalanced binary tree called the \emph{$L$-tree}, which is then placed at the Merkle tree leaf.
 
 \begin{definition}[XMSS Parameters]
 \label{def:xmss-params}
@@ -179,23 +176,12 @@ An XMSS instance is specified by:
 \subsection{Multi-Tree XMSS (\texorpdfstring{XMSS$^{MT}$}{XMSS-MT})}
 \label{subsec:xmss-mt}
 
-For large $h$ (e.g., $h = 60$), building a single tree of height~60 is infeasible.  XMSS$^{MT}$\index{XMSS!multi-tree} splits the total height $h$ into $d$~layers, each of height $h/d$.  The root tree certifies the roots of the trees at the next layer, which in turn certify the layer below, and so on.
-
-\begin{itemize}
-\item A signature in XMSS$^{MT}$ with $d$ layers consists of $d$ XMSS signatures and $d$ authentication paths, one per layer.
-\item Key generation requires building only the root tree ($2^{h/d}$ leaves), not the full tree of $2^h$ leaves.  Lower-level trees are generated on demand.
-\item Total signature size scales as $d$ times a single-layer XMSS signature.
-\end{itemize}
+For large $h$ (e.g., $h = 60$), building a single tree of height~60 is infeasible---it would require $2^{60}$ leaf computations.  XMSS$^{MT}$\index{XMSS!multi-tree} addresses this by splitting the total height $h$ into $d$~layers, each of height $h/d$.  The root tree sits at the top and certifies the roots of the trees at the next layer, which in turn certify the layer below, and so on down to the leaves.  This layered structure means key generation only requires building the root tree ($2^{h/d}$ leaves, not $2^h$), with lower-level trees generated on demand as signatures are produced.  The price is that a signature now includes $d$ XMSS signatures and $d$ authentication paths---one per layer---so total signature size scales linearly with $d$.
 
 \subsection{LMS}
 \label{subsec:lms}
 
-LMS~\cite{RFC8554} is a simpler design than XMSS with broadly similar functionality.  It uses \emph{LM-OTS} (Leighton--Micali OTS) as the one-time primitive and supports a hierarchical multi-tree variant (HSS) analogous to XMSS$^{MT}$.  The main differences from XMSS are:
-\begin{itemize}
-\item LM-OTS uses direct hash iteration without the bitmask XOR of WOTS+.
-\item The security proof for LMS relies on standard hash function properties without multi-target refinements.
-\item LMS is slightly simpler to implement, making it attractive for constrained environments.
-\end{itemize}
+LMS~\cite{RFC8554} takes a simpler approach than XMSS with broadly similar functionality.  It uses \emph{LM-OTS} (Leighton--Micali OTS) as the one-time primitive, which employs direct hash iteration without the bitmask XOR of WOTS+.  The security proof relies on standard hash function properties without multi-target refinements, resulting in a design that is slightly simpler to implement---an attractive property for constrained environments such as embedded systems and hardware security modules.  LMS supports a hierarchical multi-tree variant (HSS) analogous to XMSS$^{MT}$.
 
 Both XMSS and LMS are approved for use by NIST (SP~800-208) in applications where state management can be guaranteed.
 
@@ -205,82 +191,80 @@ Both XMSS and LMS are approved for use by NIST (SP~800-208) in applications wher
 Stateful schemes impose a critical operational requirement: the signer must \emph{never} reuse an OTS index.\index{state management}  Violating this requirement destroys security---not gradually, but catastrophically.
 
 \begin{svgraybox}
-\textbf{The state management nightmare.}  Consider the implications:
-\begin{enumerate}
-\item \emph{Backup and restore:} Restoring a signer from a backup that has index $i=1000$ after the live system has advanced to $i=1500$ causes indices $1001$--$1500$ to be reused.
-\item \emph{Virtual machine cloning:} Cloning a VM duplicates the state counter, causing immediate reuse.
-\item \emph{Hardware failure:} If the state counter is lost, no further signatures can be safely produced.
-\item \emph{Distributed signing:} Multiple signers sharing a key must coordinate state, introducing a single point of failure.
-\end{enumerate}
+\textbf{The state management nightmare.}  Consider the implications.  Restoring a signer from a backup that has index $i=1000$ after the live system has advanced to $i=1500$ causes indices $1001$--$1500$ to be reused.  Cloning a virtual machine duplicates the state counter, causing immediate reuse.  If the state counter is lost to hardware failure, no further signatures can be safely produced.  Distributed signing---multiple signers sharing a key---requires coordinating state, introducing a single point of failure.
+
 For these reasons, stateful schemes are recommended only for controlled environments: firmware signing, certificate authority roots, and air-gapped systems.
 \end{svgraybox}
+
+The fragility of state management is not merely an engineering inconvenience; it is a fundamental barrier to widespread deployment.  Eliminating this barrier requires a radically different approach to index selection---one that does not rely on a counter at all.  The next two sections develop the ingredients needed for that approach: a signature primitive that tolerates bounded reuse (FORS), and a tree-of-trees architecture (the hypertree) that makes statelessness possible.
 
 
 %% ================================================================
 \section{FORS: Few-Time Signatures from Random Subsets}
 \label{sec:fors}
 
-The \emph{Forest of Random Subsets} (FORS)\index{FORS} scheme is a \emph{few-time signature}\index{few-time signature} that tolerates a bounded number of signing operations under the same key before security degrades.  FORS was designed specifically as the bottom layer of SPHINCS+.
+We have seen that one-time signatures break catastrophically when a key is reused.  But what if we could build a signature primitive that degrades \emph{gracefully}---remaining secure even after a handful of uses?  Such a scheme, called a \emph{few-time signature},\index{few-time signature} would be exactly what a stateless design needs.  If keys are assigned pseudorandomly rather than sequentially, most keys will be used zero or one times, a few will be used twice or three times, and the scheme must tolerate this without collapsing.
+
+The \emph{Forest of Random Subsets} (FORS)\index{FORS} scheme was designed specifically to fill this role as the bottom layer of SPHINCS+.  Its key idea is to replace the hash-chain mechanism of WOTS+ with a selection-from-subsets approach: instead of revealing chain values, the signer reveals elements chosen from disjoint forests of secret values, with the selection determined by the message hash.
 
 \subsection{Construction}
 \label{subsec:fors-construction}
 
-FORS signs a message by interpreting its hash as a selection of $k$ elements from $k$ disjoint sets, each of size $t = 2^a$.
+FORS organises its secrets into $k$ groups, each containing $t = 2^a$ values arranged as the leaves of a binary hash tree.  Signing a message means interpreting its hash as $k$ indices---one per group---and revealing the selected secret along with its authentication path in the corresponding tree.  Security comes from the combinatorial difficulty of finding a message whose $k$ indices all land on previously revealed secrets.
 
 \begin{definition}[FORS Scheme]
 \label{def:fors}
 Fix parameters $k$ (number of trees) and $a$ (tree height, so each tree has $t = 2^a$ leaves).
-\begin{itemize}
-\item \textbf{Key generation.}  Generate $k \cdot t$ random secret values $\mathsf{sk}_{j,i}$ for $j = 1,\ldots,k$ and $i = 0,\ldots,t-1$.  Build $k$ binary hash trees, one over each group of $t$ secrets.  The public key is the collection of $k$ tree roots (compressed into a single hash).
-\item \textbf{Signing.}  Hash the message to obtain $k$ indices $(d_1,\ldots,d_k)$, each in $\{0,\ldots,t-1\}$.  For each $j$, reveal $\mathsf{sk}_{j,d_j}$ together with the authentication path from leaf $d_j$ to the root of tree~$j$.  The signature is $\sigma = \bigl((\mathsf{sk}_{j,d_j}, \mathsf{Auth}_j)\bigr)_{j=1}^k$.
-\item \textbf{Verification.}  For each $j$, hash $\mathsf{sk}_{j,d_j}$ and use the authentication path to recompute the root of tree~$j$.  Accept if all $k$ roots match the public key.
-\end{itemize}
+
+The signer generates $k \cdot t$ random secret values $\mathsf{sk}_{j,i}$ for $j = 1,\ldots,k$ and $i = 0,\ldots,t-1$, then builds $k$ binary hash trees, one over each group of $t$ secrets.  The public key is the collection of $k$ tree roots, compressed into a single hash.
+
+To sign a message, the signer hashes it to obtain $k$ indices $(d_1,\ldots,d_k)$, each in $\{0,\ldots,t-1\}$.  For each tree~$j$, the signer reveals the secret $\mathsf{sk}_{j,d_j}$ together with the authentication path from leaf $d_j$ to the root of tree~$j$.  The signature is $\sigma = \bigl((\mathsf{sk}_{j,d_j}, \mathsf{Auth}_j)\bigr)_{j=1}^k$.
+
+Verification proceeds by hashing each revealed secret and using the authentication path to recompute the root of each tree.  The verifier accepts if all $k$ reconstructed roots match the public key.
 \end{definition}
 
 \subsection{Few-Time Security}
 \label{subsec:fors-security}
 
-Each signature reveals $k$ out of $k \cdot t$ secret values.  After $q$ signatures, an adversary knows at most $qk$ values.  To forge, the adversary needs all $k$ indices of a new message to fall among the revealed values.  The probability that a random message can be forged after $q$ signatures is at most $(q/t)^k$, which is negligible for appropriate $k$ and $a$.
+The reason FORS tolerates bounded reuse is quantitative rather than structural.  Each signature reveals $k$ out of $k \cdot t$ secret values.  After $q$ signatures, an adversary knows at most $qk$ values.  To forge a signature on a new message, the adversary needs all $k$ indices of that message to fall among the already-revealed values.  The probability that a random message can be forged after $q$ signatures is at most $(q/t)^k$---a quantity that shrinks exponentially in~$k$ as long as $q$ remains much smaller than~$t$.
 
 \begin{example}[FORS Forgery Probability]
 \label{ex:fors-forgery}
 With $k = 35$ and $a = 9$ ($t = 512$), after $q = 2^{16}$ signatures the forgery probability is at most $(2^{16}/512)^{35} = (2^7)^{35} = 2^{245}$... but this is per target message.  The actual analysis in SPHINCS+ accounts for multi-target attacks and sets parameters so that the overall forgery probability remains below $2^{-\lambda}$ for the target security level~$\lambda$.
 \end{example}
 
+With a few-time signature in hand, we now have every piece needed for the main construction.  The remaining question is architectural: how do we assemble FORS, WOTS+, and Merkle trees into a single coherent scheme that needs no state at all?
+
 
 %% ================================================================
 \section{SLH-DSA (SPHINCS+)}
 \label{sec:slh-dsa}
 
-SPHINCS+~\cite{SPHINCS2015, BHHplus2015} was selected by NIST as the sole hash-based signature standard, published as \emph{SLH-DSA} in FIPS~205~\cite{FIPS205}.\index{SPHINCS+}\index{SLH-DSA}  Its central achievement is eliminating state management entirely, producing a \emph{stateless} hash-based signature scheme.
+The stateful schemes of the previous section work well in controlled environments, but their fragile state management makes them unsuitable for general-purpose use---web servers, mobile devices, automated TLS endpoints.  SPHINCS+~\cite{SPHINCS2015, BHHplus2015}, selected by NIST as the sole hash-based signature standard and published as \emph{SLH-DSA} in FIPS~205~\cite{FIPS205},\index{SPHINCS+}\index{SLH-DSA} eliminates state management entirely.  Its central insight is to combine two ideas we have already developed: the hypertree (a tree of Merkle trees, descended from XMSS$^{MT}$) and randomised index selection that replaces the sequential counter.
 
 \subsection{The Hypertree Construction}
 \label{subsec:hypertree}
 
 SLH-DSA organises its signatures in a \emph{hypertree}\index{hypertree}: a tree of XMSS trees arranged in $d$ layers, with total tree height $h$ divided as $h = h' \cdot d$, where $h'$ is the height of each XMSS subtree.
 
-\begin{enumerate}
-\item The \textbf{top layer} is a single XMSS tree of height $h'$ whose root is the public key.
-\item Each \textbf{intermediate layer} consists of XMSS trees whose roots are certified (signed) by WOTS+ instances in the layer above.
-\item The \textbf{bottom layer} consists of FORS instances that sign actual messages.
-\end{enumerate}
+At the top sits a single XMSS tree of height $h'$ whose root is the public key---the only value the verifier needs to store.  Each leaf of this top tree certifies (via a WOTS+ signature) the root of an XMSS tree at the next layer down.  Those second-layer trees in turn certify the roots of third-layer trees, and so on, until the bottom layer is reached.  At the bottom sit FORS instances---the few-time signatures that actually authenticate messages.
 
-A signature therefore consists of:
+A signature therefore consists of the FORS signature on the message, followed by a chain of $d$ WOTS+ signatures and authentication paths, one per hypertree layer:
 \begin{equation}
 \label{eq:slh-sig}
-\sigma_{\mathrm{SLH}} \;=\; \bigl(\sigma_{\mathrm{FORS}},\; \sigma_{\mathrm{WOTS}^+_1}, \mathsf{Auth}_1,\; \ldots,\; \sigma_{\mathrm{WOTS}^+_d}, \mathsf{Auth}_d\bigr),
+\sigma_{\mathrm{SLH}} \;=\; \bigl(\sigma_{\mathrm{FORS}},\; \sigma_{\mathrm{WOTS}^+_1}, \mathsf{Auth}_1,\; \ldots,\; \sigma_{\mathrm{WOTS}^+_d}, \mathsf{Auth}_d\bigr).
 \end{equation}
-where $\sigma_{\mathrm{FORS}}$ is a FORS signature on the message, and each $(\sigma_{\mathrm{WOTS}^+_j}, \mathsf{Auth}_j)$ certifies the root of the tree at layer $j-1$.
+Each WOTS+ signature in this chain serves as a certificate: it binds the root of a lower-layer tree to a leaf in the layer above, all the way up to the public key.
 
 \subsection{Removing State: Randomised Hashing}
 \label{subsec:removing-state}
 
-The key insight that eliminates state\index{stateless signing} is \emph{randomised message hashing}.  Instead of maintaining a counter to select FORS keys sequentially, SLH-DSA derives the FORS key index deterministically from the message and a random value:
+The key insight that eliminates state\index{stateless signing} is deceptively simple.  Instead of maintaining a counter to select FORS keys sequentially ($i = 0, 1, 2, \ldots$), SLH-DSA derives the FORS key index from the message itself:
 \begin{equation}
 \label{eq:randomised-index}
 R \getsr \{0,1\}^n, \qquad \mathsf{idx} \;=\; H_{\mathrm{msg}}(R,\; \mathsf{pk},\; m) \bmod 2^h.
 \end{equation}
-Since the hypertree contains $2^h$ FORS instances, each message is (pseudo)randomly mapped to one of them.  With $h$ large enough (typically $h \geq 64$), the probability of any FORS instance being reused more than a few times over the scheme's lifetime is negligible.  This is precisely where the few-time security of FORS (Sect.~\ref{sec:fors}) is exploited: even if a FORS key is used multiple times, security degrades gracefully rather than failing completely.
+The signer samples a fresh random value~$R$, hashes it together with the public key and message, and interprets part of the output as an index into the hypertree.  Since the hypertree contains $2^h$ FORS instances and $h$ is large (typically $h \geq 64$), the probability of any single FORS instance being reused more than a few times over the scheme's entire lifetime is negligible.  This is precisely where the few-time security of FORS (Sect.~\ref{sec:fors}) earns its keep: even if a FORS key is used two or three times by chance, security degrades gracefully rather than failing completely.
 
 \begin{svgraybox}
 \textbf{Statefulness to statelessness---a paradigm shift.}  Stateful schemes (XMSS, LMS) assign indices sequentially: $i = 0, 1, 2, \ldots$.  SLH-DSA assigns indices pseudorandomly.  The price is that the hypertree must be enormous ($2^h$ FORS instances), most of which are never used.  But since trees are computed on demand, this virtual size incurs no storage cost---only the signing and verification time to traverse $d$ layers.
@@ -288,6 +272,8 @@ Since the hypertree contains $2^h$ FORS instances, each message is (pseudo)rando
 
 \subsection{Signing and Verification}
 \label{subsec:slh-sign-verify}
+
+The signing procedure makes the layered architecture concrete.  The signer begins at the bottom of the hypertree by producing a FORS signature on the message, then walks upward through each layer, producing a WOTS+ signature and authentication path that certify the tree root at each level.
 
 \begin{algorithm}[t]
 \caption{SLH-DSA Signing}
@@ -309,12 +295,12 @@ Since the hypertree contains $2^h$ FORS instances, each message is (pseudo)rando
 \end{algorithmic}
 \end{algorithm}
 
-Verification proceeds bottom-up: the verifier recomputes $\mathsf{idx}$ from $(R, \mathsf{pk}, m)$, reconstructs the FORS public key from $\sigma_{\mathrm{FORS}}$, then walks up each hypertree layer, verifying each WOTS+ signature and authentication path until the root is reached and compared against~$\mathsf{pk}$.
+Verification mirrors this bottom-up traversal.  The verifier recomputes $\mathsf{idx}$ from $(R, \mathsf{pk}, m)$, reconstructs the FORS public key from $\sigma_{\mathrm{FORS}}$, then walks up each hypertree layer, verifying each WOTS+ signature and authentication path until it reaches the root.  If the reconstructed root matches the public key, the signature is valid.
 
 \subsection{Parameter Sets}
 \label{subsec:slh-params}
 
-FIPS~205 defines six parameter sets at three security levels, each available in a ``small'' (s) and ``fast'' (f) variant:\index{SLH-DSA!parameters}
+FIPS~205 defines six parameter sets at three security levels, each available in a ``small'' (s) and ``fast'' (f) variant.\index{SLH-DSA!parameters}  The distinction between these variants reveals one final tradeoff.
 
 \begin{table}[t]
 \caption{SLH-DSA parameter sets (FIPS~205)}
@@ -333,34 +319,26 @@ SLH-DSA-256f & 32 & 68 & 64 & 49\,856 & V \\
 \end{tabular}
 \end{table}
 
-The ``s'' (small) vs.\ ``f'' (fast) tradeoff\index{SLH-DSA!s vs f tradeoff} is governed by the tree structure:
-\begin{itemize}
-\item \textbf{Small (s):} More XMSS layers ($d$ larger), each with smaller height $h'$.  This reduces the number of WOTS+ chains evaluated per layer but increases the number of layers traversed, yielding \emph{smaller signatures} at the cost of \emph{slower signing and verification}.
-\item \textbf{Fast (f):}  Fewer layers ($d$ smaller) with taller XMSS trees.  Fewer layers means fewer WOTS+ signatures in the overall signature, but each layer involves more hash evaluations.  The net effect is \emph{faster signing} but \emph{larger signatures}.
-\end{itemize}
+The ``s'' (small) vs.\ ``f'' (fast) tradeoff\index{SLH-DSA!s vs f tradeoff} is governed by the hypertree structure.  The ``small'' variants use more XMSS layers ($d$ larger), each with smaller height~$h'$.  This reduces the number of WOTS+ chains evaluated per layer but increases the number of layers traversed, yielding smaller signatures at the cost of slower signing and verification.  The ``fast'' variants use fewer layers ($d$ smaller) with taller XMSS trees, producing larger signatures but faster operation---fewer layers means fewer WOTS+ signatures in the overall output.
 
 \begin{example}[SLH-DSA vs.\ ML-DSA]
 \label{ex:slh-vs-ml}
 At NIST Level I, ML-DSA-44 (lattice-based) produces 2\,420-byte signatures at thousands of signatures per second.  SLH-DSA-128s produces 7\,856-byte signatures at roughly 15 signatures per second---over $3\times$ larger and $100\times$ slower.  The justification for deploying SLH-DSA is not performance but \emph{assumption minimality}: its security relies only on hash function properties, providing a hedge against unforeseen lattice cryptanalysis.
 \end{example}
 
+This performance gap raises a natural question: if SLH-DSA is so much slower and produces such larger signatures, why standardise it at all?  The answer lies in the security analysis that follows.
+
 
 %% ================================================================
 \section{Security Analysis}
 \label{sec:hash-security}
 
-Hash-based signatures are uniquely positioned in the post-quantum landscape because their security rests on the weakest assumptions of any public-key signature scheme.
+Hash-based signatures occupy a unique position in the post-quantum landscape.  Every other signature scheme we study in this book relies on the presumed hardness of a \emph{structured} mathematical problem---finding short vectors in lattices, decoding random linear codes, solving systems of multivariate equations.  Hash-based signatures need none of this structure.  Their security rests on the weakest assumption known to imply digital signatures at all: the existence of one-way functions.
 
 \subsection{Minimal Assumptions}
 \label{subsec:minimal-assumptions}
 
-The security of SLH-DSA reduces to three properties of the underlying hash function family~$\mathcal{H}$\index{hash-based signatures!security assumptions}:
-
-\begin{enumerate}
-\item \textbf{One-wayness (OW):}  Given $y = H(x)$ for random $x$, it is hard to find any $x'$ with $H(x') = y$.  This secures the WOTS+ chains and Lamport preimages.
-\item \textbf{Second-preimage resistance (SPR):}  Given $x$, it is hard to find $x' \neq x$ with $H(x') = H(x)$.  This secures the Merkle tree authentication paths.
-\item \textbf{(Enhanced) target collision resistance:}  A multi-function variant of collision resistance tailored to the bitmask construction used in XMSS trees.
-\end{enumerate}
+The security of SLH-DSA reduces to three properties of the underlying hash function family~$\mathcal{H}$.\index{hash-based signatures!security assumptions}  First, \textbf{one-wayness}: given $y = H(x)$ for random~$x$, it is hard to find any $x'$ with $H(x') = y$.  This property secures the WOTS+ chains and the Lamport preimages at the foundation of every construction in this chapter.  Second, \textbf{second-preimage resistance}: given~$x$, it is hard to find $x' \neq x$ with $H(x') = H(x)$.  This secures the Merkle tree authentication paths---if an adversary could find a second preimage for an internal node, it could forge authentication paths for leaves not in the original tree.  Third, \textbf{(enhanced) target collision resistance}, a multi-function variant of collision resistance tailored to the bitmask construction used in XMSS trees.
 
 \begin{svgraybox}
 \textbf{Comparison with lattice assumptions.}  Lattice-based signatures (ML-DSA) rely on the hardness of Module-LWE and Module-SIS---structured algebraic problems studied for roughly 25 years.  Hash-based signatures rely on properties of hash functions studied for over 40 years.  The existence of one-way functions is the \emph{weakest} assumption known to imply digital signatures (Rompel, 1990); hash-based schemes directly realise this theoretical minimum.
@@ -369,7 +347,7 @@ The security of SLH-DSA reduces to three properties of the underlying hash funct
 \subsection{Grover's Impact}
 \label{subsec:grover-impact}
 
-Grover's algorithm\index{Grover's algorithm!hash-based signatures} provides a quadratic speedup for unstructured search, reducing the security of an $n$-bit hash function from $2^n$ to $2^{n/2}$ for preimage search, and from $2^{n/2}$ to $2^{n/3}$ for collision search (via the BHT quantum collision algorithm).
+Grover's algorithm\index{Grover's algorithm!hash-based signatures} provides a quadratic speedup for unstructured search, and hash function inversion is precisely such a search problem.  For an $n$-bit hash function, a quantum adversary reduces the cost of preimage search from $2^n$ to $2^{n/2}$, and the BHT quantum collision algorithm reduces the cost of collision search from $2^{n/2}$ to roughly~$2^{n/3}$.
 
 \begin{theorem}[Quantum Security of Hash Functions]
 \label{thm:quantum-hash}
@@ -386,18 +364,14 @@ Since SLH-DSA relies primarily on one-wayness and second-preimage resistance (no
 \subsection{Multi-Target Attacks}
 \label{subsec:multi-target}
 
-A WOTS+ public key contains $\ell$ hash chain endpoints.  An adversary targeting \emph{any} of these $\ell$ values benefits from a multi-target advantage: the cost of inverting one out of $\ell$ hash values is reduced by a factor of~$\ell$.  SLH-DSA compensates by:
-\begin{itemize}
-\item Using \emph{tweakable hash functions}\index{tweakable hash function} parameterised by position-dependent addresses, so that each hash evaluation is domain-separated.
-\item Setting $n$ large enough that even with the multi-target advantage, the effective security exceeds the target level.
-\end{itemize}
+A subtlety arises from the structure of WOTS+ public keys.  Each key contains $\ell$ hash chain endpoints, and an adversary targeting \emph{any} of these $\ell$ values benefits from a multi-target advantage: the cost of inverting one out of $\ell$ hash values is reduced by a factor of~$\ell$.  SLH-DSA addresses this through two mechanisms.  First, it uses \emph{tweakable hash functions}\index{tweakable hash function} parameterised by position-dependent addresses, so that each hash evaluation is domain-separated and multi-target gains cannot be pooled across unrelated computations.  Second, the parameter $n$ is set large enough that even with the multi-target advantage, the effective security exceeds the target level.
 
 \subsection{The Quantum Random Oracle Model}
 \label{subsec:qrom}
 
-Classical security proofs model hash functions as random oracles that adversaries can query classically.  Against quantum adversaries, the hash function must be modelled as a \emph{quantum random oracle}\index{quantum random oracle model} (QROM) that can be queried in superposition.  Security proofs for SLH-DSA have been established in the QROM~\cite{FIPS205}, confirming that the scheme resists adversaries who can make quantum queries to the hash function.
+Classical security proofs model hash functions as random oracles that adversaries query classically.  Against quantum adversaries, the hash function must be modelled as a \emph{quantum random oracle}\index{quantum random oracle model} (QROM) that can be queried in superposition.  This is a non-trivial strengthening: some classical random oracle proofs break entirely in the QROM---certain Fiat--Shamir transforms, for instance, lose their security guarantees when the adversary can query the oracle in superposition.
 
-This is a non-trivial strengthening: some classical random oracle proofs break entirely in the QROM (e.g., certain Fiat--Shamir transforms), but the hash-chain and Merkle tree constructions are robust because their security reduces to preimage and second-preimage resistance, which remain hard in the QROM with the appropriate parameter doubling.
+The hash-chain and Merkle tree constructions, however, are robust in this setting.  Their security reduces to preimage and second-preimage resistance, which remain hard in the QROM with the appropriate parameter doubling.  Security proofs for SLH-DSA have been established in the QROM~\cite{FIPS205}, confirming that the scheme resists adversaries who can make quantum queries to the hash function.  This resilience, combined with the minimal assumptions discussed above, is what makes hash-based signatures the most conservative choice in the post-quantum toolkit---the option to reach for when trust in newer algebraic assumptions wavers.
 
 
 %% ================================================================

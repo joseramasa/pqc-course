@@ -55,6 +55,8 @@ The expression \texttt{(t - KYBER\_Q) >> 31} produces an all-ones mask when $t <
 \subsection{Constant-Time Programming Patterns}
 \label{subsec:ct-patterns}
 
+The Barrett example illustrates a single instance of a pervasive problem.  Every arithmetic routine, every comparison, every loop that touches secret data must be scrutinised for variable-time behaviour.  The discipline reduces to four rules:
+
 \begin{svgraybox}
 \textbf{The four rules of constant-time programming.}
 Every implementation that processes secret data must obey:
@@ -88,14 +90,14 @@ Manual inspection is insufficient for verifying constant-time behaviour.  The fo
 \end{tabular}
 \end{table}
 
-For production code, a combination of static analysis (\texttt{ct-verif}) and dynamic testing (\texttt{dudect}) provides the strongest assurance.
+For production code, a combination of static analysis (\texttt{ct-verif}) and dynamic testing (\texttt{dudect}) provides the strongest assurance.  Constant-time discipline eliminates timing as a side channel, but timing is not the only channel an attacker can exploit.  Power consumption, electromagnetic emanation, and cache behaviour all leak information---and lattice-based schemes introduce attack surfaces that have no classical analogue.
 
 
 %% ================================================================
 \section{Side Channels in Lattice Cryptography}
 \label{sec:side-channels}
 
-Lattice-based schemes introduce side-channel surfaces that have no analogue in RSA or ECC.  The Number Theoretic Transform (NTT), polynomial sampling, and the Fujisaki--Okamoto decapsulation check each present distinct attack opportunities.
+The NTT, polynomial sampling, and the Fujisaki--Okamoto decapsulation check each present distinct attack opportunities that deserve individual attention.
 
 \subsection{Timing Attacks on the NTT}
 \label{subsec:ntt-timing}
@@ -119,7 +121,7 @@ void ct_butterfly(int16_t *a, int16_t *b, int16_t zeta) {
 \subsection{Power and Electromagnetic Analysis}
 \label{subsec:power-em}
 
-Simple Power Analysis (SPA)\index{SPA} and Differential Power Analysis (DPA)\index{DPA} exploit the fact that different instructions and data values draw different amounts of current.  A single power trace of an NTT execution can reveal the structure of the butterfly network, and by extension the secret polynomial.
+Timing attacks require only network access, but an attacker with physical proximity can extract far more.  Simple Power Analysis (SPA)\index{SPA} and Differential Power Analysis (DPA)\index{DPA} exploit the fact that different instructions and data values draw different amounts of current.  A single power trace of an NTT execution can reveal the structure of the butterfly network, and by extension the secret polynomial.
 
 \textbf{SPA on lattice operations.}  The NTT butterfly has a characteristic power signature: the multiply-and-reduce step draws measurably more current than addition.  When the reduction step is conditional, the power trace directly reveals whether the subtraction occurred.  For ML-DSA, the rejection sampling loop produces a variable number of NTT calls per signature; the number of iterations visible in the power trace leaks information about the secret key.
 
@@ -130,7 +132,7 @@ Simple Power Analysis (SPA)\index{SPA} and Differential Power Analysis (DPA)\ind
 \subsection{Cache-Timing Attacks}
 \label{subsec:cache-timing}
 
-Table-based implementations of modular arithmetic or hash functions are vulnerable to cache-timing attacks\index{cache-timing attack}.  When a lookup table exceeds one cache line (typically 64 bytes), the access pattern reveals which entries were used.  In lattice cryptography, this affects:
+Power and EM attacks require physical proximity, but cache-timing attacks can be mounted by any process sharing the same hardware---including a co-tenant in a cloud virtual machine.  Table-based implementations of modular arithmetic or hash functions are vulnerable to cache-timing attacks\index{cache-timing attack}.  When a lookup table exceeds one cache line (typically 64 bytes), the access pattern reveals which entries were used.  In lattice cryptography, this affects:
 
 \begin{itemize}
 \item \textbf{NTT twiddle factor tables.}  If the table of roots of unity is large enough to span multiple cache lines, the access pattern during the NTT reveals structural information about the transform.
@@ -143,7 +145,7 @@ The countermeasure is to ensure all table accesses sweep the entire table in con
 \subsection{Masking Countermeasures for the NTT}
 \label{subsec:masking-ntt}
 
-Masking\index{masking} is the standard countermeasure against power and EM analysis.  The idea is to split every secret value $x$ into $d+1$ shares $x_0, \ldots, x_d$ such that $x = x_0 + x_1 + \cdots + x_d \bmod q$, where each share is individually uniformly random.  An attacker who observes fewer than $d+1$ shares learns nothing about~$x$.
+Constant-time code defeats timing and cache attacks, but it cannot hide power consumption or electromagnetic emanation---the physics of computation guarantees that different data values draw different currents.  Masking\index{masking} is the standard countermeasure against power and EM analysis.  The idea is to split every secret value $x$ into $d+1$ shares $x_0, \ldots, x_d$ such that $x = x_0 + x_1 + \cdots + x_d \bmod q$, where each share is individually uniformly random.  An attacker who observes fewer than $d+1$ shares learns nothing about~$x$.
 
 \begin{definition}[Boolean and Arithmetic Masking]
 \label{def:masking}
@@ -170,12 +172,14 @@ The overhead of first-order masking ($d=1$) is roughly $2$--$3\times$ in executi
 Masking (splitting secrets into shares) and hiding (adding random delays or shuffling operation order) are complementary.  Production implementations targeting smart-card certification (Common Criteria EAL4+ or higher) typically combine both.
 \end{remark}
 
+All the attacks discussed so far---timing, power, EM, cache---are \emph{passive}: the attacker observes but does not interfere.  A stronger adversary can actively corrupt a computation and exploit the faulty output.
+
 
 %% ================================================================
 \section{Fault Injection Attacks}
 \label{sec:fault-injection}
 
-Fault injection\index{fault injection} attacks corrupt a computation by inducing physical perturbations---voltage glitches, clock manipulation, laser pulses, or electromagnetic pulses---and exploit the faulty output to recover secrets.  Unlike side-channel attacks, which passively observe, fault attacks actively modify the device's behaviour.
+Fault injection\index{fault injection} encompasses a family of techniques---voltage glitches, clock manipulation, laser pulses, electromagnetic pulses---that induce physical perturbations and exploit the resulting errors to recover secrets.  The attacker's toolkit ranges from inexpensive glitching hardware to precision laser stations costing hundreds of thousands of euros.
 
 \subsection{Fault Models}
 \label{subsec:fault-models}
@@ -231,6 +235,8 @@ The most effective strategy combines algorithmic redundancy (recompute and compa
 Laser fault injection uses focused infrared pulses ($\lambda \approx 1064\,\mathrm{nm}$) to generate photo-currents in SRAM cells, flipping bits with spatial resolution of $\sim\!1\,\mu\mathrm{m}$.  Electromagnetic fault injection (EMFI) uses a coil probe to induce transient currents, offering lower precision but no requirement for decapsulation of the chip package.  Both techniques are available as commercial test equipment for security evaluation laboratories.
 \end{remark}
 
+Side channels and fault attacks exploit the physical computation; a different class of vulnerability targets the inputs to that computation.  If the random numbers feeding key generation or signing are weak, no amount of constant-time discipline or masking can save the scheme.
+
 
 %% ================================================================
 \section{Random Number Generation}
@@ -278,6 +284,8 @@ void ml_kem_keygen(uint8_t *pk, uint8_t *sk, const uint8_t seed[32]) {
 \begin{remark}[Hedged Randomness]
 A prudent implementation \emph{hedges} by mixing the output of the system RNG with a deterministic component: $\text{seed} = H(\text{DRBG output} \| \text{nonce} \| \text{context})$.  If either source is compromised, the other provides a safety net.
 \end{remark}
+
+With constant-time code, side-channel countermeasures, fault resistance, and sound randomness in place, the implementation is secure---but it is also larger.  The next section quantifies the cost in bytes.
 
 
 %% ================================================================
@@ -347,6 +355,8 @@ With a 1{,}500-byte MTU, the classical handshake fits in $\sim\!2$ TCP segments;
 \item \textbf{Hybrid schemes.}  During the transition period, using a compact classical algorithm alongside PQC (e.g., X25519~+~ML-KEM-768) adds only $\sim\!32$~bytes over the PQC-only cost while providing backward security.
 \end{itemize}
 
+Larger artefacts demand not only bandwidth but also confidence: a single incorrect coefficient in a public key renders the scheme insecure.  The final section addresses how implementations are tested, validated, and formally verified.
+
 
 %% ================================================================
 \section{Testing and Validation}
@@ -393,6 +403,8 @@ Formal verification provides mathematical proof that an implementation correctly
 \begin{remark}[The Verification Gap]
 As of 2026, formally verified implementations of the NIST PQC standards exist only for ML-KEM.  ML-DSA and SLH-DSA lack complete verified implementations, and no verified implementation includes side-channel countermeasures beyond constant-time execution (i.e., no verified masking).  Closing this gap is one of the most important open problems in applied PQC.
 \end{remark}
+
+A secure, validated implementation is a necessary foundation, but deploying it into production infrastructure---replacing classical algorithms in TLS, PKI, code signing, and beyond---raises an entirely different set of challenges.  The next chapter turns from implementation to migration strategy.
 
 
 %% ================================================================

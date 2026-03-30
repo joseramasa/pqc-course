@@ -205,6 +205,7 @@ LMS ($H{=}20$) & 2{,}508\,B & 56\,B & Hash functions \\
 
 For a typical software update containing 1{,}000--10{,}000 signed files, switching from RSA-2048 to ML-DSA-65 increases total signature overhead from $\sim$250\,KB to $\sim$3.3\,MB per update.  SLH-DSA offers the advantage of minimal public-key size and conservative, hash-only security assumptions, but its signatures are 2--3$\times$ larger than ML-DSA.  The practical choice depends on whether the deployment is bandwidth-constrained (favour ML-DSA) or demands maximal cryptographic conservatism (favour SLH-DSA or LMS for root keys).
 
+The signature-size tension is annoying for software distribution; for blockchain systems, where every byte is replicated across thousands of nodes and stored forever, it becomes an existential design constraint.
 
 %% ================================================================
 \section{Blockchain and Cryptocurrencies}
@@ -227,46 +228,56 @@ More dangerously, coins held in addresses where the public key was previously ex
 \subsection{Migration Challenges}
 \label{subsec:blockchain-migration}
 
-\begin{enumerate}
-\item \textbf{Immutability:} The blockchain's defining property becomes a liability.  Historical ECDSA signatures cannot be replaced; they can only be supplemented with new PQC protections going forward.
-\item \textbf{Transaction size:} Replacing ECDSA ($\sim$72\,B per signature) with ML-DSA-44 ($\sim$2{,}420\,B) inflates a simple Bitcoin transaction from $\sim$250\,B to $\sim$3{,}500\,B, a 14$\times$ increase.  Block capacity drops from $\sim$4{,}000 to $\sim$285~transactions, fees rise proportionally, and full-node storage grows from $\sim$50\,GB/year to $\sim$700\,GB/year.
-\item \textbf{Consensus:} Any signature-scheme change requires a hard fork or, at minimum, a soft fork with broad community agreement---a process that can take years in decentralized governance.
-\item \textbf{Address migration:} Users must actively move funds to quantum-safe addresses.  Funds in dormant wallets---including those belonging to lost keys---remain permanently vulnerable.
-\end{enumerate}
+The ECDSA vulnerability is clear enough; what makes blockchain migration uniquely difficult is that every proposed remedy collides with a core design property.
+
+Consider immutability first.  The blockchain's defining feature---that no past record can be altered---becomes a liability when past records contain quantum-vulnerable signatures.  Historical ECDSA signatures cannot be replaced, only supplemented with new PQC protections going forward.  This stands in sharp contrast to a TLS deployment, where rotating to new certificates immediately protects all future sessions and the old certificates simply expire.
+
+Transaction size compounds the problem.  Replacing ECDSA ($\sim$72\,B per signature) with ML-DSA-44 ($\sim$2{,}420\,B) inflates a simple Bitcoin transaction from $\sim$250\,B to $\sim$3{,}500\,B---a 14$\times$ increase.  Block capacity drops from $\sim$4{,}000 to $\sim$285~transactions, fees rise proportionally, and full-node storage grows from $\sim$50\,GB/year to $\sim$700\,GB/year.  In a system where every full node stores the complete history, this is not merely a bandwidth cost; it reshapes the economics of participation.
+
+Governance adds a further constraint.  Any signature-scheme change requires a hard fork or, at minimum, a soft fork with broad community agreement.  In decentralized networks, achieving such agreement can take years---the Bitcoin block-size debate (2015--2017) is a cautionary precedent.
+
+Finally, address migration demands active participation from every user.  Funds must be moved to quantum-safe addresses through on-chain transactions, which means every wallet holder must act.  Funds in dormant wallets---including those belonging to lost keys, estimated at 3--4~million BTC---remain permanently vulnerable, creating a systemic risk that no protocol upgrade can eliminate unilaterally.
 
 \subsection{Frozen Funds Risk}
 \label{subsec:frozen-funds}
 
 \index{frozen funds risk}
-Coins whose owners cannot or will not migrate before a CRQC arrives face outright theft.  Several proposals attempt to mitigate this:
-\begin{itemize}
-\item \textbf{Commit-reveal:} Users commit a hash of a PQC public key now and reveal it when spending, preventing quantum extraction from the mempool.  This protects future transactions but not already-exposed keys.
-\item \textbf{Quantum-safe sidechains:} A parallel chain using PQC signatures accepts bridged assets from the main chain, allowing gradual migration.
-\item \textbf{Deadline-based freezing:} After a community-agreed date, transactions from non-migrated addresses are rejected.  This protects the network but permanently locks affected funds---a politically explosive measure.
-\end{itemize}
+Coins whose owners cannot or will not migrate before a CRQC arrives face outright theft.  The community has proposed several mitigation strategies, none of them painless.
+
+The most conservative approach is \emph{commit-reveal}: users commit a hash of a PQC public key to the blockchain now, then reveal the actual key only when spending.  Because the quantum-vulnerable classical public key never enters the mempool, a CRQC operator cannot intercept and forge a competing transaction.  The limitation is clear---commit-reveal protects future transactions but does nothing for the millions of addresses whose public keys were exposed in past spends.
+
+A second line of defence is the \emph{quantum-safe sidechain}: a parallel chain secured by PQC signatures that accepts bridged assets from the main chain.  Users lock funds on the classical chain and receive equivalent tokens on the sidechain, migrating at their own pace without requiring a hard fork.  The approach is technically sound but adds operational complexity and splits network effects between two chains.
+
+The most drastic proposal is \emph{deadline-based freezing}.  After a community-agreed date, the network would reject transactions from addresses that have not migrated to PQC keys.  This protects the system from quantum theft but permanently locks affected funds---including coins belonging to deceased holders or lost wallets.  The measure is politically explosive; it amounts to a collective decision to sacrifice some holders' assets for the security of the whole, a trade-off with no precedent in Bitcoin's history.
 
 \begin{example}[Ethereum's Account Abstraction Path]
 \label{ex:ethereum-pqc}
 Ethereum's account-abstraction roadmap (EIP-4337 and successors) decouples signature verification from the protocol layer, allowing smart-contract wallets to adopt PQC signature schemes without a hard fork.  The planned sequence is: enable smart-contract wallets (2024--2025), support hybrid signatures (2025--2027), incentivize migration via gas discounts (2027--2029), and disable raw ECDSA for new transactions (2030+).  This is the most credible blockchain migration plan to date, but it still requires years of coordinated effort.
 \end{example}
 
+Blockchain migration illustrates, in extreme form, the tension between technical necessity and organizational inertia.  The next section generalizes this tension into a structured roadmap applicable to any organization, blockchain or otherwise.
+
 
 %% ================================================================
 \section{Organizational Roadmap}
 \label{sec:roadmap}
 
-Technical solutions are necessary but insufficient.  Organizations must execute a structured migration program that touches procurement, engineering, compliance, and operations.  The following six-phase roadmap distills guidance from NIST~SP~1800-38, the NSA's CNSA~2.0 advisory, and European agency recommendations.
+The preceding sections examined specific migration targets---TLS, code signing, blockchain---each with its own technical constraints.  But even perfect technical solutions fail without organizational execution.  Organizations must run a structured migration program that touches procurement, engineering, compliance, and operations in coordinated sequence.  The six-phase roadmap below distills guidance from NIST~SP~1800-38, the NSA's CNSA~2.0 advisory, and European agency recommendations into a practical framework.  It is ordered by dependency: each phase produces the inputs the next phase requires.
 
 \subsection{Phase 1: Cryptographic Inventory}
 \label{subsec:phase-inventory}
 
 \index{cryptographic inventory}
-The first step is discovering every use of public-key cryptography across the organization: TLS certificates, code-signing keys, VPN configurations, SSH keys, API tokens, hardware security modules, embedded-device firmware, and third-party dependencies.  Automated scanning tools (e.g., Venafi, Keyfactor, or open-source \texttt{cbom} generators) provide a starting point, but manual review is essential---a typical medium enterprise discovers that 40--50\% of its cryptographic assets were unknown to the security team.
+No migration can succeed without knowing what must be moved.  The first phase is a comprehensive discovery of every use of public-key cryptography across the organization: TLS certificates, code-signing keys, VPN configurations, SSH keys, API tokens, hardware security modules, embedded-device firmware, and third-party dependencies.  The analogy to physical logistics is apt---before relocating a warehouse, one inventories every pallet; skipping this step guarantees that critical items are left behind.
+
+Automated scanning tools (Venafi, Keyfactor, or open-source \texttt{cbom} generators) provide a starting point, but they rarely find everything.  Manual review is essential, particularly for shadow IT and legacy systems maintained by teams outside central security.  A typical medium enterprise discovers that 40--50\% of its cryptographic assets were unknown to the security team before the inventory---a sobering figure that explains why so many migrations stall in later phases.
+
+With a complete inventory in hand, the organization can move to risk assessment: not all assets face the same quantum exposure, and treating them uniformly wastes resources.
 
 \subsection{Phase 2: Risk Assessment}
 \label{subsec:phase-risk}
 
-Each asset is classified by two dimensions: \emph{data sensitivity lifetime} (how long must the data remain confidential or its signatures remain trusted?) and \emph{migration difficulty} (how hard is it to change the algorithm?).
+The inventory tells us \emph{what} the organization has; risk assessment determines \emph{what is at stake}.  Each asset is classified along two dimensions: \emph{data sensitivity lifetime}---how long must the data remain confidential or its signatures remain trusted?---and \emph{migration difficulty}---how hard is it to change the algorithm?  Assets that score high on both dimensions (long-lived secrets protected by deeply embedded cryptography) demand immediate attention; ephemeral session keys on modern, patchable servers can wait.
 
 \begin{table}[t]
 \caption{Risk classification matrix}
@@ -288,40 +299,46 @@ Ephemeral session keys & Hours & Low & By 2031 \\
 \subsection{Phase 3: Prioritize}
 \label{subsec:phase-prioritize}
 
-Start with the highest-risk, longest-lived data.  In practice, this means:
-\begin{enumerate}
-\item VPN tunnels and TLS sessions protecting classified or regulated data.
-\item Root CA and code-signing keys (long-lived, high-impact if compromised).
-\item Data-at-rest encryption keys for archives with multi-decade retention.
-\item Customer-facing web services (high visibility, well-understood migration path).
-\end{enumerate}
+Risk assessment produces a ranked list; prioritization turns that list into a work plan.  The principle is straightforward---start with the highest-risk, longest-lived data---but the practical ordering requires judgment about dependencies and organizational capacity.
+
+VPN tunnels and TLS sessions protecting classified or regulated data typically top the list, because they are actively exposed to harvest-now-decrypt-later attacks and Mosca's inequality (Sect.~\ref{subsec:mosca}) is already violated for multi-decade secrets.  Root CA and code-signing keys follow closely: they are long-lived, their compromise has cascading impact, and their migration is largely independent of application-layer changes.  Data-at-rest encryption keys for archives with multi-decade retention come next, followed by customer-facing web services, which benefit from well-understood migration paths (Sect.~\ref{sec:tls-migration}) and high public visibility.
+
+The prioritized list feeds directly into the testing phase, where each migration path is validated before it touches production traffic.
 
 \subsection{Phase 4: Test}
 \label{subsec:phase-test}
 
-Deploy hybrid modes in non-production environments first.  Key testing dimensions include functional correctness, latency and throughput under load, interoperability with legacy clients and middleboxes, failure-mode behavior (graceful fallback vs.\ hard failure), and key/certificate lifecycle operations (renewal, revocation, rotation).
+Before any PQC algorithm touches production traffic, it must survive contact with reality.  Hybrid modes are deployed first in staging and pre-production environments, where failures are cheap and reversible.
+
+Testing spans several dimensions.  Functional correctness is the baseline: do the hybrid handshakes complete, and do the resulting session keys match on both sides?  Latency and throughput under load reveal whether the larger key material degrades performance beyond acceptable thresholds---the middlebox problem described in Sect.~\ref{subsec:cert-chain-sizes} is routinely discovered at this stage.  Interoperability testing with legacy clients and middleboxes is critical, because a migration that breaks 2\% of connections will be rolled back before it protects anyone.  Failure-mode behavior must be explicitly validated: does the system fall back gracefully to classical-only when the PQC component is unavailable, or does it fail hard?  Finally, key and certificate lifecycle operations---renewal, revocation, rotation---must work end-to-end, because a migration that cannot maintain itself is a migration that will decay.
+
+Testing failures are not setbacks; they are the point.  Every incompatibility caught here is one that does not become a 2\,AM incident in production.
 
 \subsection{Phase 5: Deploy}
 \label{subsec:phase-deploy}
 
-Phased rollout with monitoring:
-\begin{enumerate}
-\item \textbf{Canary (1\% traffic):} Detect gross incompatibilities.
-\item \textbf{Early adopters (10\%):} Validate performance under realistic load.
-\item \textbf{Majority (50\%):} Confirm at scale; monitor tail latencies.
-\item \textbf{Full (100\%):} Complete migration; maintain classical fallback.
-\end{enumerate}
+Deployment follows the same graduated-rollout discipline used for any high-risk infrastructure change---the difference is that the stakes include long-term cryptographic exposure, not just transient outages.
+
+The rollout begins with a canary deployment to roughly 1\% of traffic, chosen to include a representative mix of client populations.  At this scale, gross incompatibilities surface---broken middleboxes, misconfigured load balancers, clients that choke on larger handshakes---without affecting the majority of users.  Once the canary is stable, traffic shifts to 10\% (early adopters), where performance under realistic load is validated against the baselines established in testing.  The move to 50\% exercises the system at scale: tail latencies, connection-retry rates, and certificate-chain failures that appear only under heavy load become visible.  Full deployment at 100\% completes the migration, but the classical algorithm is not removed---it remains available as a fallback until the organization is confident that every client ecosystem has adapted.
+
+Throughout each stage, monitoring dashboards track handshake failure rates, latency distributions, and certificate-validation errors.  Any regression beyond predefined thresholds triggers an automatic rollback to the previous traffic split.
 
 \subsection{Phase 6: Verify and Maintain}
 \label{subsec:phase-verify}
 
-Migration is not a one-time event.  Continuous compliance requires monitoring for algorithm drift (new services reverting to classical-only), automated alerting when certificates or keys use deprecated algorithms, periodic reassessment as cryptanalysis advances, and \emph{crypto-agility}\index{crypto-agility}: the architectural ability to swap algorithms without redesigning protocols.
+A migration that declares victory at 100\% deployment and moves on has failed.  Cryptographic infrastructure is a living system: new services are provisioned, dependencies are updated, developers under deadline pressure reach for the defaults their frameworks provide---and those defaults may still be classical.
+
+Continuous compliance therefore requires several ongoing disciplines.  Monitoring detects \emph{algorithm drift}, where newly deployed services silently revert to classical-only configurations.  Automated alerting fires when certificates or keys use deprecated algorithms, catching regressions before they reach production.  Periodic reassessment accounts for advances in cryptanalysis: a parameter set considered safe in 2026 may need revision by 2030 as lattice-reduction techniques improve.
+
+The deepest lesson of this phase is the importance of \emph{crypto-agility}\index{crypto-agility}---the architectural ability to swap algorithms without redesigning protocols or redeploying hardware.  Crypto-agility is not a feature to add later; it is a design principle that must be embedded from Phase~1 onward.  Organizations that achieve it will navigate not only the post-quantum transition but every subsequent cryptographic migration with far less friction.
+
+The CNSA~2.0 timeline and European guidance that follow provide the external deadlines against which these six phases must be scheduled.
 
 \subsection{CNSA 2.0 Timeline}
 \label{subsec:cnsa20}
 
 \index{CNSA 2.0}
-The NSA's Commercial National Security Algorithm Suite~2.0 sets mandatory deadlines for U.S.\ national-security systems:
+The six phases above describe \emph{how} to migrate; the CNSA~2.0 timeline specifies \emph{when}.  The NSA's Commercial National Security Algorithm Suite~2.0 sets mandatory deadlines for U.S.\ national-security systems, and these deadlines increasingly serve as de facto benchmarks for the private sector as well:
 
 \begin{table}[t]
 \caption{CNSA 2.0 transition deadlines (NSA, 2022)}
@@ -343,17 +360,18 @@ Legacy infrastructure & CNSA~2.0 exclusive & 2033 \\
 \subsection{European Guidance}
 \label{subsec:eu-guidance}
 
-European agencies provide complementary recommendations:
-\begin{itemize}
-\item \textbf{ANSSI (France):} Recommends hybrid modes as mandatory during the transition period and requires PQC for new systems handling classified data from 2025 onward.  ANSSI explicitly endorses FrodoKEM alongside ML-KEM as a conservative alternative for high-security applications.
-\item \textbf{BSI (Germany):} Recommends beginning migration planning immediately, with hybrid deployments by 2025 and full PQC by 2030.  BSI requires a ``defence in depth'' approach combining lattice-based and hash-based schemes.
-\item \textbf{ENISA (EU):} Published a post-quantum roadmap in 2022 urging member states to conduct cryptographic inventories by 2025 and complete critical-infrastructure migration by 2030.
-\end{itemize}
+CNSA~2.0 is a U.S.-centric framework; European agencies set their own timelines, informed by different threat models and regulatory structures, but converging on similar urgency.
+
+ANSSI (France) recommends hybrid modes as mandatory during the transition period and requires PQC for new systems handling classified data from 2025 onward.  Notably, ANSSI explicitly endorses FrodoKEM alongside ML-KEM as a conservative alternative for high-security applications---reflecting a preference for schemes with stronger theoretical security reductions, even at a performance cost.  BSI (Germany) recommends beginning migration planning immediately, with hybrid deployments by 2025 and full PQC by 2030; BSI requires a ``defence in depth'' approach combining lattice-based and hash-based schemes, ensuring that no single cryptanalytic breakthrough compromises the entire infrastructure.  At the EU level, ENISA published a post-quantum roadmap in 2022 urging member states to conduct cryptographic inventories by 2025 and complete critical-infrastructure migration by 2030.
+
+The convergence across these agencies---American, French, German, European---is striking.  Despite differing institutional cultures and threat priorities, all place the start of serious migration activity no later than 2025 and demand completion for critical systems by 2030.  Whether these deadlines are achievable depends on the timeline pressures we examine next.
 
 
 %% ================================================================
 \section{Timeline and Urgency}
 \label{sec:timeline}
+
+The roadmap and regulatory deadlines of the previous section raise an obvious question: how late is too late?  The answer depends not on policy but on arithmetic---a simple inequality that formalizes the harvest-now-decrypt-later threat into a planning tool.
 
 \subsection{Mosca's Inequality}
 \label{subsec:mosca}
@@ -382,7 +400,7 @@ The uncomfortable implication: for any data with a multi-decade confidentiality 
 \subsection{Sector-Specific Deadlines}
 \label{subsec:sector-deadlines}
 
-Different sectors face different values of $x$, $y$, and~$z$:
+Mosca's inequality is most useful when applied to concrete sectors, because different industries face radically different values of $x$, $y$, and~$z$:
 
 \begin{table}[t]
 \caption{Sector-specific Mosca analysis (assuming CRQC by 2035)}

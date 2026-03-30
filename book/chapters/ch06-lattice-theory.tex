@@ -60,6 +60,8 @@ The face-centred cubic lattice of NaCl lives in $\R^3$.  Finding the nearest ato
 \subsection{Determinant and Volume}
 \label{subsec:determinant}
 
+If a lattice can be described by many different bases, we need a quantity that is intrinsic to the lattice itself---something that does not change when we swap one basis for another.  The determinant provides exactly this invariant: it captures how densely the lattice points pack the ambient space.
+
 \begin{definition}[Lattice Determinant]
 \label{def:determinant}
 The \emph{determinant}\index{lattice!determinant} of a lattice $\lat(\mathbf{B})$ is
@@ -76,6 +78,8 @@ Geometrically, $\det(\lat)$ measures the ``density'' of lattice points: the larg
 
 \subsection{Successive Minima}
 \label{subsec:successive-minima}
+
+The determinant tells us about global density, but cryptography demands something more specific: how short can lattice vectors actually be?  The answer determines the security margin of every lattice-based scheme, because an attacker who can find short vectors can break keys.  The successive minima formalise this question by measuring, for each dimension, the radius at which a new linearly independent lattice vector first appears.
 
 \begin{definition}[Successive Minima]
 \label{def:successive-minima}
@@ -102,6 +106,8 @@ For random lattices, the bound is essentially tight: the \emph{Gaussian heuristi
 \subsection{The Dual Lattice}
 \label{subsec:dual-lattice}
 
+Every lattice carries a shadow: a companion lattice whose points have integer inner products with all points of the original.  Physicists know this construction as the reciprocal lattice, the object that governs diffraction patterns and Brillouin zones.  In cryptography, the dual lattice matters because hardness results transfer across the duality---an adversary gains nothing by attacking the dual instead of the original.
+
 \begin{definition}[Dual Lattice]
 \label{def:dual-lattice}
 The \emph{dual}\index{lattice!dual} (or \emph{reciprocal}) lattice of $\lat$ is
@@ -111,13 +117,13 @@ The \emph{dual}\index{lattice!dual} (or \emph{reciprocal}) lattice of $\lat$ is
 If $\lat = \lat(\mathbf{B})$, then $\lat^* = \lat((\mathbf{B}^{-1})^\top)$.
 \end{definition}
 
-In solid-state physics this is the reciprocal lattice, with $\det(\lat^*) = 1/\det(\lat)$ and $\lambda_1(\lat)\cdot\lambda_n(\lat^*) \leq n$ (the \emph{transference theorem}\index{transference theorem}).  Hardness results for a lattice transfer to its dual, so the dual lattice does not offer an easier attack surface.
+The key properties are $\det(\lat^*) = 1/\det(\lat)$ and $\lambda_1(\lat)\cdot\lambda_n(\lat^*) \leq n$ (the \emph{transference theorem}\index{transference theorem}).  The transference theorem makes the cryptographic consequence precise: short vectors in the primal lattice imply long vectors in the dual, and vice versa, so neither perspective offers an easier attack surface.
 
 
 \subsection{Good Bases vs.\ Bad Bases}
 \label{subsec:good-bad-basis}
 
-The same lattice can be described by bases of vastly different quality.  This is the \emph{basis ambiguity} that underpins all lattice-based cryptography\index{lattice!basis quality}.
+We have defined lattices, their determinants, their shortest vectors, and their duals.  All of these are properties of the lattice itself, independent of how it is presented.  But the \emph{presentation} matters enormously in practice: the same lattice can be described by bases of vastly different quality, and this ambiguity is precisely what makes cryptography possible.  A ``good'' basis reveals the lattice's short vectors at a glance; a ``bad'' basis buries them under layers of near-cancellation.  The private key is the good basis; the public key is the bad one\index{lattice!basis quality}.
 
 \begin{example}[Concrete Basis Comparison]
 \label{ex:basis-comparison}
@@ -129,6 +135,8 @@ The shortest vector $(1,0)$ has length~$1$ and is read off immediately.
 \noindent\textbf{Bad basis:} $\mathbf{B}_{\mathrm{bad}} = \bigl(\begin{smallmatrix} 97 & 89 \\ 89 & 81 \end{smallmatrix}\bigr)$.
 This generates the same lattice ($\det = 97\cdot 81 - 89\cdot 89 = 1$), but the basis vectors have length $> 100$.  The shortest vector is still $(1,0)$, which equals $97\mathbf{b}_1 - 89\mathbf{b}_2$---a non-trivial integer combination.
 \end{example}
+
+To make the notion of ``good'' and ``bad'' precise, we need quantitative measures.  Two are standard: one captures how far the basis vectors are from orthogonal, and the other measures how well the first basis vector approximates the true shortest vector.
 
 \begin{definition}[Basis Quality Measures]
 \label{def:basis-quality}
@@ -147,7 +155,7 @@ For a basis $\mathbf{B} = [\mathbf{b}_1 \mid \cdots \mid \mathbf{b}_n]$, define:
 \subsection{High-Dimensional Phenomena}
 \label{subsec:high-dim}
 
-Lattice problems become qualitatively different in high dimensions due to the non-intuitive geometry of $\R^n$ for large~$n$:
+Everything we have discussed so far---the determinant, the successive minima, the gap between good and bad bases---becomes qualitatively different when the dimension $n$ grows from the single digits familiar to crystallographers to the hundreds required by cryptographers.  High-dimensional Euclidean space is profoundly counter-intuitive, and these counter-intuitions are what make lattice problems hard.
 
 \begin{theorem}[Dimension Changes Everything]
 \label{thm:high-dim}
@@ -159,6 +167,8 @@ In dimension~$n$:
 \item The number of lattice vectors of length close to $\lambda_1$ grows as $\exp(\Theta(n))$.
 \end{enumerate}
 \end{theorem}
+
+The contrast with low-dimensional physics is worth stating explicitly, because it is the single most important fact in this chapter.
 
 \begin{svgraybox}
 \textbf{The dimension phase transition.}
@@ -183,15 +193,19 @@ The following table illustrates the concrete impact of dimension on the hardness
 \end{tabular}
 \end{table}
 
+With these geometric foundations in place---definitions, determinants, successive minima, duality, and the high-dimensional phenomena that make everything hard---we can now state the computational problems that lattice-based cryptography actually relies on.
+
 
 %% ================================================================
 \section{Fundamental Computational Problems}
 \label{sec:lattice-problems}
 
-Two computational problems form the foundation of lattice-based cryptography\index{lattice!computational problems}.  Unlike integer factorisation or the discrete logarithm, these problems have resisted efficient algorithms for decades---even on quantum computers.
+The geometry of high-dimensional lattices would be a curiosity if it did not give rise to computational problems of extraordinary hardness.  Two problems in particular---finding short vectors and finding close vectors---form the foundation of lattice-based cryptography\index{lattice!computational problems}.  Unlike integer factorisation or the discrete logarithm, they have resisted efficient algorithms for decades, classical and quantum alike.  Everything in the next four chapters ultimately reduces to the hardness of one of these two problems.
 
 \subsection{The Shortest Vector Problem}
 \label{subsec:svp}
+
+The most natural question one can ask about a lattice is also the hardest: given a basis, find the shortest non-zero vector.  In low dimensions this is straightforward---geometrically obvious, even.  In hundreds of dimensions, it becomes a needle-in-a-haystack problem where the haystack has exponentially many straws of nearly equal length.
 
 \begin{definition}[Shortest Vector Problem (\svp{})]
 \label{def:svp}
@@ -212,6 +226,8 @@ Why is \svp{} hard?
 
 \subsection{The Closest Vector Problem}
 \label{subsec:cvp}
+
+The Shortest Vector Problem asks us to find structure \emph{within} the lattice.  The Closest Vector Problem asks something subtly different: given a point that is \emph{not} on the lattice, find the lattice point nearest to it.  This is the decoding problem in disguise, and it will become the beating heart of Learning With Errors.
 
 \begin{definition}[Closest Vector Problem (\cvp{})]
 \label{def:cvp}
@@ -237,7 +253,7 @@ The two problems are intimately related~\cite{MicciancioGoldwasser2002}:
 \subsection{Approximation Variants}
 \label{subsec:approx-variants}
 
-In cryptography, exact solutions are rarely needed.  The \emph{approximation factor}\index{approximation factor} $\gamma$ controls the quality--hardness tradeoff:
+Exact \svp{} and \cvp{} are NP-hard, but cryptography does not need exact solutions---and neither do attackers.  What matters is how \emph{close} to exact one must get before the problem becomes tractable.  This is controlled by the approximation factor~$\gamma$\index{approximation factor}, and the relationship between $\gamma$ and computational complexity is where lattice-based security parameters come from.
 
 \begin{definition}[Approximate \svp{} and \cvp{}]
 \label{def:approx-svp-cvp}
@@ -269,13 +285,17 @@ $\poly(n)$ & P & LLL (polynomial) \\
 \subsection{Additional Problems}
 \label{subsec:additional-problems}
 
-Two further problems appear in security reductions:
+\svp{} and \cvp{} are the problems an attacker must solve to break a scheme.  But security \emph{proofs} often reduce from different problems---ones whose worst-case hardness is easier to characterise.  Two such problems recur throughout the literature.
+
+The first generalises \svp{} from finding one short vector to finding an entire basis of short vectors:
 
 \begin{definition}[Shortest Independent Vectors Problem (\sivp{})]
 \label{def:sivp}
 \index{SIVP}
 Given a basis of an $n$-dimensional lattice~$\lat$, find $n$ linearly independent vectors $\mathbf{v}_1,\ldots,\mathbf{v}_n \in \lat$ with $\max_i \norm{\mathbf{v}_i} \leq \gamma\cdot\lambda_n(\lat)$.
 \end{definition}
+
+The second converts the search problem into a decision problem---not ``find a short vector'' but ``is there a short vector?''  This formulation connects more naturally to the complexity classes NP and coNP:
 
 \begin{definition}[Decisional GapSVP (\gapsvp{})]
 \label{def:gapsvp}
@@ -285,12 +305,14 @@ Given a basis of $\lat$ and a value $d$, distinguish between $\lambda_1(\lat)\le
 
 \gapsvp{} is the decision version most commonly used in security reductions to \lwe{} (see Chap.~\ref{ch:lwe-encryption}).  It is known to lie in $\mathrm{NP}\cap\mathrm{coNP}$ for $\gamma = \sqrt{n}$~\cite{Ajtai1996, MicciancioGoldwasser2002}.
 
+We have now catalogued the problems.  The next question is practical: how well can algorithms actually solve them?  The answer comes from basis reduction---the art of transforming a bad basis into a better one---and it determines every security parameter in lattice-based cryptography.
+
 
 %% ================================================================
 \section{Lattice Basis Reduction}
 \label{sec:basis-reduction}
 
-\emph{Basis reduction}\index{basis reduction} algorithms transform a bad basis into a better one, producing shorter and more orthogonal vectors.  They are both the main tool for \emph{solving} lattice problems and, consequently, the main tool for \emph{attacking} lattice-based cryptosystems.  Understanding their power is essential for setting secure parameters.
+The computational problems of the previous section are defined abstractly: ``find a short vector,'' ``find the closest lattice point.''  The primary algorithmic approach to all of them is the same---improve the basis until short vectors reveal themselves.  \emph{Basis reduction}\index{basis reduction} algorithms transform a bad basis into a better one, producing shorter and more orthogonal vectors.  They are both the main tool for \emph{solving} lattice problems and, consequently, the main tool for \emph{attacking} lattice-based cryptosystems.  Understanding their power---and its limits---is essential for setting secure parameters.
 
 \subsection{Gram--Schmidt Orthogonalisation}
 \label{subsec:gram-schmidt}
@@ -306,6 +328,8 @@ The vectors $\widetilde{\mathbf{b}}_i$ are orthogonal but in general \emph{not} 
 \label{subsec:lll}
 
 The Lenstra--Lenstra--Lov\'asz (LLL) algorithm\index{LLL algorithm}, published in~1982~\cite{LLL1982}, was the first polynomial-time lattice reduction algorithm.  It remains the standard first step in any lattice attack.
+
+What does ``reduced'' mean precisely?  LLL defines two conditions on a basis: the Gram--Schmidt coefficients must be small (the basis is nearly size-reduced), and consecutive GSO vectors must not drop too sharply in norm (the Lov\'asz condition).  Together, these prevent the pathological near-cancellations that make bad bases bad.
 
 \begin{definition}[LLL-Reduced Basis]
 \label{def:lll-reduced}
@@ -359,7 +383,7 @@ The exponential factor $2^{(n-1)/2}$ is the price of polynomial running time.  F
 \subsection{BKZ: The Practical Workhorse}
 \label{subsec:bkz}
 
-The \emph{Block Korkin--Zolotarev} (BKZ) algorithm\index{BKZ algorithm} of Schnorr and Euchner~(1994) generalises LLL by applying exact SVP solvers to blocks of dimension~$\beta$ (the \emph{block size})\index{BKZ algorithm!block size}:
+LLL finds short vectors in polynomial time, but its approximation quality degrades exponentially with dimension---far too loose to threaten cryptographic parameters.  To do better, we need to invest more computation.  The \emph{Block Korkin--Zolotarev} (BKZ) algorithm\index{BKZ algorithm} of Schnorr and Euchner~(1994) achieves this by applying exact SVP solvers to local blocks within the basis, then propagating the improvement globally.  The block size~$\beta$\index{BKZ algorithm!block size} controls the tradeoff: larger blocks yield shorter vectors but cost exponentially more time.  The core idea is simple enough to fit in a single paragraph:
 
 \begin{svgraybox}
 \textbf{BKZ-$\beta$ in a nutshell.}  Slide a window of width~$\beta$ along the GSO, solve exact \svp{} within each projected block, and insert the short vector back into the basis.  Repeat until no further progress.
@@ -371,6 +395,8 @@ The \emph{Block Korkin--Zolotarev} (BKZ) algorithm\index{BKZ algorithm} of Schno
 \item $\beta = n$ recovers HKZ reduction (exact \svp{}, exponential time).
 \item For intermediate $\beta$, BKZ-$\beta$ runs in time $T(\beta)\cdot\poly(n)$, where $T(\beta)$ is the cost of the SVP oracle in dimension $\beta$.
 \end{itemize}
+
+To quantify BKZ's output, we need a single number that summarises how short the first basis vector is relative to the lattice determinant.  The root Hermite factor serves this purpose---it is the parameter that practitioners use to translate block size into concrete security estimates.
 
 \begin{definition}[Root Hermite Factor]
 \label{def:root-hermite}
@@ -393,7 +419,7 @@ In practice, BKZ-$\beta$ with $\beta \geq 60$ already surpasses what LLL can ach
 \subsection{The Core-SVP Hardness Model}
 \label{subsec:core-svp}
 
-The standard model\index{core-SVP model} for estimating the concrete security of lattice parameters is:
+The root Hermite factor tells us what block size an attacker needs.  To convert that block size into a security level measured in bits---the currency that NIST and every standards body uses---we need one more ingredient: the cost of the SVP oracle that BKZ calls as a subroutine.  The \emph{core-SVP model}\index{core-SVP model} makes this connection explicit.
 
 \begin{definition}[Core-SVP Cost]
 \label{def:core-svp}
@@ -406,22 +432,24 @@ The cost of running BKZ-$\beta$ is dominated by the cost of the SVP oracle in di
 
 Given a lattice-based scheme with parameters requiring BKZ block size $\beta$ to break, the security in bits is $\approx 0.292\,\beta$ (classical) or $\approx 0.265\,\beta$ (quantum).  This model is used to set the parameters of ML-KEM and ML-DSA (Chaps.~\ref{ch:lwe-encryption}--\ref{ch:lattice-signatures}).
 
+Basis reduction gives us a concrete understanding of what attackers can do.  But how confident should we be that these problems are \emph{truly} hard, rather than merely hard for current algorithms?  The next section addresses this question with a result that has no analogue in classical cryptography: a proof that average-case hardness follows from worst-case hardness.
+
 
 %% ================================================================
 \section{Worst-Case to Average-Case Reductions}
 \label{sec:worst-avg-case}
 
-Classical cryptography rests on \emph{assumed} average-case hardness: we \emph{believe} that random RSA moduli are hard to factor, but we cannot prove it.  Lattice-based cryptography offers something stronger.
+Basis reduction algorithms tell us how hard lattice problems are \emph{in practice}---for the best algorithms we know today.  But cryptographic confidence demands something deeper.  How do we know that a clever new algorithm will not suddenly make random lattice instances easy, the way Shor's algorithm made random factoring instances easy?  Classical cryptography has no answer to this question: we \emph{believe} that random RSA moduli are hard to factor, but we cannot prove it.  Lattice-based cryptography offers something stronger.
 
 \subsection{Why Average-Case Hardness Matters}
 \label{subsec:avg-case-matters}
 
-A cryptographic scheme generates its keys \emph{at random}.  Its security therefore depends on the hardness of random instances, not worst-case instances.  In principle, random instances could be much easier than the hardest ones.  A \emph{worst-case to average-case reduction}\index{worst-case to average-case reduction} eliminates this gap: it shows that if \emph{any} algorithm breaks a non-negligible fraction of random instances, then the same algorithm can be used to solve \emph{every} instance of a worst-case problem believed to be hard.
+The distinction between worst-case and average-case hardness is subtle but consequential.  A cryptographic scheme generates its keys \emph{at random}.  Its security therefore depends on the hardness of random instances, not worst-case instances.  Knowing that some lattice instances are exponentially hard is cold comfort if the random instances used in practice happen to be easy.  A \emph{worst-case to average-case reduction}\index{worst-case to average-case reduction} eliminates this gap: it shows that if \emph{any} algorithm breaks a non-negligible fraction of random instances, then the same algorithm can be used to solve \emph{every} instance of a worst-case problem believed to be hard.  This is a qualitatively different kind of security guarantee---one that RSA, Diffie--Hellman, and elliptic-curve cryptography simply do not have.
 
 \subsection{Ajtai's Breakthrough}
 \label{subsec:ajtai}
 
-In 1996, Ajtai~\cite{Ajtai1996} proved the first worst-case to average-case reduction for lattice problems, founding the entire field of lattice-based cryptography\index{Ajtai's reduction}.
+In 1996, Mikl\'os Ajtai proved the result that made lattice-based cryptography possible~\cite{Ajtai1996}\index{Ajtai's reduction}.  He showed that a specific average-case problem---finding short integer solutions to a random system of linear equations modulo~$q$---is at least as hard as the worst case of~\sivp{}.  The problem itself is deceptively simple:
 
 \begin{definition}[Short Integer Solutions (\textsc{SIS})]
 \label{def:sis}
@@ -455,6 +483,8 @@ The reduction works by showing that a random matrix $\mathbf{A}$ encodes informa
 
 A complete proof appears in Appendix~\ref{app:ajtai}.  We note that Regev~\cite{Regev2009} later proved an analogous reduction for \lwe{} (Chap.~\ref{ch:lwe-encryption}), using a \emph{quantum} reduction from \gapsvp{} to \lwe{}.
 
+Ajtai's result and its descendants give lattice-based cryptography a theoretical foundation unmatched in public-key cryptography.  But theoretical hardness reductions involve polynomial losses that can be large, and they say nothing about the \emph{exact} complexity of the problems involved.  The final section of this chapter surveys what we know---and what remains open---about the concrete complexity of lattice problems, both classically and quantumly.
+
 
 %% ================================================================
 \section{Computational Complexity of Lattice Problems}
@@ -463,7 +493,7 @@ A complete proof appears in Appendix~\ref{app:ajtai}.  We note that Regev~\cite{
 \subsection{Classical Complexity}
 \label{subsec:classical-complexity}
 
-The complexity of lattice problems has been studied extensively~\cite{MicciancioGoldwasser2002, Peikert2016}:
+We have seen that basis reduction algorithms provide upper bounds on how easy lattice problems are, and worst-case reductions provide lower bounds on how hard they must be.  The full complexity picture fills in the space between these bounds.  The results of three decades of study~\cite{MicciancioGoldwasser2002, Peikert2016} can be summarised as follows:
 
 \begin{itemize}
 \item \textbf{Exact \svp{}:} NP-hard under randomised reductions~\cite{Ajtai1996}.
@@ -492,7 +522,7 @@ Enumeration & $2^{\bigO(n\log n)}$ & Exact & $\poly(n)$ \\
 \subsection{Quantum Complexity}
 \label{subsec:quantum-complexity}
 
-The quantum story for lattice problems is fundamentally different from factoring.  The best known quantum algorithms provide only a \emph{polynomial} speedup:
+For a book on post-quantum cryptography, this subsection contains the most important single fact: quantum computers do not help much with lattice problems.  The contrast with factoring is stark.  Where Shor's algorithm obliterates RSA by exploiting algebraic periodicity, the best known quantum algorithms for lattice problems provide only a modest polynomial speedup---far too small to threaten properly sized parameters.
 
 \begin{theorem}[Quantum Speedup for Lattice Problems]
 \label{thm:quantum-lattice}
@@ -503,7 +533,7 @@ T_{\mathrm{quant}} \;=\; 2^{0.265n + o(n)},
 compared to the classical $2^{0.292n + o(n)}$.  The speedup factor is $2^{0.027n} \approx 1.019^n$---polynomial, not exponential.
 \end{theorem}
 
-This stands in sharp contrast to factoring, where Shor's algorithm provides an \emph{exponential} speedup (from sub-exponential $e^{\bigO(n^{1/3}\log^{2/3}n)}$ to polynomial $\bigO(n^3)$).
+This stands in sharp contrast to factoring, where Shor's algorithm provides an \emph{exponential} speedup (from sub-exponential $e^{\bigO(n^{1/3}\log^{2/3}n)}$ to polynomial $\bigO(n^3)$).  The natural question is: why?  What is it about lattice problems that denies quantum computers the leverage they enjoy elsewhere?
 
 \begin{svgraybox}
 \textbf{Why no quantum breakthrough for lattices?}
@@ -520,7 +550,7 @@ Four structural reasons are commonly cited:
 \subsection{Concrete Security Estimates}
 \label{subsec:concrete-security}
 
-Translating complexity into deployable security levels requires fixing a cost model.  Using the core-SVP model (Definition~\ref{def:core-svp}):
+Asymptotic hardness is necessary but not sufficient for parameter selection---we need numbers, not big-$O$ notation.  Translating complexity into deployable security levels requires fixing a cost model.  Using the core-SVP model (Definition~\ref{def:core-svp}), we can map lattice dimensions to the NIST security levels that govern standardisation:
 
 \begin{table}[t]
 \caption{Lattice dimensions required for NIST security levels}
@@ -547,16 +577,9 @@ ML-KEM-768 (Chap.~\ref{ch:lwe-encryption}) uses Module-\lwe{} with effective lat
 \subsection{Summary: Why Lattices Survive Quantum Computers}
 \label{subsec:lattice-summary}
 
-Lattice problems occupy a unique position in the complexity landscape:
-\begin{enumerate}
-\item \textbf{Worst-case foundation:} Average-case hardness reduces to worst-case hardness~\cite{Ajtai1996, Regev2009}.
-\item \textbf{NP-hard core:} Exact \svp{} is NP-hard.
-\item \textbf{Quantum resistance:} No exponential quantum speedup is known.
-\item \textbf{Cryptanalytic maturity:} Over 25~years of intense study without a breakthrough.
-\item \textbf{Simplicity:} The problems are easy to state---find short vectors---yet exponentially hard to solve.
-\end{enumerate}
+We can now see why NIST chose lattice-based schemes as the primary post-quantum standards.  Lattice problems occupy a unique position in the complexity landscape, combining five properties that no other cryptographic family matches simultaneously.  Average-case hardness reduces to worst-case hardness~\cite{Ajtai1996, Regev2009}, so random instances are provably no easier than the hardest ones.  Exact \svp{} is NP-hard, anchoring the entire edifice to a complexity-theoretic pillar.  No exponential quantum speedup is known---the best quantum algorithms save a constant in the exponent, not a polynomial in the input size.  The problems have withstood over 25~years of sustained cryptanalytic attention without a breakthrough.  And they are easy to state---find short vectors in a lattice---yet exponentially hard to solve.
 
-This combination of properties makes lattices the preferred foundation for post-quantum cryptography.  The next chapter translates this hardness into practical cryptographic schemes via the Learning With Errors problem.
+This combination of theoretical depth and practical maturity is why lattices, not codes or isogenies, form the backbone of the post-quantum transition.  The next chapter translates this hardness into practical cryptographic schemes via the Learning With Errors problem---a structured variant of \cvp{} that turns lattice geometry into encryption and key exchange.
 
 
 %% ================================================================

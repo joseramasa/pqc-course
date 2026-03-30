@@ -20,6 +20,8 @@ Modern cryptography\index{cryptography!symmetric} rests on three equally critica
 \subsection{Block Ciphers and AES}
 \label{subsec:block-ciphers}
 
+Confidentiality requires a reversible transformation: a way to scramble data so that only the keyholder can unscramble it.  The simplest useful abstraction is a function that encrypts one fixed-size chunk at a time---a \emph{block cipher}.
+
 \begin{definition}[Block Cipher]
 \label{def:block-cipher}
 A \emph{block cipher}\index{block cipher}\index{AES} is a pair of deterministic algorithms $(\Enc, \Dec)$ operating on fixed-length blocks, with a key $k \in \{0,1\}^\kappa$:
@@ -34,7 +36,7 @@ The \emph{Advanced Encryption Standard} (AES)\index{AES} operates on 128-bit blo
 \subsection{Authenticated Encryption: AES-GCM}
 \label{subsec:aes-gcm}
 
-A block cipher alone provides confidentiality for a single block.  A \emph{mode of operation}\index{mode of operation} extends it to arbitrary-length messages.  The most important mode in practice is \emph{Galois/Counter Mode} (GCM)\index{GCM}, which simultaneously provides confidentiality and integrity---a property called \emph{authenticated encryption with associated data}\index{AEAD} (AEAD).
+A block cipher alone provides confidentiality for a single block, but real messages span many blocks and face threats beyond eavesdropping---an active adversary can flip bits, reorder blocks, or splice fragments from different messages.  A \emph{mode of operation}\index{mode of operation} extends encryption to arbitrary-length messages, and the most important modes go further: they bind confidentiality and integrity into a single primitive called \emph{authenticated encryption with associated data}\index{AEAD} (AEAD).  The dominant AEAD construction in practice is \emph{Galois/Counter Mode} (GCM)\index{GCM}.
 
 \begin{definition}[AEAD Scheme]
 \label{def:aead}
@@ -45,6 +47,8 @@ AES-GCM encrypts in counter mode (CTR) and computes the tag $T$ using a universa
 
 \subsection{Hash Functions: SHA-2 and SHA-3}
 \label{subsec:hash-functions}
+
+Authenticated encryption protects data in transit, but many cryptographic operations need something different: a way to produce a short, unique fingerprint of an arbitrary-length message.  Key derivation, digital signatures, and integrity checks all depend on \emph{cryptographic hash functions}---deterministic, efficiently computable maps that behave, for all practical purposes, like random oracles.
 
 \begin{definition}[Cryptographic Hash Function]
 \label{def:hash-function}
@@ -60,6 +64,8 @@ The \textbf{SHA-2}\index{SHA-2} family (SHA-256, SHA-384, SHA-512) uses a Merkle
 
 \subsection{Message Authentication Codes}
 \label{subsec:macs}
+
+Hash functions detect accidental corruption, but they cannot detect malicious tampering: an adversary who modifies a message can simply recompute the hash.  What we need is a keyed variant---a function whose output can only be produced or verified by someone who holds a shared secret.  This is a \emph{message authentication code} (MAC).
 
 \begin{definition}[MAC]
 \label{def:mac}
@@ -92,6 +98,8 @@ Historical solutions---diplomatic pouches, pre-distributed code books, key distr
 \subsection{One-Way Trapdoor Functions}
 \label{subsec:trapdoor}
 
+The key distribution problem seems inescapable if encryption and decryption require the same key.  The breakthrough insight of the 1970s was that the two operations need not be symmetric: if computing a function is easy but inverting it is hard---unless one holds a secret ``trapdoor''---then the function itself can serve as a public key.
+
 \begin{definition}[One-Way Trapdoor Function]
 \label{def:trapdoor}
 \index{one-way trapdoor function}
@@ -108,7 +116,9 @@ In 1976, Diffie and Hellman\index{Diffie--Hellman} proposed separating the key i
 \subsection{RSA}
 \label{subsec:rsa}
 
-The first concrete realisation of public-key encryption was due to Rivest, Shamir, and Adleman~\cite{RSA1978}\index{RSA}.
+Diffie and Hellman described the \emph{concept} of public-key cryptography in 1976, but did not provide a concrete system.  The first practical realisation came two years later from Rivest, Shamir, and Adleman~\cite{RSA1978}\index{RSA}, who found a trapdoor function hiding in elementary number theory.
+
+The design intuition is this: multiplying two large primes is trivial, but recovering them from the product is---as far as anyone knows---extraordinarily hard.  RSA exploits this asymmetry.  The product $n = pq$ is made public; anyone can use it to encrypt.  But computing the decryption exponent requires knowing $\phi(n) = (p-1)(q-1)$, which is easy if one knows $p$ and $q$ and apparently intractable otherwise.  The trapdoor is the factorisation itself.
 
 \begin{definition}[RSA Key Generation]
 \label{def:rsa-keygen}
@@ -141,7 +151,7 @@ Textbook RSA as described above is \emph{insecure} in practice: it is determinis
 \subsection{Diffie--Hellman Key Exchange}
 \label{subsec:dh}
 
-The Diffie--Hellman (DH) protocol\index{Diffie--Hellman!key exchange} allows two parties to establish a shared secret over a public channel~\cite{DiffieHellman1976}.
+RSA solves encryption and signatures, but it does not directly address the original key distribution problem: how can two parties who have never met agree on a shared secret, communicating only over a public channel?  The Diffie--Hellman (DH) protocol\index{Diffie--Hellman!key exchange}, published in the same landmark 1976 paper that introduced public-key cryptography~\cite{DiffieHellman1976}, provides an elegant answer using modular exponentiation.
 
 \begin{definition}[Diffie--Hellman Protocol]
 \label{def:dh}
@@ -158,7 +168,7 @@ An eavesdropper observes $(g, p, g^a \bmod p, g^b \bmod p)$ but must compute $g^
 \subsection{Elliptic Curve Cryptography}
 \label{subsec:ecc}
 
-Independently proposed by Koblitz~\cite{Koblitz1987} and Miller~\cite{Miller1985}\index{elliptic curve cryptography}, elliptic curve cryptography (ECC) replaces the multiplicative group $\Z_p^*$ with the group of rational points on an elliptic curve over a finite field.
+Both RSA and Diffie--Hellman achieve security through the difficulty of number-theoretic problems in $\Z_n^*$ or $\Z_p^*$, but they pay a steep price in key size: 3072-bit keys for 128-bit security.  In the mid-1980s, Koblitz~\cite{Koblitz1987} and Miller~\cite{Miller1985}\index{elliptic curve cryptography} independently discovered that the discrete logarithm problem is dramatically harder in the group of points on an elliptic curve, allowing the same security from keys roughly ten times shorter.  Elliptic curve cryptography (ECC) replaces the multiplicative group $\Z_p^*$ with this richer algebraic structure.
 
 \begin{definition}[Elliptic Curve over a Finite Field]
 \label{def:elliptic-curve}
@@ -200,10 +210,12 @@ The dramatic key-size advantage (Table~\ref{tab:key-sizes}) has made ECC the dom
 \section{Digital Signatures}
 \label{sec:signatures}
 
-Digital signatures\index{digital signature} are the public-key analogue of MACs: they provide integrity and authentication, but unlike MACs they also provide \emph{non-repudiation}---anyone holding the public key can verify the signature, not just the holder of the shared secret.
+Public-key encryption and key exchange solve confidentiality, but a critical piece of the security triad remains: how does one prove, to anyone, that a given message was produced by a specific party and has not been altered?  Symmetric MACs (Section~\ref{subsec:macs}) provide integrity between two parties who share a key, but they cannot convince a third party---both parties can produce the same tag.  Digital signatures\index{digital signature} solve this by binding the authentication to an asymmetric key pair: only the private-key holder can sign, but anyone with the public key can verify.  This property---\emph{non-repudiation}---makes digital signatures the foundation of software distribution, financial transactions, and, as we shall see in Section~\ref{sec:pki}, the certificate chains that underpin internet trust.
 
 \subsection{Syntax and Security}
 \label{subsec:sig-syntax}
+
+Before examining concrete schemes, we fix the interface that every signature scheme must implement and the security property it must satisfy.
 
 \begin{definition}[Digital Signature Scheme]
 \label{def:signature}
@@ -226,12 +238,12 @@ EUF-CMA is the standard security notion for signatures in practice; all schemes 
 \subsection{RSA Signatures and RSA-PSS}
 \label{subsec:rsa-sig}
 
-The textbook RSA signature on message $m$ is $\sigma = H(m)^d \bmod n$, verified by checking $\sigma^e \equiv H(m) \pmod{n}$.  As with RSA encryption, the textbook version is insecure due to malleability.  The standard secure variant is \emph{RSA-PSS}\index{RSA-PSS} (Probabilistic Signature Scheme), which incorporates randomised padding and is provably EUF-CMA secure in the random oracle model under the RSA assumption.
+The RSA trapdoor function lends itself naturally to signatures: because only the private-key holder can compute $d$-th powers modulo~$n$, a modular exponentiation with~$d$ serves as proof of identity.  The textbook RSA signature on message $m$ is $\sigma = H(m)^d \bmod n$, verified by checking $\sigma^e \equiv H(m) \pmod{n}$.  As with RSA encryption, the textbook version is insecure due to malleability.  The standard secure variant is \emph{RSA-PSS}\index{RSA-PSS} (Probabilistic Signature Scheme), which incorporates randomised padding and is provably EUF-CMA secure in the random oracle model under the RSA assumption.
 
 \subsection{Schnorr Signatures and the Fiat--Shamir Heuristic}
 \label{subsec:schnorr}
 
-Schnorr signatures\index{Schnorr signature} illustrate a paradigm that recurs throughout post-quantum cryptography.
+RSA-PSS derives its security from the hardness of factoring.  An entirely different design path begins not with a trapdoor function but with an \emph{identification protocol}---an interactive proof that one knows a secret---and then compiles it into a signature scheme.  Schnorr signatures\index{Schnorr signature} are the cleanest example of this approach, and the construction paradigm they introduce---the Fiat--Shamir heuristic---recurs throughout post-quantum cryptography.
 
 \begin{definition}[Schnorr Signature]
 \label{def:schnorr}
@@ -246,6 +258,8 @@ Schnorr signatures are derived from a three-move identification protocol (commit
 
 \subsection{ECDSA}
 \label{subsec:ecdsa}
+
+Just as elliptic curves shrank Diffie--Hellman key sizes by an order of magnitude, they do the same for signatures.  ECDSA combines the Schnorr-style ``commit-challenge-respond'' structure with the compact group arithmetic of elliptic curves, producing signatures that are both shorter and faster to verify than their RSA counterparts.
 
 \begin{definition}[ECDSA]
 \label{def:ecdsa}
@@ -273,7 +287,7 @@ Public-key cryptography solves key distribution but introduces a new problem: ho
 \subsection{Certificate Authorities and Chains of Trust}
 \label{subsec:ca}
 
-PKI organises trust hierarchically\index{certificate authority}.  A small number of \emph{root Certificate Authorities} (CAs) are pre-installed in every browser and operating system.  Root CAs sign the certificates of \emph{intermediate CAs}, which in turn sign \emph{end-entity certificates} for individual domains.  This produces a \emph{certificate chain}:
+The answer is delegation: a small number of universally trusted entities vouch for the keys of others, who in turn vouch for still others.  PKI organises this delegation hierarchically\index{certificate authority}.  A small number of \emph{root Certificate Authorities} (CAs) are pre-installed in every browser and operating system.  Root CAs sign the certificates of \emph{intermediate CAs}, which in turn sign \emph{end-entity certificates} for individual domains.  This produces a \emph{certificate chain}:
 \[
 \text{Root CA} \;\xrightarrow{\text{signs}}\; \text{Intermediate CA} \;\xrightarrow{\text{signs}}\; \text{End-entity (e.g., github.com)}.
 \]
@@ -282,24 +296,20 @@ Verification proceeds bottom-up: the relying party checks each signature in the 
 \subsection{X.509 Certificates}
 \label{subsec:x509}
 
+A chain of trust is only as precise as the documents it links.  The standard format for these documents is the X.509 certificate, whose fields have been refined over three decades to encode exactly the information a relying party needs to decide whether to trust a public key.
+
 \begin{definition}[X.509 Certificate]
 \label{def:x509}
 \index{X.509}
-An X.509 certificate binds a public key to an identity.  Its principal fields are:
-\begin{itemize}
-\item \textbf{Subject:} the identity being certified (e.g., \texttt{CN=github.com}).
-\item \textbf{Issuer:} the CA that vouches for this identity.
-\item \textbf{Public key:} the subject's cryptographic key (RSA, ECDSA, etc.).
-\item \textbf{Validity period:} start and expiry dates.
-\item \textbf{Signature:} the issuer's digital signature over all preceding fields.
-\item \textbf{Extensions:} key usage constraints, subject alternative names, etc.
-\end{itemize}
+An X.509 certificate binds a public key to an identity.  The \emph{Subject} field names the entity being certified (e.g., \texttt{CN=github.com}), while the \emph{Issuer} field identifies the CA that vouches for this binding---together, they answer \emph{who} holds the key and \emph{who} says so.  The \emph{Public key} field contains the subject's actual cryptographic key (RSA, ECDSA, or another algorithm), which is the whole point of the certificate: to distribute this key authentically.  The \emph{Validity period} limits the window of trust by specifying start and expiry dates, ensuring that compromised or outdated keys eventually expire even if revocation mechanisms fail.  The \emph{Signature} field carries the issuer's digital signature over all other fields, making any tampering detectable---this is the cryptographic glue that holds the chain together.  Finally, the \emph{Extensions} encode policy constraints: whether the key may be used for signing, encryption, or both; alternative names under which the subject operates; and whether the certificate may itself issue further certificates.  Extensions transform X.509 from a simple key--identity binding into a flexible policy language for large-scale trust management.
 \end{definition}
 
 Certificate chain validation verifies, for each certificate $C_i$ in the chain: (i)~the current time falls within the validity period; (ii)~$C_{i+1}$ has signed $C_i$; (iii)~$C_i$ has not been revoked (checked via OCSP or CRL); and (iv)~key-usage extensions permit the intended operation.  The chain terminates at a self-signed root certificate present in the local trust store.
 
 \subsection{Failures and Lessons}
 \label{subsec:pki-failures}
+
+The X.509 model is elegant in theory, but it places extraordinary trust in certificate authorities---a trust that has, on occasion, been catastrophically misplaced.
 
 \begin{example}[DigiNotar Collapse, 2011]
 \label{ex:diginotar}
@@ -319,7 +329,7 @@ Transport Layer Security\index{TLS} (TLS) weaves together every primitive discus
 \subsection{The TLS~1.3 Handshake}
 \label{subsec:tls-handshake}
 
-A full TLS~1.3 handshake completes in a single round trip (1-RTT)\index{TLS!1-RTT handshake} and proceeds as follows.
+The protocol achieves its security guarantees through a carefully choreographed exchange called the \emph{handshake}, which establishes a shared symmetric key, authenticates the server, and protects against downgrade and replay attacks---all within a single network round trip.  A full TLS~1.3 handshake (1-RTT)\index{TLS!1-RTT handshake} proceeds as follows.
 
 \begin{enumerate}
 \item \textbf{ClientHello (Client $\to$ Server).}  The client sends supported cipher suites, a random nonce, and---crucially---an ECDHE\index{ECDHE} key share (e.g., its X25519 public key).
@@ -345,7 +355,7 @@ From this point, all subsequent handshake messages are encrypted.
 \subsection{Cipher Suites}
 \label{subsec:cipher-suites}
 
-TLS~1.3 dramatically simplified cipher suite negotiation.  Only five AEAD cipher suites are defined; the most common is:
+The handshake begins with a negotiation: client and server must agree on which algorithms to use.  TLS~1.3 dramatically simplified this step compared to its predecessors.  Only five AEAD cipher suites are defined; the most common is:
 
 \begin{center}
 \texttt{TLS\_AES\_256\_GCM\_SHA384}
@@ -356,7 +366,7 @@ TLS~1.3 dramatically simplified cipher suite negotiation.  Only five AEAD cipher
 \subsection{Where Each Primitive Is Used}
 \label{subsec:tls-primitives}
 
-Table~\ref{tab:tls-primitives} summarises the role of each cryptographic primitive in a TLS~1.3 session and its vulnerability to quantum attack.
+With the handshake and cipher suites in place, we can now map every cryptographic primitive from this chapter to its role in TLS---and, critically, assess which components fall to quantum attack.  Table~\ref{tab:tls-primitives} provides this summary.
 
 \begin{table}[t]
 \caption{Cryptographic primitives in a TLS~1.3 handshake and their quantum vulnerability}
@@ -391,6 +401,8 @@ The entire public-key infrastructure described above---RSA, Diffie--Hellman, ECD
 \subsection{The Integer Factorisation Problem}
 \label{subsec:ifp}
 
+We begin with the assumption that underpins RSA.  The security argument is simple: anyone can multiply two primes, but no one knows how to efficiently reverse the operation.
+
 \begin{definition}[Integer Factorisation Problem (IFP)]
 \label{def:ifp}
 \index{integer factorisation problem}
@@ -409,6 +421,8 @@ The security of RSA relies on a slightly stronger assumption: not merely that fa
 \subsection{The Discrete Logarithm Problem}
 \label{subsec:dlp}
 
+Where RSA relies on the difficulty of factoring, Diffie--Hellman and DSA rely on a different one-way phenomenon: modular exponentiation is easy, but extracting the exponent---computing a discrete logarithm---appears to be hard.
+
 \begin{definition}[Discrete Logarithm Problem (DLP)]
 \label{def:dlp}
 \index{discrete logarithm problem}
@@ -417,22 +431,24 @@ Given a cyclic group $G = \langle g \rangle$ of order~$q$ and an element $h \in 
 
 In the multiplicative group $\Z_p^*$, forward exponentiation ($g^x \bmod p$) costs $\bigO(\log x)$ multiplications, while the best classical discrete-log algorithm (index calculus) is sub-exponential.  For groups of prime order embedded in $\Z_p^*$, the DLP underpins the Diffie--Hellman protocol and DSA.
 
-Two related assumptions refine the DLP for protocol-level security:
+Knowing that discrete logarithms are hard does not, by itself, suffice for proving protocols secure.  The DLP says that recovering $a$ from $g^a$ is infeasible, but Diffie--Hellman key exchange never asks an adversary to find $a$---it asks whether the adversary can compute $g^{ab}$ from the pair $(g^a, g^b)$.  This is a potentially easier task: perhaps $g^{ab}$ can be computed without finding either $a$ or $b$.  Conversely, some protocols require an even stronger guarantee: not just that $g^{ab}$ cannot be \emph{computed}, but that it cannot even be \emph{distinguished} from a random group element.  These operational differences motivate two refinements of the DLP.
 
 \begin{definition}[CDH and DDH Assumptions]
 \label{def:cdh-ddh}
 \index{CDH assumption}\index{DDH assumption}
 Let $G = \langle g \rangle$ be a cyclic group of prime order~$q$.
-\begin{itemize}
+\begin{enumerate}
 \item \textbf{Computational Diffie--Hellman (CDH):}  Given $(g, g^a, g^b)$ for random $a, b \getsr \Z_q$, it is infeasible to compute $g^{ab}$.
 \item \textbf{Decisional Diffie--Hellman (DDH):}  The distributions $(g^a, g^b, g^{ab})$ and $(g^a, g^b, g^c)$ are computationally indistinguishable for random $a, b, c \getsr \Z_q$.
-\end{itemize}
+\end{enumerate}
 \end{definition}
 
-We have the implication chain: DLP~$\Rightarrow$~CDH~$\Rightarrow$~DDH (i.e., DDH is the weakest assumption).  The security of Diffie--Hellman key exchange relies on CDH; ElGamal encryption relies on DDH.
+These assumptions form a strict hierarchy: if one can solve the DLP, one can certainly compute $g^{ab}$ (just recover $a$ and exponentiate), so DLP~$\Rightarrow$~CDH.  Similarly, if one can compute $g^{ab}$, one can distinguish it from a random element, so CDH~$\Rightarrow$~DDH.  The converses are not known to hold, meaning DDH is the weakest---and therefore most conservative---assumption of the three.  In practice, the security of Diffie--Hellman key exchange relies on CDH (the adversary must compute the shared secret), while the semantic security of ElGamal encryption relies on DDH (the adversary must not even learn partial information about the plaintext).
 
 \subsection{The Elliptic Curve Discrete Logarithm Problem}
 \label{subsec:ecdlp-hardness}
+
+The DLP, CDH, and DDH can be stated in any cyclic group.  When the group is $\Z_p^*$, sub-exponential index-calculus algorithms exist, forcing the use of multi-thousand-bit primes.  Elliptic curve groups resist these algorithms entirely, which is why they deliver equivalent security at a fraction of the key size.  The formal hardness assumption is the natural analogue of the DLP, transplanted to the curve.
 
 \begin{definition}[Elliptic Curve Discrete Logarithm Problem (ECDLP)]
 \label{def:ecdlp}
@@ -445,7 +461,7 @@ The best classical algorithm for ECDLP is Pollard's rho method\index{Pollard's r
 \subsection{The Monoculture Risk}
 \label{subsec:monoculture}
 
-All three problems---IFP, DLP, ECDLP---share a deep structural property: they reduce to instances of the \emph{hidden subgroup problem}\index{hidden subgroup problem} (HSP) over abelian groups.  Shor's algorithm\index{Shor's algorithm} solves the HSP in polynomial time on a quantum computer~\cite{Shor1997}, which means:
+Three problems, three different-looking mathematical structures---yet beneath the surface, they are uncomfortably alike.  All three---IFP, DLP, ECDLP---share a deep structural property: they reduce to instances of the \emph{hidden subgroup problem}\index{hidden subgroup problem} (HSP) over abelian groups.  Shor's algorithm\index{Shor's algorithm} solves the HSP in polynomial time on a quantum computer~\cite{Shor1997}, which means:
 
 \begin{theorem}[Quantum Collapse of Classical Assumptions]
 \label{thm:quantum-collapse}

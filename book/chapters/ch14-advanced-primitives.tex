@@ -1,9 +1,9 @@
 \chapter{Advanced Cryptographic Primitives}
 \label{ch:advanced-primitives}
 
-\abstract*{Lattice-based cryptography enables capabilities far beyond encryption and signatures.  This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical.  For physicists, these protocols offer striking parallels: noise accumulation mirrors thermodynamics, zero-knowledge echoes quantum measurement, and multiparty computation resembles distributed quantum systems.  The chapter closes with a survey of lattice-based advanced constructions---attribute-based encryption, identity-based encryption, threshold signatures, and functional encryption---that point toward a richer cryptographic future.}
+\abstract*{Lattice-based cryptography enables capabilities far beyond encryption and signatures.  This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical.  The noise dynamics of LWE-based schemes play a central role: noise growth constrains what can be computed homomorphically, and the techniques for managing it---modulus switching, bootstrapping, careful parameter selection---reappear in different guises across all three primitives.  The chapter closes with a survey of lattice-based advanced constructions---attribute-based encryption, identity-based encryption, threshold signatures, and functional encryption---that point toward a richer cryptographic future.}
 
-\abstract{Lattice-based cryptography enables capabilities far beyond encryption and signatures.  This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical.  For physicists, these protocols offer striking parallels: noise accumulation mirrors thermodynamics, zero-knowledge echoes quantum measurement, and multiparty computation resembles distributed quantum systems.  The chapter closes with a survey of lattice-based advanced constructions that point toward a richer cryptographic future.}
+\abstract{Lattice-based cryptography enables capabilities far beyond encryption and signatures.  This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical.  The noise dynamics of LWE-based schemes play a central role throughout, and the techniques for managing noise reappear in different guises across all three primitives.  The chapter closes with a survey of lattice-based advanced constructions that point toward a richer cryptographic future.}
 
 % =============================================================
 % SOURCE: notes.tex §6.2 (lines 8327–8905)
@@ -51,16 +51,15 @@ The existence of FHE was an open problem for over 30~years, from Rivest, Adleman
 
 The bootstrapping step is the conceptual leap.  The evaluator encrypts the secret key under the public key (a so-called \emph{bootstrapping key}), then homomorphically computes decryption ``inside the encryption.''  The output is a fresh ciphertext of the same plaintext, with noise reset to the level introduced by one decryption-circuit evaluation.
 
-\begin{svgraybox}
-\textbf{The Maxwell's demon analogy.}
-Bootstrapping appears to violate a fundamental law: noise should only grow under computation, never shrink.  The resolution is thermodynamic in spirit.  Noise is not destroyed; it is shifted.  The computational cost of bootstrapping (time and ciphertext expansion) absorbs the entropy that the noise carried.  Just as Maxwell's demon must expend energy to measure and sort molecules, the bootstrapping procedure expends computation to reset ciphertext noise.
-\end{svgraybox}
+At first glance, bootstrapping seems to violate a basic principle: computation on noisy data should only increase the noise, never reduce it.  The resolution is that noise is not destroyed---it is \emph{paid for}.  The bootstrapping procedure decrypts and re-encrypts homomorphically, and the computational cost of doing so (time, memory, ciphertext expansion) is the price of resetting the noise floor.  The bookkeeping is exact: any circuit of depth~$D$ that would otherwise require a modulus $q$ exponential in~$D$ can instead use a polynomial modulus at the cost of $D/L$ bootstrapping operations, each with latency proportional to the decryption-circuit depth.  Nothing is free; the noise budget is traded for a time budget.
 
 
 \subsection{LWE-Based FHE: BGV, BFV, CKKS, and TFHE}
 \label{subsec:fhe-schemes}
 
-All modern FHE schemes derive their security from the Learning With Errors problem (Chap.~\ref{ch:lwe-encryption}) or its ring/module variants~\cite{Regev2009}.  They differ in how they represent plaintexts and manage noise.
+All modern FHE schemes derive their security from the Learning With Errors problem (Chap.~\ref{ch:lwe-encryption}) or its ring/module variants~\cite{Regev2009}.  They share a common algebraic skeleton---a ciphertext is an \lwe{} (or Ring-\lwe{}) sample $(\mathbf{a}, b = \ip{\mathbf{a}}{\mathbf{s}} + e + \Delta m)$ where $\Delta$ is an encoding factor and $e$ is the noise term---but they differ in two fundamental design choices: how plaintexts are encoded and how noise is kept under control.
+
+BGV and BFV both operate over integers modulo a prime~$p$, making them natural choices for exact integer arithmetic.  They diverge in noise management: BGV uses \emph{modulus switching}, progressively shrinking the ciphertext modulus after each multiplication to reduce the relative noise, while BFV adopts a \emph{scale-invariant} approach that keeps the modulus fixed and instead manages the ratio between signal and noise through careful encoding.  CKKS takes a fundamentally different path by encoding approximate real numbers---accepting small rounding errors in the plaintext in exchange for native support of floating-point workloads such as machine learning and statistics.  TFHE occupies the opposite extreme, encrypting single bits and evaluating Boolean circuits gate by gate, but compensating with extremely fast bootstrapping (sub-millisecond on modern hardware) that resets noise after every gate.  Table~\ref{tab:fhe-schemes} summarises these families.
 
 \begin{table}[t]
 \caption{Modern FHE scheme families and their characteristics}
@@ -77,13 +76,13 @@ TFHE & Single bits & Boolean circuits, fast bootstrap & Gate bootstrapping \\
 \end{tabular}
 \end{table}
 
-In each scheme, a ciphertext is an \lwe{} (or Ring-\lwe{}) sample $(\mathbf{a}, b = \ip{\mathbf{a}}{\mathbf{s}} + e + \Delta m)$ where $\Delta$ is an encoding factor and $e$ is the noise term.  Homomorphic addition adds two such samples (noise grows additively); homomorphic multiplication involves a tensor product that causes the noise to grow \emph{multiplicatively}.  This multiplicative noise growth is the central bottleneck.
+Despite these differences, the four families share the same fundamental bottleneck.  Homomorphic addition adds two \lwe{} samples and the noise grows additively; homomorphic multiplication involves a tensor product that causes the noise to grow \emph{multiplicatively}.  This multiplicative noise growth is what limits the depth of circuits that can be evaluated without bootstrapping, and managing it is the central challenge of every FHE implementation.
 
 
-\subsection{Noise Growth: The Thermal Noise Analogy}
+\subsection{Noise Growth and the Depth Barrier}
 \label{subsec:noise-growth}
 
-The noise dynamics of FHE are best understood through a physics analogy.
+The central constraint on any LWE-based FHE scheme is noise growth.  Every homomorphic operation increases the noise in the ciphertext, and once the noise exceeds a threshold, decryption fails.  Understanding the precise rate of growth is essential for choosing parameters and deciding when bootstrapping is needed.
 
 \begin{definition}[Noise Budget]
 \label{def:noise-budget}
@@ -97,10 +96,7 @@ Decryption fails when $\norm{e} \geq q/2$, where $q$ is the ciphertext modulus. 
 
 Equation~\eqref{eq:noise-mult} is the crux: after $L$ levels of multiplication, noise grows as $\sigma^{2^L}\cdot\poly(n)^L$.  Without intervention, even modest circuits exhaust the noise budget.
 
-\begin{svgraybox}
-\textbf{Noise as thermal noise.}
-In a communication channel, thermal noise accumulates with each amplification stage.  An amplifier cascade of depth~$L$ produces noise proportional to $T^L$ (temperature raised to the number of stages).  FHE ciphertexts behave identically: each multiplication ``amplifies'' the noise quadratically, and deep circuits produce exponential noise growth.  Bootstrapping is the cryptographic analogue of a \emph{regenerative repeater}---it decodes and re-encodes the signal, resetting the noise floor at the cost of latency.
-\end{svgraybox}
+The analogy to signal processing is precise, not merely suggestive.  In a chain of analog amplifiers, each stage adds thermal noise and amplifies the noise from all previous stages; after $L$ stages the signal-to-noise ratio degrades exponentially.  The standard engineering solution is a \emph{regenerative repeater}: decode the analog signal to digital, then re-encode it, resetting the noise floor at the cost of latency.  FHE bootstrapping does exactly this---it homomorphically decrypts (decodes) and re-encrypts (re-encodes), resetting noise at the cost of computational latency.  The parallel is structural, not metaphorical: both systems face exponential noise growth from iterated nonlinear operations, and both solve it by interleaving decode-reencode steps.  The difference is that in FHE the ``decoding'' itself must happen on encrypted data, which is why bootstrapping is so expensive.
 
 
 \subsection{Bootstrapping: The Noise Reset}
@@ -125,12 +121,7 @@ The practical viability of FHE is measured by bootstrapping speed.  Gentry's ori
 \subsection{Practical FHE Today}
 \label{subsec:fhe-practice}
 
-Several open-source libraries make FHE accessible to practitioners:
-\begin{itemize}
-\item \textbf{Microsoft SEAL:} Implements BFV and CKKS.  Used in privacy-preserving machine learning.
-\item \textbf{TFHE-rs / Zama:} Implements TFHE with fast gate bootstrapping.  Targets Boolean circuits and integer operations.
-\item \textbf{OpenFHE:} Supports BGV, BFV, CKKS, and TFHE under a unified API.
-\end{itemize}
+Several open-source libraries have brought FHE from research papers to production code.  Microsoft SEAL implements BFV and CKKS and has become the de facto platform for privacy-preserving machine learning, with bindings in C++, .NET, and Python.  TFHE-rs, developed by Zama, implements TFHE with fast gate bootstrapping and targets Boolean circuits and integer operations where per-gate refresh is essential.  OpenFHE provides a unified API spanning BGV, BFV, CKKS, and TFHE, making it possible to prototype across scheme families within a single codebase and select the best fit for a given workload.
 
 \begin{example}[Private Medical Diagnosis]
 \label{ex:fhe-medical}
@@ -159,10 +150,7 @@ An interactive protocol between a prover~$P$ and a verifier~$V$ for a language $
 
 The zero-knowledge property is the remarkable one: the verifier learns that ``$x \in \mathcal{L}$'' but gains no additional knowledge---not even a single bit about \emph{why} the statement is true.
 
-\begin{svgraybox}
-\textbf{The quantum measurement analogy.}
-A zero-knowledge proof resembles a quantum measurement in a precise sense.  When you measure a qubit in the computational basis, you learn one bit of information (the outcome) but the act of measurement destroys all other information the qubit carried.  Similarly, a zero-knowledge proof reveals exactly one bit---``the statement is true''---while provably destroying the verifier's ability to extract anything else.
-\end{svgraybox}
+The zero-knowledge property has a flavour that readers with a physics background may recognise.  Measuring a qubit in the computational basis yields one bit and irreversibly collapses the state, destroying access to all other information the qubit encoded.  A zero-knowledge proof achieves something analogous by design rather than physics: the verifier receives exactly one bit of information---``the statement is true''---and the simulator argument guarantees, mathematically, that no additional information can be extracted.  The mechanisms are entirely different (cryptographic simulation versus quantum collapse), but the operational consequence is the same: a hard, provable bound on what the receiving party can learn.
 
 
 \subsection{Interactive Proofs and the Fiat--Shamir Heuristic}
@@ -223,13 +211,9 @@ Stern-type proofs are the basis of several post-quantum anonymous credential sch
 
 \emph{Succinct Non-interactive Arguments of Knowledge} (SNARKs)\index{SNARK} compress proofs to a few hundred bytes and enable verification in milliseconds, regardless of the complexity of the proven statement.  Most deployed SNARKs rely on elliptic-curve pairings and are therefore vulnerable to quantum attack.
 
-Post-quantum alternatives fall into two families:
+Two post-quantum alternatives have emerged, pursuing different trade-offs.  \textbf{STARKs}\index{STARK} (Scalable Transparent Arguments of Knowledge) replace pairings entirely with hash-based polynomial commitments.  The resulting proofs are larger---tens of kilobytes rather than hundreds of bytes---but they rely only on collision-resistant hash functions, which are already quantum-safe, and they require no trusted setup.  This transparency is a significant practical advantage: there is no toxic waste, no multi-party ceremony, and no trust assumption beyond the hash function itself.
 
-\begin{itemize}
-\item \textbf{STARKs}\index{STARK} (Scalable Transparent Arguments of Knowledge): Replace pairings with hash-based commitments.  Proof sizes are larger (tens of kilobytes) but rely only on collision-resistant hash functions---already quantum-safe.  STARKs require no trusted setup and scale transparently.
-
-\item \textbf{Lattice-based SNARKs:} Replace pairing-based polynomial commitments with lattice-based commitments.  Active research has produced proof sizes in the range of 10--50~KB with verification times around 100~ms.  The main challenge remains reducing prover time, which can be orders of magnitude slower than pairing-based provers.
-\end{itemize}
+\textbf{Lattice-based SNARKs} take the opposite approach, replacing pairing-based polynomial commitments with lattice-based ones while preserving the algebraic structure that makes SNARKs succinct.  Active research has produced proof sizes in the range of 10--50~KB with verification times around 100~ms---competitive with STARKs in size, but with the added benefit of richer algebraic operations.  The main challenge is prover time, which can be orders of magnitude slower than pairing-based provers due to the overhead of lattice arithmetic.
 
 \begin{table}[t]
 \caption{Comparison of proof systems for post-quantum zero-knowledge}
@@ -250,15 +234,9 @@ Stern-type & $\sim$100 KB & $\sim$200 ms & \lwe{} / \textsc{SIS} \\
 \subsection{Applications of Zero-Knowledge}
 \label{subsec:zk-applications}
 
-Zero-knowledge proofs enable a range of privacy-preserving applications:
-\begin{itemize}
-\item \textbf{Anonymous authentication:} Prove membership in a group (e.g., ``I hold a valid credential'') without revealing which credential.
-\item \textbf{Range proofs:} Prove that a value lies in an interval (e.g., ``my age is at least 18'') without revealing the value itself.
-\item \textbf{Verifiable computation:} A cloud server proves that it executed a computation correctly on outsourced data.
-\item \textbf{Blockchain privacy:} Prove transaction validity without revealing sender, receiver, or amount.
-\end{itemize}
+Zero-knowledge proofs underpin a surprisingly wide range of privacy-preserving applications.  In \emph{anonymous authentication}, a user proves membership in a group---``I hold a valid credential issued by this authority''---without revealing which credential, enabling systems where identity verification does not require identity disclosure.  \emph{Range proofs} allow a party to demonstrate that a private value lies in an interval (``my account balance exceeds the required minimum'') without revealing the value itself; these are essential in financial compliance, where regulations demand verification but privacy law demands confidentiality.  \emph{Verifiable computation} inverts the trust model of cloud outsourcing: instead of trusting the server, a client receives a proof that the computation was executed correctly, turning trust into mathematics.  Finally, zero-knowledge proofs are the engine behind privacy-preserving blockchains, where transaction validity must be publicly verifiable even though sender, receiver, and amount remain hidden.
 
-All of these applications require quantum-safe instantiations as the transition to post-quantum cryptography proceeds.
+Each of these applications currently relies on pre-quantum proof systems.  As the transition to post-quantum cryptography proceeds, they will need quantum-safe instantiations---making the lattice-based and hash-based proof systems discussed above not just theoretically interesting but practically urgent.
 
 
 %% ================================================================
@@ -351,28 +329,21 @@ The overhead of post-quantum MPC (Table~\ref{tab:pq-mpc}) is modest: typically 1
 \section{Lattice-Based Advanced Constructions}
 \label{sec:lattice-advanced}
 
-The algebraic richness of lattices---particularly the trapdoor and preimage-sampling techniques developed by Gentry, Peikert, and Vaikuntanathan---enables cryptographic functionalities that have no efficient realisation from other post-quantum assumptions.  This section briefly surveys four such constructions.
+The three primitives above---FHE, zero-knowledge proofs, and MPC---are general-purpose tools.  But the algebraic richness of lattices, particularly the trapdoor and preimage-sampling techniques developed by Gentry, Peikert, and Vaikuntanathan, enables a family of \emph{structured} primitives that control access to encrypted data in ways no other post-quantum assumption can match.  These constructions share a common mechanism: embedding access-control logic into the lattice structure itself, so that the ability to decrypt depends on algebraic relationships between keys, identities, attributes, or functions.  We survey four such constructions, in order of increasing generality.
 
 
 \subsection{Identity-Based Encryption}
 \label{subsec:ibe}
 
-In conventional public-key encryption, each user generates an independent key pair, and a public-key infrastructure (PKI) binds identities to public keys via certificates.  \emph{Identity-based encryption}\index{identity-based encryption} (IBE) eliminates the PKI: a user's public key \emph{is} their identity (e.g., an email address), and a trusted authority issues corresponding secret keys.
+Public-key encryption as deployed today requires a cumbersome scaffolding: every user generates a key pair, a certificate authority vouches that a given public key belongs to a given person, and relying parties must validate these certificates before encrypting.  \emph{Identity-based encryption}\index{identity-based encryption} (IBE) collapses this machinery.  A user's public key \emph{is} their identity---an email address, a phone number, any unique string---and a trusted authority issues corresponding secret keys on demand.  The concept dates to Shamir (1984), but efficient constructions had to wait for lattice trapdoors.
 
-Lattice-based IBE constructions use the following structure:
-\begin{itemize}
-\item A master authority generates a random matrix $\mathbf{A} \in \Zq^{n \times m}$ together with a short basis (trapdoor) for the lattice $\lat^\perp(\mathbf{A})$.
-\item To issue a key for identity $\mathit{id}$, the authority uses the trapdoor to sample a short vector $\mathbf{s}$ such that $H(\mathit{id}) \cdot \mathbf{s} = \mathbf{0} \pmod{q}$, where $H$ maps identities to matrices.
-\item Encryption to identity $\mathit{id}$ uses the matrix $H(\mathit{id})$ as a public key, and security reduces to \lwe{}.
-\end{itemize}
-
-Lattice IBE achieves adaptive security under standard \lwe{} assumptions---a stronger guarantee than the pairing-based schemes it replaces.
+The lattice realisation works as follows.  A master authority generates a random matrix $\mathbf{A} \in \Zq^{n \times m}$ together with a short basis (trapdoor) for the lattice $\lat^\perp(\mathbf{A})$.  When a user with identity $\mathit{id}$ requests a key, the authority applies the trapdoor to sample a short vector $\mathbf{s}$ satisfying $H(\mathit{id}) \cdot \mathbf{s} = \mathbf{0} \pmod{q}$, where $H$ is a public function mapping identities to matrices.  Anyone who wishes to encrypt a message to $\mathit{id}$ simply uses $H(\mathit{id})$ as the public key; the \lwe{} assumption guarantees that only the holder of $\mathbf{s}$ can decrypt.  Lattice IBE achieves \emph{adaptive} security under standard \lwe{} assumptions---a stronger guarantee than the pairing-based schemes it replaces, and one that survives quantum adversaries.
 
 
 \subsection{Attribute-Based Encryption}
 \label{subsec:abe}
 
-\emph{Attribute-based encryption}\index{attribute-based encryption} (ABE) generalises IBE from identities to Boolean policies.  Ciphertexts are tagged with attributes (e.g., ``Department = Physics'', ``Clearance = Secret''), and decryption keys are associated with policies (e.g., ``Department = Physics \textbf{AND} Clearance $\geq$ Secret'').  Decryption succeeds if and only if the ciphertext's attributes satisfy the key's policy.
+IBE binds decryption to a single identity string.  In practice, access control is rarely that simple: a classified document should be readable by anyone in the Physics department with Secret clearance, regardless of individual identity.  \emph{Attribute-based encryption}\index{attribute-based encryption} (ABE) generalises IBE to handle exactly this kind of Boolean policy.  Ciphertexts carry attributes (``Department = Physics'', ``Clearance = Secret''), and decryption keys encode policies (``Department = Physics \textbf{AND} Clearance $\geq$ Secret'').  Decryption succeeds if and only if the ciphertext's attributes satisfy the key's policy---and the encryptor need not even know who will eventually decrypt.
 
 \begin{definition}[Ciphertext-Policy ABE]
 \label{def:cp-abe}
@@ -385,28 +356,30 @@ A ciphertext-policy ABE scheme consists of:
 \end{itemize}
 \end{definition}
 
-Lattice-based ABE constructions support policies expressible as Boolean formulas or even arbitrary circuits.  The key technique is Gentry, Sahai, and Waters's method of \emph{attribute-encoding} lattice trapdoors, which maps policy evaluation to lattice operations.
+The lattice realisation of ABE rests on the technique of \emph{attribute-encoding} lattice trapdoors, introduced by Gentry, Sahai, and Waters.  The idea is to embed the policy evaluation directly into the lattice structure: each attribute contributes a matrix, and the policy determines how these matrices combine.  A user whose attribute set satisfies the policy can, through the algebraic structure, reconstruct a short vector that enables decryption; a user whose attributes fall short cannot, because the corresponding lattice problem remains hard.  Current lattice-based ABE constructions support policies expressible as Boolean formulas or even arbitrary circuits, though ciphertext and key sizes grow with policy complexity---the main barrier to deployment.
 
 
 \subsection{Threshold Signatures and Distributed Key Generation}
 \label{subsec:threshold}
 
-A \emph{threshold signature}\index{threshold signature} scheme distributes signing authority among $n$ parties so that any $t+1$ can jointly produce a valid signature, but $t$ or fewer cannot.  This is essential for securing cryptocurrency wallets, certificate authorities, and any system where a single point of compromise is unacceptable.
+A single compromised signing key can be catastrophic: a stolen certificate-authority key undermines every certificate it ever issued, and a stolen cryptocurrency wallet key drains the account irreversibly.  \emph{Threshold signatures}\index{threshold signature} eliminate this single point of failure by distributing signing authority among $n$ parties so that any $t+1$ can jointly produce a valid signature, but $t$ or fewer---even if fully corrupted---cannot sign at all.
 
-Lattice-based threshold signatures face a unique challenge: the ``noise'' in lattice signatures must be carefully managed across distributed signers.  Recent constructions combine Shamir-style secret sharing of the lattice signing key with specialised distributed Gaussian sampling protocols, achieving threshold variants of both Dilithium-style and Falcon-style signatures.
+For classical schemes like ECDSA, threshold protocols are well understood.  Lattice-based signatures introduce a complication that has no classical analogue: the signing process involves sampling from a discrete Gaussian distribution, and the noise in the resulting signature must fall within tight bounds for verification to succeed.  When signing is distributed, each party contributes a partial signature with its own noise, and the combined noise must still satisfy the global bound.  Achieving this requires \emph{distributed Gaussian sampling} protocols---each party samples locally, the partial samples are combined, and a rejection-sampling step ensures the aggregate has the correct distribution without leaking information about individual shares.  Recent constructions build on Shamir-style secret sharing of the lattice signing key, combined with these distributed sampling techniques, to achieve threshold variants of both Dilithium-style (Fiat--Shamir with aborts) and Falcon-style (NTRU trapdoor) signatures.  The main remaining obstacle is round complexity: current protocols require more interaction rounds than their classical counterparts.
 
 
 \subsection{Functional Encryption}
 \label{subsec:fe}
 
-\emph{Functional encryption}\index{functional encryption} (FE) is a generalisation of public-key encryption in which a decryption key $\mathit{sk}_f$ associated with a function $f$ allows the holder to compute $f(m)$ from a ciphertext encrypting $m$---and nothing more.
+IBE and ABE control \emph{who} can decrypt.  \emph{Functional encryption}\index{functional encryption} (FE) goes further: it controls \emph{what} the decryptor learns.  A decryption key $\mathit{sk}_f$, associated with a function~$f$, allows its holder to compute $f(m)$ from a ciphertext encrypting~$m$---and nothing beyond $f(m)$.  Where ABE is an access-control mechanism, FE is an information-control mechanism: even authorised parties see only the specific derived quantity they need.
 
 \begin{example}[Inner-Product Functional Encryption]
 \label{ex:ipfe}
 A hospital encrypts a patient record $\mathbf{m} \in \Zq^n$.  A researcher holds a key $\mathit{sk}_{\mathbf{y}}$ for a vector $\mathbf{y}$.  Decryption yields the inner product $\ip{\mathbf{m}}{\mathbf{y}} \pmod{q}$---e.g., a weighted health score---without revealing any other component of $\mathbf{m}$.  Lattice-based inner-product FE is efficient and secure under standard \lwe{} assumptions.
 \end{example}
 
-General functional encryption (for arbitrary functions $f$) remains largely theoretical, with constructions relying on indistinguishability obfuscation.  However, inner-product and quadratic functional encryption from lattices are practical today and see use in privacy-preserving data analytics.
+The gap between theory and practice in functional encryption is wide.  For restricted function classes---inner products and, more recently, degree-two polynomials---lattice-based constructions are efficient enough for deployment in privacy-preserving data analytics.  For arbitrary functions, FE constructions exist but rely on indistinguishability obfuscation, a primitive that is itself barely practical.  The frontier of FE research is therefore about pushing the boundary of ``which function classes can we support efficiently?''---a question where lattice techniques have made the most progress and are likely to continue leading.
+
+These four constructions span a wide range of maturity, from deployed systems to active research frontiers.  Table~\ref{tab:advanced-maturity} summarises the current state.  FHE is the clear leader: the theory is settled and multiple production libraries exist, with performance as the remaining bottleneck.  IBE and threshold signatures have mature theoretical foundations and working prototypes, but deployment is limited by key-management complexity and round costs respectively.  ABE has strong theoretical results but faces a practical barrier in ciphertext and key sizes that grow with policy complexity.  Functional encryption for general functions remains the most open problem---a frontier where even the theoretical foundations are incomplete.
 
 \begin{table}[t]
 \caption{Maturity of lattice-based advanced constructions}

@@ -54,6 +54,8 @@ The physical intuition is direct: the QFT acts as a \emph{computational diffract
 
 The \emph{quantum circuit model}\index{quantum circuit model} described above is equivalent in computational power to the adiabatic model and the measurement-based (cluster-state) model.  All results in this chapter are stated in the circuit model.  We measure algorithmic cost by the number of elementary gates (the \emph{gate complexity}\index{gate complexity}) and the number of qubits (the \emph{space complexity}).
 
+With the computational model in place, we can state precisely what quantum algorithms achieve---and the first result is the one that upended public-key cryptography.
+
 
 %% ================================================================
 \section{Shor's Algorithm}
@@ -163,6 +165,8 @@ For \emph{elliptic curve} groups\index{ECDLP!quantum attack}, the same approach 
 Shor's algorithm is a computational diffraction experiment.  The modular exponentiation creates a state with hidden periodicity---analogous to a crystal with unknown lattice spacing.  The QFT acts as a diffraction grating, producing sharp peaks in the ``momentum'' (frequency) basis at multiples of the reciprocal period.  Measurement reads off one of these Bragg peaks, and classical post-processing (continued fractions) extracts the period.  The exponential speedup comes from the fact that the QFT circuit has depth $\bigO(n^2)$, while a classical DFT over the same space would require $\bigO(2^n \cdot n)$ operations.
 \end{svgraybox}
 
+Shor's algorithm settles the fate of RSA, finite-field Diffie--Hellman, and elliptic-curve cryptography: all fall in polynomial time.  But what about problems that lack the algebraic periodicity Shor exploits?  The next section addresses the best quantum strategy for the hardest remaining case---pure brute-force search.
+
 
 %% ================================================================
 \section{Grover's Algorithm and Amplitude Amplification}
@@ -220,13 +224,7 @@ The physics analogy is resonance\index{Grover's algorithm!resonance analogy}: th
 
 \begin{example}[Breaking a 128-bit Key]
 \label{ex:grover-aes128}
-Applying Grover's algorithm to search for a 128-bit AES key:
-\begin{itemize}
-\item Classical brute force: $2^{128} \approx 3.4 \times 10^{38}$ evaluations (infeasible).
-\item Grover search: $\frac{\pi}{4}\cdot 2^{64} \approx 1.4 \times 10^{19}$ evaluations.
-\item Each evaluation requires a reversible AES circuit as the oracle.
-\item Result: AES-128 provides only 64-bit security against a quantum adversary.
-\end{itemize}
+Consider applying Grover's algorithm to search for a 128-bit AES key.  Classical brute force requires $2^{128} \approx 3.4 \times 10^{38}$ evaluations---utterly infeasible.  Grover's algorithm reduces this to $\frac{\pi}{4}\cdot 2^{64} \approx 1.4 \times 10^{19}$ oracle calls, where each call implements a reversible AES circuit that checks whether a candidate key produces the known plaintext--ciphertext pair.  The upshot: AES-128 provides only 64-bit security against a quantum adversary.
 \end{example}
 
 
@@ -251,13 +249,13 @@ This optimality result has a profound consequence: the quadratic speedup for uns
 \subsection{Amplitude Amplification}
 \label{subsec:amplitude-amplification}
 
-Grover's algorithm generalises to \emph{amplitude amplification}\index{amplitude amplification}: given any quantum algorithm $\mathcal{A}$ that produces a ``good'' outcome with probability $p$, we can boost the success probability to near~$1$ using $\bigO(1/\sqrt{p})$ repetitions of $\mathcal{A}$ and $\mathcal{A}^{-1}$, rather than the classical $\bigO(1/p)$.  This is a general-purpose tool that appears throughout quantum algorithm design.
+The BBBV bound closes the door on beating $\bigO(\sqrt{N})$ for unstructured search, but it leaves open a powerful generalisation.  Grover's algorithm generalises to \emph{amplitude amplification}\index{amplitude amplification}: given any quantum algorithm $\mathcal{A}$ that produces a ``good'' outcome with probability $p$, we can boost the success probability to near~$1$ using $\bigO(1/\sqrt{p})$ repetitions of $\mathcal{A}$ and $\mathcal{A}^{-1}$, rather than the classical $\bigO(1/p)$.  This is a general-purpose tool that appears throughout quantum algorithm design.
 
 
 \subsection{Impact on Symmetric Cryptography}
 \label{subsec:grover-impact}
 
-The impact of Grover's algorithm on symmetric cryptographic primitives\index{Grover's algorithm!impact on symmetric crypto} is a halving of the effective security level:
+With Grover's quadratic speedup established---and its optimality proven---we can now quantify its impact on deployed symmetric primitives\index{Grover's algorithm!impact on symmetric crypto}.  The effect is a uniform halving of the effective security level:
 
 \begin{table}[t]
 \caption{Grover's impact on symmetric primitives}
@@ -276,6 +274,8 @@ SHA-384 (collision) & $2^{192}$ & $2^{128}$ & Yes \\
 \end{table}
 
 The mitigation is straightforward: double the key length.  AES-256 retains 128-bit security against quantum adversaries, and SHA-384 or SHA-512 provide adequate collision resistance.  This stands in sharp contrast to public-key cryptography, where no increase in key size can restore security against Shor's algorithm---RSA with a million-bit modulus is still broken in polynomial time.
+
+The algorithmic picture is now clear: Shor breaks public-key primitives and Grover halves symmetric key lengths.  What remains is a hardware question---how close are we to machines that can actually execute these algorithms?
 
 
 %% ================================================================
@@ -362,7 +362,7 @@ The previous sections established the devastating power of quantum algorithms ag
 
 No quantum algorithm is known to solve NP-complete problems in polynomial time\index{NP-complete problems!quantum complexity}.  The best known quantum speedup for NP-complete problems is the quadratic improvement from Grover's algorithm, which reduces $2^n$ to $2^{n/2}$---still exponential.  The prevailing conjecture in complexity theory is that $\mathrm{NP} \not\subseteq \mathrm{BQP}$, i.e., quantum computers cannot efficiently solve all NP problems.
 
-This has a direct consequence: cryptographic problems reducible to NP-complete problems are not threatened by an exponential quantum speedup.
+This has a direct consequence: cryptographic problems reducible to NP-complete problems are not threatened by an exponential quantum speedup.  The lattice problems at the heart of most NIST-selected schemes are not NP-complete, but they exhibit the same quantum resistance---for related but distinct reasons.
 
 
 \subsection{Lattice Problems}
