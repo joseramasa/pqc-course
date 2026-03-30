@@ -1,85 +1,622 @@
 \chapter{Lattice Theory}
 \label{ch:lattice-theory}
 
-\abstract*{Lattices---discrete subgroups of $\R^n$---form the mathematical bedrock of the most important post-quantum cryptographic schemes. This chapter develops lattice theory from definitions familiar to physicists through crystallography, progresses to the fundamental computational problems (SVP, CVP, and their variants), and establishes the worst-case to average-case reductions that make lattice-based cryptography uniquely well-founded.}
+\abstract*{Lattices---discrete subgroups of~$\R^n$---form the mathematical bedrock of the most important post-quantum cryptographic schemes. This chapter develops lattice theory from definitions familiar to physicists through crystallography, progresses to the fundamental computational problems (SVP, CVP, and their approximation variants), introduces lattice basis reduction algorithms that set the practical security baseline, and establishes the worst-case to average-case reductions that make lattice-based cryptography uniquely well-founded among all public-key paradigms.}
+
+\abstract{Lattices---discrete subgroups of~$\R^n$---form the mathematical bedrock of the most important post-quantum cryptographic schemes. This chapter develops lattice theory from definitions familiar to physicists through crystallography, progresses to the fundamental computational problems (SVP, CVP, and their approximation variants), introduces lattice basis reduction algorithms that set the practical security baseline, and establishes the worst-case to average-case reductions that make lattice-based cryptography uniquely well-founded among all public-key paradigms.}
 
 % =============================================================
-% SOURCE: notes.tex §4.1–4.2 (lines 4489–4955)
-% REUSE: ~60%. Add LLL/BKZ algorithms, Ajtai's reduction,
-%        concrete hardness estimates.
-% PRIORITY: Write this chapter first — it sets the mathematical
-%           tone for the entire book.
+% Adapted from notes.tex §4.1–4.2 (lines 4489–4955).
+% New material: §6.3 (LLL/BKZ), §6.4 (Ajtai reduction).
 % =============================================================
+
 
 \section{Definitions and Basic Properties}
 \label{sec:lattice-defs}
 
-% TODO: Adapt from notes.tex §4.1.1
-% - Lattice definition, basis, rank
-% - Determinant and volume of fundamental domain
-% - Successive minima λ_1, ..., λ_n
-% - Dual lattice
-% - The physics connection: Bravais lattices, reciprocal lattice
-% - Cite: Micciancio-Goldwasser textbook
+In crystallography, a lattice\index{lattice} describes the periodic arrangement of atoms in a crystal---a discrete set of points with translational symmetry.  Cryptographic lattices are the same mathematical object, but embedded in hundreds of dimensions where geometric intuition breaks down and computational problems become exponentially hard~\cite{MicciancioGoldwasser2002}.
 
+\begin{definition}[Lattice]
+\label{def:lattice}
+A \emph{lattice}\index{lattice!definition} $\lat \subseteq \R^n$ is the set of all integer linear combinations of $n$ linearly independent vectors $\mathbf{b}_1, \ldots, \mathbf{b}_n \in \R^n$:
+\begin{equation}
+\label{eq:lattice-def}
+\lat(\mathbf{B}) \;=\; \left\{ \sum_{i=1}^{n} a_i \,\mathbf{b}_i \;:\; a_i \in \Z \right\} \;=\; \bigl\{\mathbf{B}\mathbf{x} : \mathbf{x} \in \Z^n\bigr\},
+\end{equation}
+where $\mathbf{B} = [\mathbf{b}_1 \mid \cdots \mid \mathbf{b}_n] \in \R^{n \times n}$ is the \emph{basis matrix}\index{lattice!basis}.  The integer $n$ is the \emph{rank} (or \emph{dimension}) of the lattice.
+\end{definition}
+
+A lattice admits infinitely many bases: if $\mathbf{B}$ is a basis and $\mathbf{U}\in\Z^{n\times n}$ is any unimodular matrix\index{unimodular matrix} ($\det\mathbf{U}=\pm 1$), then $\mathbf{B}' = \mathbf{B}\mathbf{U}$ generates the same lattice.  This non-uniqueness of the basis is the source of cryptographic hardness, as we shall see in Sect.~\ref{sec:lattice-problems}.
+
+
+\subsection{The Physics Connection}
+\label{subsec:physics-connection}
+
+Readers with a background in solid-state physics or crystallography will recognise many of the concepts below under different names.  Table~\ref{tab:physics-lattice} summarises the correspondence; the key difference is dimension.
+
+\begin{table}[t]
+\caption{Crystallographic and cryptographic lattice concepts}
+\label{tab:physics-lattice}
+\begin{tabular}{p{3.5cm}p{4cm}p{4cm}}
+\hline\noalign{\smallskip}
+\textbf{Crystallography} & \textbf{Crypto lattices} & \textbf{Key difference} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+3D Bravais lattice & $n$-dimensional lattice & $n \approx 500$--$1000$ \\
+Primitive unit cell & Good basis & Many possible bases \\
+Reciprocal lattice & Dual lattice & Same hardness properties \\
+Brillouin zone & Fundamental domain & Voronoi cell \\
+Miller indices & Coefficient vector & Integer constraints \\
+Bragg peaks & Lattice points & Discrete structure \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\begin{example}[From NaCl to Cryptography]
+\label{ex:nacl}
+The face-centred cubic lattice of NaCl lives in $\R^3$.  Finding the nearest atom to any point in space is a straightforward computation.  Now imagine the same lattice embedded in $\R^{700}$: finding nearest points becomes exponentially hard.  This dimension-induced hardness\index{lattice!dimension hardness} is the foundation of lattice-based cryptography.
+\end{example}
+
+
+\subsection{Determinant and Volume}
+\label{subsec:determinant}
+
+\begin{definition}[Lattice Determinant]
+\label{def:determinant}
+The \emph{determinant}\index{lattice!determinant} of a lattice $\lat(\mathbf{B})$ is
+\begin{equation}
+\det(\lat) \;=\; \abs{\det(\mathbf{B})}.
+\end{equation}
+It equals the $n$-dimensional volume of the \emph{fundamental parallelepiped}\index{fundamental parallelepiped}
+$\mathcal{P}(\mathbf{B}) = \bigl\{\mathbf{B}\mathbf{x} : \mathbf{x}\in[0,1)^n\bigr\}$
+and is independent of the choice of basis.
+\end{definition}
+
+Geometrically, $\det(\lat)$ measures the ``density'' of lattice points: the larger the determinant, the sparser the lattice.  In a crystal, this corresponds to the volume of the unit cell.
+
+
+\subsection{Successive Minima}
+\label{subsec:successive-minima}
+
+\begin{definition}[Successive Minima]
+\label{def:successive-minima}
+The $i$-th \emph{successive minimum}\index{successive minima} $\lambda_i(\lat)$ of a lattice $\lat$ is the smallest radius $r$ such that the closed ball $\overline{B}(\mathbf{0}, r)$ contains $i$ linearly independent lattice vectors:
+\begin{equation}
+\lambda_i(\lat) \;=\; \inf\bigl\{r > 0 : \dim\bigl(\operatorname{span}(\lat \cap \overline{B}(\mathbf{0},r))\bigr) \geq i\bigr\}.
+\end{equation}
+In particular, $\lambda_1(\lat)$ is the length of a shortest non-zero lattice vector.
+\end{definition}
+
+The successive minima are related to the determinant by \emph{Minkowski's theorem}\index{Minkowski's theorem}:
+\begin{theorem}[Minkowski's First Theorem]
+\label{thm:minkowski}
+For any $n$-dimensional lattice~$\lat$,
+\begin{equation}
+\label{eq:minkowski}
+\lambda_1(\lat) \;\leq\; \sqrt{n}\;\det(\lat)^{1/n}.
+\end{equation}
+\end{theorem}
+
+For random lattices, the bound is essentially tight: the \emph{Gaussian heuristic}\index{Gaussian heuristic} predicts $\lambda_1(\lat) \approx \sqrt{n/(2\pi e)}\;\det(\lat)^{1/n}$.
+
+
+\subsection{The Dual Lattice}
+\label{subsec:dual-lattice}
+
+\begin{definition}[Dual Lattice]
+\label{def:dual-lattice}
+The \emph{dual}\index{lattice!dual} (or \emph{reciprocal}) lattice of $\lat$ is
+\begin{equation}
+\lat^* \;=\; \bigl\{\mathbf{y}\in\R^n : \ip{\mathbf{x}}{\mathbf{y}} \in \Z \;\;\text{for all}\;\; \mathbf{x}\in\lat\bigr\}.
+\end{equation}
+If $\lat = \lat(\mathbf{B})$, then $\lat^* = \lat((\mathbf{B}^{-1})^\top)$.
+\end{definition}
+
+In solid-state physics this is the reciprocal lattice, with $\det(\lat^*) = 1/\det(\lat)$ and $\lambda_1(\lat)\cdot\lambda_n(\lat^*) \leq n$ (the \emph{transference theorem}\index{transference theorem}).  Hardness results for a lattice transfer to its dual, so the dual lattice does not offer an easier attack surface.
+
+
+\subsection{Good Bases vs.\ Bad Bases}
+\label{subsec:good-bad-basis}
+
+The same lattice can be described by bases of vastly different quality.  This is the \emph{basis ambiguity} that underpins all lattice-based cryptography\index{lattice!basis quality}.
+
+\begin{example}[Concrete Basis Comparison]
+\label{ex:basis-comparison}
+Consider the 2D integer lattice $\Z^2$ with two bases:
+
+\noindent\textbf{Good basis:} $\mathbf{B}_{\mathrm{good}} = \bigl(\begin{smallmatrix} 1 & 0 \\ 0 & 1 \end{smallmatrix}\bigr)$.
+The shortest vector $(1,0)$ has length~$1$ and is read off immediately.
+
+\noindent\textbf{Bad basis:} $\mathbf{B}_{\mathrm{bad}} = \bigl(\begin{smallmatrix} 97 & 89 \\ 89 & 81 \end{smallmatrix}\bigr)$.
+This generates the same lattice ($\det = 97\cdot 81 - 89\cdot 89 = 1$), but the basis vectors have length $> 100$.  The shortest vector is still $(1,0)$, which equals $97\mathbf{b}_1 - 89\mathbf{b}_2$---a non-trivial integer combination.
+\end{example}
+
+\begin{definition}[Basis Quality Measures]
+\label{def:basis-quality}
+For a basis $\mathbf{B} = [\mathbf{b}_1 \mid \cdots \mid \mathbf{b}_n]$, define:
+\begin{itemize}
+\item \textbf{Orthogonality defect\index{orthogonality defect}:}
+  $\delta(\mathbf{B}) = \frac{\prod_{i=1}^n \norm{\mathbf{b}_i}}{\det(\lat)}$
+  \quad(equals~$1$ for an orthogonal basis).
+\item \textbf{Hermite factor\index{Hermite factor}:}
+  $\gamma = \bigl(\frac{\norm{\mathbf{b}_1}}{\det(\lat)^{1/n}}\bigr)^{1/n}$
+  \quad(smaller is better; measures how well $\mathbf{b}_1$ approximates $\lambda_1$).
+\end{itemize}
+\end{definition}
+
+
+\subsection{High-Dimensional Phenomena}
+\label{subsec:high-dim}
+
+Lattice problems become qualitatively different in high dimensions due to the non-intuitive geometry of $\R^n$ for large~$n$:
+
+\begin{theorem}[Dimension Changes Everything]
+\label{thm:high-dim}
+In dimension~$n$:
+\begin{enumerate}
+\item The volume of the unit ball $V_n = \pi^{n/2}/\Gamma(n/2+1)$ converges to~$0$ as $n\to\infty$.
+\item Almost all the volume concentrates near the surface: $V_n(r)/V_n(R) = (r/R)^n$.
+\item Random unit vectors are nearly orthogonal: $\EE[\abs{\ip{\mathbf{x}}{\mathbf{y}}}] = \bigO(1/\sqrt{n})$.
+\item The number of lattice vectors of length close to $\lambda_1$ grows as $\exp(\Theta(n))$.
+\end{enumerate}
+\end{theorem}
+
+\begin{svgraybox}
+\textbf{The dimension phase transition.}
+In condensed-matter physics, lattice problems in 3D are polynomial-time computations---band structures, ground-state energies, defect calculations.  In 500 dimensions, the same problems become exponentially hard.  This dimension-induced phase transition from tractable to intractable is what protects cryptographic secrets.
+\end{svgraybox}
+
+The following table illustrates the concrete impact of dimension on the hardness of the shortest vector problem:
+
+\begin{table}[t]
+\caption{Time to find the shortest vector in a random lattice}
+\label{tab:svp-dimension}
+\begin{tabular}{p{2.5cm}p{4cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Dimension} & \textbf{Time (best known)} & \textbf{Feasible?} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+10  & Seconds        & Trivial \\
+50  & Hours          & Yes \\
+100 & Years          & Borderline \\
+300 & $10^{30}$ years & No \\
+700 & $10^{100}$ years & Never \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+
+%% ================================================================
 \section{Fundamental Computational Problems}
 \label{sec:lattice-problems}
 
-% TODO: Adapt from notes.tex §4.1.2
-% - Shortest Vector Problem (SVP) and γ-approximate SVP
-% - Closest Vector Problem (CVP) and γ-approximate CVP
-% - Shortest Independent Vectors Problem (SIVP)
-% - GapSVP: the decision version
-% - Relationships between problems
-% - Known NP-hardness results: SVP is NP-hard under randomized reductions
-% - Cite: Ajtai 1998, Micciancio 2001, Khot 2005
+Two computational problems form the foundation of lattice-based cryptography\index{lattice!computational problems}.  Unlike integer factorisation or the discrete logarithm, these problems have resisted efficient algorithms for decades---even on quantum computers.
 
+\subsection{The Shortest Vector Problem}
+\label{subsec:svp}
+
+\begin{definition}[Shortest Vector Problem (\svp{})]
+\label{def:svp}
+\index{SVP}\index{shortest vector problem|see{SVP}}
+Given a basis $\mathbf{B}$ of a lattice $\lat$, find a non-zero vector $\mathbf{v}\in\lat$ of minimum Euclidean norm:
+\begin{equation}
+\mathbf{v} \in \lat\setminus\{\mathbf{0}\} \quad\text{such that}\quad \norm{\mathbf{v}} = \lambda_1(\lat).
+\end{equation}
+\end{definition}
+
+Why is \svp{} hard?
+\begin{itemize}
+\item \textbf{Exponentially many candidates:} a ball of radius $R$ contains approximately $R^n / \det(\lat)$ lattice points.
+\item \textbf{No local structure:} gradient-descent methods cannot navigate a discrete set.
+\item \textbf{Basis dependence:} a good basis makes the problem trivial; a bad basis makes it exponentially hard.
+\end{itemize}
+
+
+\subsection{The Closest Vector Problem}
+\label{subsec:cvp}
+
+\begin{definition}[Closest Vector Problem (\cvp{})]
+\label{def:cvp}
+\index{CVP}\index{closest vector problem|see{CVP}}
+Given a basis $\mathbf{B}$ of a lattice $\lat$ and a target point $\mathbf{t}\in\R^n$, find a lattice vector closest to $\mathbf{t}$:
+\begin{equation}
+\mathbf{v} \in \lat \quad\text{such that}\quad \norm{\mathbf{v} - \mathbf{t}} = \min_{\mathbf{x}\in\lat}\norm{\mathbf{x} - \mathbf{t}}.
+\end{equation}
+\end{definition}
+
+\cvp{} is the \emph{decoding problem}\index{decoding problem}: given a noisy observation $\mathbf{t} = \mathbf{v} + \mathbf{e}$ (lattice point plus small error), recover $\mathbf{v}$.  This connection to decoding will reappear in Chap.~\ref{ch:lwe-encryption}, where the Learning With Errors problem is essentially a structured instance of \cvp{}.
+
+\begin{theorem}[\svp{}--\cvp{} Connection]
+\label{thm:svp-cvp}
+The two problems are intimately related~\cite{MicciancioGoldwasser2002}:
+\begin{enumerate}
+\item Any $\gamma$-\cvp{} oracle yields a $(2\gamma)$-\svp{} algorithm.
+\item Both problems have the same quantum complexity up to polynomial factors.
+\end{enumerate}
+\end{theorem}
+
+
+\subsection{Approximation Variants}
+\label{subsec:approx-variants}
+
+In cryptography, exact solutions are rarely needed.  The \emph{approximation factor}\index{approximation factor} $\gamma$ controls the quality--hardness tradeoff:
+
+\begin{definition}[Approximate \svp{} and \cvp{}]
+\label{def:approx-svp-cvp}
+\index{SVP!approximate}\index{CVP!approximate}
+\begin{align}
+\gamma\text{-\svp{}:}\quad & \text{Find } \mathbf{v}\in\lat\setminus\{\mathbf{0}\} \text{ with } \norm{\mathbf{v}} \leq \gamma\cdot\lambda_1(\lat). \\
+\gamma\text{-\cvp{}:}\quad & \text{Find } \mathbf{v}\in\lat \text{ with } \norm{\mathbf{v}-\mathbf{t}} \leq \gamma\cdot\mathrm{dist}(\mathbf{t},\lat).
+\end{align}
+\end{definition}
+
+The complexity landscape depends critically on~$\gamma$:
+
+\begin{table}[t]
+\caption{Complexity of approximate \svp{} as a function of the approximation factor~$\gamma$}
+\label{tab:approx-hardness}
+\begin{tabular}{p{4cm}p{3cm}p{4cm}}
+\hline\noalign{\smallskip}
+\textbf{Approx.\ factor $\gamma$} & \textbf{Complexity} & \textbf{Best algorithm} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+$1$ (exact) & NP-hard & $2^{\bigO(n)}$ sieving \\
+$O(1)$ & NP-hard & $2^{\bigO(n)}$ sieving \\
+$2^{\bigO(\sqrt{\log n})}$ & Unknown & Sub-exponential \\
+$\poly(n)$ & P & LLL (polynomial) \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Additional Problems}
+\label{subsec:additional-problems}
+
+Two further problems appear in security reductions:
+
+\begin{definition}[Shortest Independent Vectors Problem (\sivp{})]
+\label{def:sivp}
+\index{SIVP}
+Given a basis of an $n$-dimensional lattice~$\lat$, find $n$ linearly independent vectors $\mathbf{v}_1,\ldots,\mathbf{v}_n \in \lat$ with $\max_i \norm{\mathbf{v}_i} \leq \gamma\cdot\lambda_n(\lat)$.
+\end{definition}
+
+\begin{definition}[Decisional GapSVP (\gapsvp{})]
+\label{def:gapsvp}
+\index{GapSVP}
+Given a basis of $\lat$ and a value $d$, distinguish between $\lambda_1(\lat)\leq d$ and $\lambda_1(\lat) > \gamma\cdot d$.
+\end{definition}
+
+\gapsvp{} is the decision version most commonly used in security reductions to \lwe{} (see Chap.~\ref{ch:lwe-encryption}).  It is known to lie in $\mathrm{NP}\cap\mathrm{coNP}$ for $\gamma = \sqrt{n}$~\cite{Ajtai1996, MicciancioGoldwasser2002}.
+
+
+%% ================================================================
 \section{Lattice Basis Reduction}
 \label{sec:basis-reduction}
 
-% TODO: New section (critical for understanding security)
-% - Gram-Schmidt orthogonalization and quality of a basis
-% - The LLL algorithm: description, correctness proof sketch, output guarantee
-% - BKZ (Block Korkin-Zolotarev): the practical workhorse
-% - Root Hermite factor δ as hardness measure
-% - BKZ-β runtime estimates and the core-SVP model
-% - Cite: LLL 1982, Schnorr-Euchner 1994, Chen-Nguyen 2011
+\emph{Basis reduction}\index{basis reduction} algorithms transform a bad basis into a better one, producing shorter and more orthogonal vectors.  They are both the main tool for \emph{solving} lattice problems and, consequently, the main tool for \emph{attacking} lattice-based cryptosystems.  Understanding their power is essential for setting secure parameters.
 
+\subsection{Gram--Schmidt Orthogonalisation}
+\label{subsec:gram-schmidt}
+
+The quality of a basis is measured against its \emph{Gram--Schmidt orthogonalisation}\index{Gram--Schmidt orthogonalisation} (GSO).  Given $\mathbf{B} = (\mathbf{b}_1,\ldots,\mathbf{b}_n)$, define
+\begin{equation}
+\widetilde{\mathbf{b}}_i \;=\; \mathbf{b}_i - \sum_{j=1}^{i-1} \mu_{i,j}\,\widetilde{\mathbf{b}}_j, \qquad \mu_{i,j} = \frac{\ip{\mathbf{b}_i}{\widetilde{\mathbf{b}}_j}}{\ip{\widetilde{\mathbf{b}}_j}{\widetilde{\mathbf{b}}_j}}.
+\end{equation}
+The vectors $\widetilde{\mathbf{b}}_i$ are orthogonal but in general \emph{not} lattice vectors.  A well-reduced basis is one where the $\norm{\widetilde{\mathbf{b}}_i}$ decrease slowly---that is, no GSO vector is much shorter than its predecessor.
+
+
+\subsection{The LLL Algorithm}
+\label{subsec:lll}
+
+The Lenstra--Lenstra--Lov\'asz (LLL) algorithm\index{LLL algorithm}, published in~1982~\cite{LLL1982}, was the first polynomial-time lattice reduction algorithm.  It remains the standard first step in any lattice attack.
+
+\begin{definition}[LLL-Reduced Basis]
+\label{def:lll-reduced}
+A basis $(\mathbf{b}_1,\ldots,\mathbf{b}_n)$ is \emph{LLL-reduced}\index{LLL algorithm!reduced basis} with parameter $\delta\in(1/4,1]$ if:
+\begin{enumerate}
+\item \textbf{Size-reduced:} $|\mu_{i,j}| \leq 1/2$ for all $1 \leq j < i \leq n$.
+\item \textbf{Lov\'asz condition:} $\norm{\widetilde{\mathbf{b}}_i}^2 \geq \bigl(\delta - \mu_{i,i-1}^2\bigr)\norm{\widetilde{\mathbf{b}}_{i-1}}^2$ for all $2 \leq i \leq n$.
+\end{enumerate}
+\end{definition}
+
+\begin{algorithm}[t]
+\caption{The LLL Algorithm}
+\label{alg:lll}
+\begin{algorithmic}[1]
+\Require Basis $\mathbf{B} = (\mathbf{b}_1,\ldots,\mathbf{b}_n)$, parameter $\delta\in(1/4,1]$
+\Ensure LLL-reduced basis
+\State Compute GSO $(\widetilde{\mathbf{b}}_i, \mu_{i,j})$
+\State $k \gets 2$
+\While{$k \leq n$}
+  \For{$j = k-1, k-2, \ldots, 1$} \Comment{Size reduction}
+    \If{$|\mu_{k,j}| > 1/2$}
+      \State $\mathbf{b}_k \gets \mathbf{b}_k - \lfloor \mu_{k,j}\rceil\,\mathbf{b}_j$
+      \State Update $\mu$ values
+    \EndIf
+  \EndFor
+  \If{$\norm{\widetilde{\mathbf{b}}_k}^2 \geq (\delta - \mu_{k,k-1}^2)\norm{\widetilde{\mathbf{b}}_{k-1}}^2$} \Comment{Lov\'asz condition}
+    \State $k \gets k + 1$
+  \Else
+    \State Swap $\mathbf{b}_k \leftrightarrow \mathbf{b}_{k-1}$
+    \State Update GSO
+    \State $k \gets \max(k-1, 2)$
+  \EndIf
+\EndWhile
+\State \Return $(\mathbf{b}_1,\ldots,\mathbf{b}_n)$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{theorem}[LLL Guarantees~\cite{LLL1982}]
+\label{thm:lll-guarantees}
+\index{LLL algorithm!guarantees}
+The LLL algorithm with $\delta = 3/4$ runs in polynomial time $\bigO(n^5 d\log^3 B)$ (where $B$ bounds the basis vector norms) and produces a basis whose first vector satisfies
+\begin{equation}
+\label{eq:lll-bound}
+\norm{\mathbf{b}_1} \;\leq\; 2^{(n-1)/2}\,\lambda_1(\lat).
+\end{equation}
+\end{theorem}
+
+The exponential factor $2^{(n-1)/2}$ is the price of polynomial running time.  For $n = 500$, this bound is astronomically loose: LLL finds a vector that is at most $2^{250}$ times the shortest.  This is why LLL alone does \emph{not} break lattice-based cryptosystems, though it serves as a crucial preprocessing step.
+
+
+\subsection{BKZ: The Practical Workhorse}
+\label{subsec:bkz}
+
+The \emph{Block Korkin--Zolotarev} (BKZ) algorithm\index{BKZ algorithm} of Schnorr and Euchner~(1994) generalises LLL by applying exact SVP solvers to blocks of dimension~$\beta$ (the \emph{block size})\index{BKZ algorithm!block size}:
+
+\begin{svgraybox}
+\textbf{BKZ-$\beta$ in a nutshell.}  Slide a window of width~$\beta$ along the GSO, solve exact \svp{} within each projected block, and insert the short vector back into the basis.  Repeat until no further progress.
+\end{svgraybox}
+
+\noindent The tradeoff is controlled entirely by $\beta$:
+\begin{itemize}
+\item $\beta = 2$ recovers LLL.
+\item $\beta = n$ recovers HKZ reduction (exact \svp{}, exponential time).
+\item For intermediate $\beta$, BKZ-$\beta$ runs in time $T(\beta)\cdot\poly(n)$, where $T(\beta)$ is the cost of the SVP oracle in dimension $\beta$.
+\end{itemize}
+
+\begin{definition}[Root Hermite Factor]
+\label{def:root-hermite}
+\index{root Hermite factor}
+After BKZ-$\beta$ reduction, the first basis vector satisfies
+\begin{equation}
+\norm{\mathbf{b}_1} \;\approx\; \delta_0^n \cdot \det(\lat)^{1/n},
+\end{equation}
+where the \emph{root Hermite factor} $\delta_0$ depends on $\beta$ approximately as
+\begin{equation}
+\label{eq:root-hermite}
+\delta_0 \;\approx\; \left(\frac{\beta}{2\pi e}\bigl(\pi\beta\bigr)^{1/\beta}\right)^{\frac{1}{2(\beta-1)}}.
+\end{equation}
+Smaller $\delta_0$ means stronger reduction.
+\end{definition}
+
+In practice, BKZ-$\beta$ with $\beta \geq 60$ already surpasses what LLL can achieve, and the transition to the cryptographically relevant regime occurs around $\beta \approx 300$--$400$.
+
+
+\subsection{The Core-SVP Hardness Model}
+\label{subsec:core-svp}
+
+The standard model\index{core-SVP model} for estimating the concrete security of lattice parameters is:
+
+\begin{definition}[Core-SVP Cost]
+\label{def:core-svp}
+The cost of running BKZ-$\beta$ is dominated by the cost of the SVP oracle in dimension~$\beta$.  Using the best known algorithms:
+\begin{align}
+\text{Classical sieving:}\quad & T_{\mathrm{class}}(\beta) = 2^{0.292\,\beta + o(\beta)}, \label{eq:classical-sieve}\\
+\text{Quantum sieving:}\quad  & T_{\mathrm{quant}}(\beta) = 2^{0.265\,\beta + o(\beta)}. \label{eq:quantum-sieve}
+\end{align}
+\end{definition}
+
+Given a lattice-based scheme with parameters requiring BKZ block size $\beta$ to break, the security in bits is $\approx 0.292\,\beta$ (classical) or $\approx 0.265\,\beta$ (quantum).  This model is used to set the parameters of ML-KEM and ML-DSA (Chaps.~\ref{ch:lwe-encryption}--\ref{ch:lattice-signatures}).
+
+
+%% ================================================================
 \section{Worst-Case to Average-Case Reductions}
 \label{sec:worst-avg-case}
 
-% TODO: New section (the crown jewel of lattice crypto)
-% - Why average-case hardness matters for cryptography
-% - Ajtai's breakthrough: worst-case SIVP → average-case SIS
-% - Proof intuition: Gaussian sampling and smoothing
-% - The smoothing parameter η_ε(L)
-% - Implications: breaking a random lattice instance is as hard as solving the worst case
-% - Cite: Ajtai 1996, Micciancio-Regev 2007, Peikert 2016 survey
+Classical cryptography rests on \emph{assumed} average-case hardness: we \emph{believe} that random RSA moduli are hard to factor, but we cannot prove it.  Lattice-based cryptography offers something stronger.
 
+\subsection{Why Average-Case Hardness Matters}
+\label{subsec:avg-case-matters}
+
+A cryptographic scheme generates its keys \emph{at random}.  Its security therefore depends on the hardness of random instances, not worst-case instances.  In principle, random instances could be much easier than the hardest ones.  A \emph{worst-case to average-case reduction}\index{worst-case to average-case reduction} eliminates this gap: it shows that if \emph{any} algorithm breaks a non-negligible fraction of random instances, then the same algorithm can be used to solve \emph{every} instance of a worst-case problem believed to be hard.
+
+\subsection{Ajtai's Breakthrough}
+\label{subsec:ajtai}
+
+In 1996, Ajtai~\cite{Ajtai1996} proved the first worst-case to average-case reduction for lattice problems, founding the entire field of lattice-based cryptography\index{Ajtai's reduction}.
+
+\begin{definition}[Short Integer Solutions (\textsc{SIS})]
+\label{def:sis}
+\index{SIS}
+Given a uniformly random matrix $\mathbf{A}\in\Zq^{n\times m}$ and a bound $\beta$, find a non-zero vector $\mathbf{x}\in\Z^m$ with $\norm{\mathbf{x}}\leq\beta$ such that
+\begin{equation}
+\mathbf{A}\mathbf{x} = \mathbf{0} \pmod{q}.
+\end{equation}
+\end{definition}
+
+\begin{theorem}[Ajtai~\cite{Ajtai1996}, Micciancio--Regev~\cite{MicciancioRegev2007}]
+\label{thm:ajtai}
+For appropriate parameters, solving \textsc{SIS}\index{SIS!hardness} on a random $\mathbf{A}$ is at least as hard as solving $\gamma$-\sivp{} on \emph{every} $n$-dimensional lattice (worst case), where $\gamma = \beta\cdot\poly(n)$.
+\end{theorem}
+
+The implication is remarkable: breaking a cryptosystem built on random \textsc{SIS} instances would require an algorithm capable of finding short vectors in \emph{every} lattice---including the hardest ones.  No other public-key family offers a comparable guarantee.
+
+
+\subsection{Proof Intuition}
+\label{subsec:reduction-intuition}
+
+The reduction works by showing that a random matrix $\mathbf{A}$ encodes information about an arbitrary ``target'' lattice in a way that is invisible to the adversary.  The key tools are:
+
+\begin{enumerate}
+\item \textbf{Gaussian sampling\index{Gaussian sampling}:} Sampling lattice points from a discrete Gaussian distribution $D_{\lat,s}$ with standard deviation~$s$.  When $s$ is above the \emph{smoothing parameter}\index{smoothing parameter} $\eta_\varepsilon(\lat)$, the samples look statistically close to continuous Gaussians, hiding the lattice structure.
+
+\item \textbf{The smoothing parameter:} $\eta_\varepsilon(\lat)$ is the smallest $s$ such that $D_{\lat^*,1/s}$ has mass at most $1+\varepsilon$ at the origin.  Intuitively, it is the scale at which the lattice ``looks smooth'' (continuous) to a statistical test.
+
+\item \textbf{Rerandomisation:} By combining Gaussian samples from the target lattice with the \textsc{SIS} oracle's output, the reduction transforms the adversary's success into a \sivp{} solver.
+\end{enumerate}
+
+A complete proof appears in Appendix~\ref{app:ajtai}.  We note that Regev~\cite{Regev2009} later proved an analogous reduction for \lwe{} (Chap.~\ref{ch:lwe-encryption}), using a \emph{quantum} reduction from \gapsvp{} to \lwe{}.
+
+
+%% ================================================================
 \section{Computational Complexity of Lattice Problems}
 \label{sec:lattice-complexity}
 
-% TODO: Adapt from notes.tex §4.1.3
-% - Classical complexity: NP-hard for exact SVP, in NP ∩ coNP for GapSVP_√n
-% - Quantum complexity: no known exponential quantum speedup
-% - Best known classical algorithms: sieving (2^{0.292n}), enumeration
-% - Best known quantum algorithms: sieving (2^{0.265n}) — only polynomial improvement
-% - The quantum gap: why lattices survive Shor
-% - Concrete security estimates for cryptographic parameters
-% - Cite: ADRS 2015, BDGL 2016, Laarhoven 2015
+\subsection{Classical Complexity}
+\label{subsec:classical-complexity}
 
-%% Exercises
+The complexity of lattice problems has been studied extensively~\cite{MicciancioGoldwasser2002, Peikert2016}:
+
+\begin{itemize}
+\item \textbf{Exact \svp{}:} NP-hard under randomised reductions~\cite{Ajtai1996}.
+\item \textbf{$\gamma$-\gapsvp{} for $\gamma = \sqrt{n}$:} in $\mathrm{NP}\cap\mathrm{coNP}$ (hence unlikely to be NP-hard).
+\item \textbf{$\gamma$-\svp{} for $\gamma = \poly(n)$:} solvable in polynomial time via LLL.
+\end{itemize}
+
+The best known classical algorithms for exact or near-exact \svp{} are:
+
+\begin{table}[t]
+\caption{Classical algorithms for \svp{} in dimension~$n$}
+\label{tab:classical-algorithms}
+\begin{tabular}{p{3cm}p{3.5cm}p{2.5cm}p{2.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Algorithm} & \textbf{Time} & \textbf{Approx.} & \textbf{Memory} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+LLL~\cite{LLL1982} & $\poly(n)$ & $2^{\bigO(n)}$ & $\poly(n)$ \\
+BKZ-$\beta$ & $2^{\bigO(\beta)}{\cdot}\poly(n)$ & $\gamma(\beta)^n$ & $\poly(n)$ \\
+Sieving & $2^{0.292n + o(n)}$ & Exact & $2^{0.208n}$ \\
+Enumeration & $2^{\bigO(n\log n)}$ & Exact & $\poly(n)$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Quantum Complexity}
+\label{subsec:quantum-complexity}
+
+The quantum story for lattice problems is fundamentally different from factoring.  The best known quantum algorithms provide only a \emph{polynomial} speedup:
+
+\begin{theorem}[Quantum Speedup for Lattice Problems]
+\label{thm:quantum-lattice}
+The best known quantum algorithms for \svp{} in dimension~$n$ achieve:
+\begin{equation}
+T_{\mathrm{quant}} \;=\; 2^{0.265n + o(n)},
+\end{equation}
+compared to the classical $2^{0.292n + o(n)}$.  The speedup factor is $2^{0.027n} \approx 1.019^n$---polynomial, not exponential.
+\end{theorem}
+
+This stands in sharp contrast to factoring, where Shor's algorithm provides an \emph{exponential} speedup (from sub-exponential $e^{\bigO(n^{1/3}\log^{2/3}n)}$ to polynomial $\bigO(n^3)$).
+
+\begin{svgraybox}
+\textbf{Why no quantum breakthrough for lattices?}
+Four structural reasons are commonly cited:
+\begin{enumerate}
+\item \emph{No periodic structure:} Shor's algorithm exploits the periodicity of modular exponentiation.  Lattice problems lack comparable periodic structure.
+\item \emph{No hidden subgroup:} The best quantum algorithms for algebraic problems exploit the hidden subgroup framework.  Lattice problems do not fit naturally into this framework.
+\item \emph{Geometric, not algebraic:} Lattice problems are fundamentally geometric.  Quantum computers have not shown exponential advantages for geometric optimisation.
+\item \emph{Grover gives little:} The search space is too large for Grover's quadratic speedup to be meaningful ($2^{0.146n}$ is still exponential).
+\end{enumerate}
+\end{svgraybox}
+
+
+\subsection{Concrete Security Estimates}
+\label{subsec:concrete-security}
+
+Translating complexity into deployable security levels requires fixing a cost model.  Using the core-SVP model (Definition~\ref{def:core-svp}):
+
+\begin{table}[t]
+\caption{Lattice dimensions required for NIST security levels}
+\label{tab:security-levels}
+\begin{tabular}{p{2.5cm}p{2.5cm}p{2.5cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Dimension} & \textbf{Classical} & \textbf{Quantum} & \textbf{NIST Level} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+$\sim 400$ & $2^{117}$ & $2^{106}$ & Below I \\
+$\sim 500$ & $2^{146}$ & $2^{133}$ & I (AES-128 equiv.) \\
+$\sim 600$ & $2^{175}$ & $2^{159}$ & III (AES-192 equiv.) \\
+$\sim 700$ & $2^{204}$ & $2^{186}$ & V (AES-256 equiv.) \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\begin{example}[Breaking ML-KEM-768]
+\label{ex:breaking-kyber}
+\index{ML-KEM!security estimate}
+ML-KEM-768 (Chap.~\ref{ch:lwe-encryption}) uses Module-\lwe{} with effective lattice dimension $768$.  The best known classical attack requires approximately $2^{224}$ operations; the best known quantum attack, approximately $2^{203}$.  Even with all of Earth's computing power operating in parallel, the classical attack would take roughly $10^{50}$~years.  Compare this with RSA-2048, which Shor's algorithm breaks in approximately 8~hours on a sufficiently large quantum computer~\cite{GidneyEkera2021}.
+\end{example}
+
+
+\subsection{Summary: Why Lattices Survive Quantum Computers}
+\label{subsec:lattice-summary}
+
+Lattice problems occupy a unique position in the complexity landscape:
+\begin{enumerate}
+\item \textbf{Worst-case foundation:} Average-case hardness reduces to worst-case hardness~\cite{Ajtai1996, Regev2009}.
+\item \textbf{NP-hard core:} Exact \svp{} is NP-hard.
+\item \textbf{Quantum resistance:} No exponential quantum speedup is known.
+\item \textbf{Cryptanalytic maturity:} Over 25~years of intense study without a breakthrough.
+\item \textbf{Simplicity:} The problems are easy to state---find short vectors---yet exponentially hard to solve.
+\end{enumerate}
+
+This combination of properties makes lattices the preferred foundation for post-quantum cryptography.  The next chapter translates this hardness into practical cryptographic schemes via the Learning With Errors problem.
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
-\label{prob:ch06-basis}
-Consider the lattice $\lat \subset \R^2$ with basis $\mathbf{b}_1 = (1, 0)$ and $\mathbf{b}_2 = (1/2, \sqrt{3}/2)$. Compute the determinant, the first successive minimum $\lambda_1(\lat)$, and identify this as a familiar physical lattice. Find an alternative basis for the same lattice.
+\label{prob:ch06-hexagonal}
+Consider the lattice $\lat\subset\R^2$ with basis $\mathbf{b}_1 = (1, 0)$ and $\mathbf{b}_2 = (1/2, \sqrt{3}/2)$.
+\begin{enumerate}
+\item[(a)] Compute $\det(\lat)$ and identify this as a familiar physical lattice.
+\item[(b)] Compute $\lambda_1(\lat)$ and $\lambda_2(\lat)$.
+\item[(c)] Find a second basis for the same lattice and verify that the determinant is unchanged.
+\item[(d)] Compute the dual lattice $\lat^*$ and its basis.
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
 \label{prob:ch06-lll}
-Apply the LLL algorithm to the basis $\mathbf{b}_1 = (1, 1, 1)$, $\mathbf{b}_2 = (-1, 0, 2)$, $\mathbf{b}_3 = (3, 5, 6)$. Show each step and verify that the output basis satisfies the LLL conditions with $\delta = 3/4$.
+Apply the LLL algorithm with $\delta = 3/4$ to the basis $\mathbf{b}_1 = (1, 1, 1)$, $\mathbf{b}_2 = (-1, 0, 2)$, $\mathbf{b}_3 = (3, 5, 6)$.
+\begin{enumerate}
+\item[(a)] Compute the Gram--Schmidt orthogonalisation.
+\item[(b)] Perform each size-reduction and swap step.
+\item[(c)] Verify that the output basis satisfies both LLL conditions.
+\item[(d)] Compare $\norm{\mathbf{b}_1}$ before and after reduction.
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
 \label{prob:ch06-hardness}
-The core-SVP model estimates the cost of solving SVP in dimension $\beta$ as $2^{c\beta}$ for a constant $c$. Using $c = 0.292$ (classical sieving) and $c = 0.265$ (quantum sieving), compute the security level in bits for BKZ with block size $\beta = 400$. Compare both estimates.
+Using the core-SVP model, compute the classical and quantum security levels (in bits) for a lattice-based scheme that requires BKZ with block size $\beta = 400$ to break.  How much does the quantum advantage matter in practical terms?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch06-minkowski}
+\textbf{Minkowski's bound.}
+\begin{enumerate}
+\item[(a)] Prove that any lattice $\lat\subset\R^n$ with $\det(\lat) < 1$ contains a non-zero vector of norm at most $\sqrt{n}$.  (Hint: use the pigeonhole principle on the hypercube $[-1/2,1/2]^n$.)
+\item[(b)] For the lattice with basis $\mathbf{B} = 3\mathbf{I}_n$ (the $n\times n$ identity scaled by~$3$), compute $\lambda_1(\lat)$, $\det(\lat)$, and verify Minkowski's bound.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch06-dual}
+Let $\lat\subset\R^2$ be the lattice with basis $\mathbf{b}_1 = (2, 1)$, $\mathbf{b}_2 = (0, 3)$.
+\begin{enumerate}
+\item[(a)] Compute the dual basis and verify that $\ip{\mathbf{b}_i}{\mathbf{d}_j} = \delta_{ij}$ (Kronecker delta).
+\item[(b)] Verify that $\det(\lat)\cdot\det(\lat^*) = 1$.
+\item[(c)] Find $\lambda_1(\lat)$ and $\lambda_1(\lat^*)$.  Verify the transference bound $\lambda_1(\lat)\cdot\lambda_1(\lat^*) \leq n$.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch06-root-hermite}
+\textbf{Root Hermite factor analysis.}\\
+A lattice-based scheme claims 128-bit classical security.  Using~\eqref{eq:classical-sieve}, determine the minimum BKZ block size $\beta$ needed by an attacker.  Then use~\eqref{eq:root-hermite} to compute the root Hermite factor $\delta_0$.  If the lattice dimension is $n = 768$ and $\det(\lat)^{1/n} = q^{k/n}$ with $q = 3329$ and $k = 3$, estimate $\norm{\mathbf{b}_1}$ after BKZ-$\beta$ reduction.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch06-ajtai}
+\textbf{Research-level.}\\
+Ajtai's reduction shows that breaking random \textsc{SIS} instances is as hard as worst-case \sivp{}.  Explain why this type of guarantee is not available for RSA (i.e., why factoring a random RSA modulus might in principle be easier than factoring the hardest composite).  What are the practical implications for long-term cryptographic confidence?
 \end{prob}
