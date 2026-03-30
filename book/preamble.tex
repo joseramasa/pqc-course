@@ -5,6 +5,23 @@
 %%       newtxmath are loaded in book.tex per SNmono template.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%% --- Draft watermark and footer ---
+\usepackage{draftwatermark}
+\SetWatermarkText{RAW DRAFT}
+\SetWatermarkScale{0.35}
+\SetWatermarkAngle{45}
+\SetWatermarkColor[gray]{0.88}
+
+\usepackage{fancyhdr}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[C]{\thepage}%
+  \fancyfoot[R]{\tiny\texttt{DRAFT — 2026-03-30 — bcc96f5 — NOT FOR DISTRIBUTION}}%
+  \renewcommand{\headrulewidth}{0pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+\pagestyle{plain}
+
 %% --- Mathematics (extends what SNmono provides) ---
 \usepackage{amsmath,amsfonts}
 % amssymb conflicts with newtxmath (\Bbbk), skip it — newtxmath covers symbols
