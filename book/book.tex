@@ -2,19 +2,30 @@
 %% Post-Quantum Cryptography: Mathematical Foundations
 %% for the Quantum Age
 %%
-%% Main file — compile with: pdflatex book.tex
+%% Main file — compile with:
+%%   pdflatex book && bibtex book && pdflatex book && pdflatex book
 %%
-%% Requires Springer's svmono class:
-%%   https://www.springer.com/gp/authors-editors/book-authors-editors/your-publication-journey/manuscript-preparation
-%%   Download "Author package for contributed books / monographs"
+%% Class: SNmono (Springer Nature monograph)
+%% Style files: SNmono.cls, spmpsci.bst, svind.ist
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\documentclass[graybox,envcountchap,sectrefs]{svmono}
+% RECOMMENDED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[graybox,envcountchap,sectrefs]{SNmono}
 
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
+\usepackage{type1cm}
+\usepackage{makeidx}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage[bottom]{footmisc}
+
+\usepackage{newtxtext}
+\usepackage[varvw]{newtxmath}
 
 \input{preamble}
+
+\makeindex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 
@@ -23,20 +34,19 @@
 \subtitle{Mathematical Foundations for the Quantum Age}
 \maketitle
 
-%% -------------------------------------------------------
-%% Front Matter
-%% -------------------------------------------------------
-\frontmatter
+\frontmatter%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \include{frontmatter/preface}
-\include{frontmatter/notation}
 
 \tableofcontents
+
+\include{frontmatter/notation}
+
+\mainmatter%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% -------------------------------------------------------
 %% Part I — Foundations
 %% -------------------------------------------------------
-\mainmatter
 
 \part{Foundations}
 \label{part:foundations}
@@ -74,14 +84,14 @@
 \include{chapters/ch15-open-problems}
 
 %% -------------------------------------------------------
-%% Back Matter
+%% Appendices
 %% -------------------------------------------------------
-\backmatter
-
-\appendix
 
 \include{appendices/appA-proofs}
 \include{appendices/appB-implementations}
+
+\backmatter%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \include{appendices/appC-solutions}
 
 \bibliographystyle{spmpsci}

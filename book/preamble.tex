@@ -1,13 +1,16 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Preamble — packages, commands, and environments
+%% Preamble — additional packages, commands, and environments
+%%
+%% NOTE: makeidx, graphicx, multicol, footmisc, newtxtext,
+%%       newtxmath are loaded in book.tex per SNmono template.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% --- Mathematics ---
-\usepackage{amsmath,amsthm,amsfonts,amssymb}
+%% --- Mathematics (extends what SNmono provides) ---
+\usepackage{amsmath,amsfonts}
+% amssymb conflicts with newtxmath (\Bbbk), skip it — newtxmath covers symbols
 \usepackage{mathtools}
 
 %% --- Graphics and figures ---
-\usepackage{graphicx}
 \graphicspath{{figures/}}
 \usepackage{tikz}
 \usetikzlibrary{positioning,shapes.geometric,calc,arrows.meta,patterns}
@@ -25,11 +28,10 @@
 \usepackage{listings}
 \lstset{
   basicstyle=\ttfamily\small,
-  keywordstyle=\bfseries\color{blue!70!black},
-  commentstyle=\itshape\color{green!50!black},
-  stringstyle=\color{red!60!black},
+  keywordstyle=\bfseries,
+  commentstyle=\itshape,
   numbers=left,
-  numberstyle=\tiny\color{gray},
+  numberstyle=\tiny,
   numbersep=8pt,
   frame=single,
   breaklines=true,
@@ -39,14 +41,6 @@
 %% --- References ---
 \usepackage{hyperref}
 \usepackage{cleveref}
-
-%% --- Index ---
-\usepackage{makeidx}
-\makeindex
-
-%% --- Misc ---
-\usepackage{pifont}
-\usepackage{xcolor}
 
 %% =====================================================
 %% Custom mathematical commands
@@ -90,24 +84,10 @@
 
 % Probability and distributions
 \newcommand{\getsr}{\xleftarrow{\$}}
-\newcommand{\Pr}{\operatorname{Pr}}
-\newcommand{\E}{\mathbb{E}}
+\DeclareMathOperator{\EE}{\mathbb{E}}
 \DeclareMathOperator{\Var}{Var}
 
 % Norms
 \newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
 \newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
 \newcommand{\ip}[2]{\left\langle #1, #2 \right\rangle}
-
-% Misc
-\newcommand{\xmark}{\ding{55}}
-\newcommand{\cmark}{\ding{51}}
-
-%% =====================================================
-%% Theorem-like environments (svmono provides these,
-%% but we configure them for consistency)
-%% =====================================================
-
-% svmono defines: definition, theorem, lemma, proposition,
-% corollary, example, exercise, remark, proof
-% They are numbered per chapter due to envcountchap option.
