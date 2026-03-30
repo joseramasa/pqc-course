@@ -2,16 +2,324 @@
 
 % Solutions to approximately one-third of all exercises.
 % Uses \begin{sol}{label} to cross-reference with \begin{prob}\label{label}
-% in each chapter.
 
-% TODO: Write solutions as chapters are completed.
-%
-% \section*{Problems of Chapter~\ref{ch:lattice-theory}}
-%
-% \begin{sol}{prob:ch06-basis}
-% Solution text...
-% \end{sol}
-%
-% \begin{sol}{prob:ch06-lll}
-% Solution text...
-% \end{sol}
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:quantum-threat}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch01-hndl}
+The HNDL inequality requires $x + y \leq z$, where $x = 30$ (shelf life), $y$ is migration time, and $z$ the CRQC arrival year.  Migration must be complete by $z - x = 2035 - 30 = 2005$.  Since 2005 has passed, the agency is \emph{already} in the danger window---any ciphertext captured from 2005 onward remains sensitive when the CRQC arrives.  Migration must begin immediately.
+\end{sol}
+
+\begin{sol}{prob:ch01-grover}
+(a) Grover searches a space of $N$ in $\bigO(\sqrt{N})$ queries, so AES-128 ($N=2^{128}$) requires $2^{64}$ quantum evaluations: 64-bit security.
+(b) AES-256 requires $2^{128}$ Grover queries---128-bit post-quantum security.  Each query demands a full AES quantum circuit ($\sim\!10^4$ T-gates), and Grover is inherently sequential, so this is firmly infeasible.
+(c) Grover halves the exponent ($2^k \to 2^{k/2}$); the fix is to double the key.  Shor gives an \emph{exponential} speedup (sub-exponential $\to$ polynomial), which no key-length increase can compensate.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:math-prelim}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch02-ring}
+In $\Rq = \Z_{17}[x]/(x^4+1)$, first compute $a\cdot b$ in $\Z[x]$:
+$(3x^3+x+2)(2x^2+x+1) = 6x^5+3x^4+5x^3+5x^2+3x+2$.
+Reduce mod $x^4+1$ using $x^4\equiv -1$, $x^5\equiv -x$:
+$c(x) = 5x^3+5x^2+(3-6)x+(2-3) = 5x^3+5x^2-3x-1$.
+Mod~17: $-3\equiv 14$, $-1\equiv 16$.  Result: $5x^3+5x^2+14x+16$.
+\end{sol}
+
+\begin{sol}{prob:ch02-crt}
+$M = 5\cdot7\cdot11 = 385$.  Partial products: $M_1=77$, $M_2=55$, $M_3=35$.
+Inverses: $77\equiv 2\pmod5$, $2^{-1}\equiv 3$; \; $55\equiv 6\pmod7$, $6^{-1}\equiv 6$; \; $35\equiv 2\pmod{11}$, $2^{-1}\equiv 6$.
+$x = 3\cdot77\cdot3 + 4\cdot55\cdot6 + 2\cdot35\cdot6 = 693+1320+420 = 2433 \equiv 123\pmod{385}$.
+Check: $123\equiv 3\pmod5$\;\checkmark;\; $123\equiv 4\pmod7$\;\checkmark;\; $123\equiv 2\pmod{11}$\;\checkmark.
+\end{sol}
+
+\begin{sol}{prob:ch02-stat-dist}
+$\Delta(D_1,D_2) = \tfrac{1}{2}\sum\abs{D_1(x)-D_2(x)} = \tfrac{1}{2}(0.1+0+0+0+0.1) = 0.1$.
+By the statistical distance lemma, replacing $D_1$ by $D_2$ in one hybrid step changes the adversary's advantage by at most $0.1$.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:classical-crypto}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch03-rsa}
+(a) $n=61\cdot53=3233$, $\phi(n)=60\cdot52=3120$.  Choose $e=17$.  Extended Euclidean: $17\cdot2753 = 46801 = 15\cdot3120+1$, so $d=2753$.
+(b) By repeated squaring: $42^{17}\bmod 3233 = 2557$.  Decrypt: $2557^{2753}\bmod 3233 = 42$.\;\checkmark
+(c) With $n=3233$, trial division factors it instantly.  RSA-2048 resists GNFS ($\sim\!2^{112}$ ops) but falls to Shor's algorithm in $\bigO(n^3)$.
+\end{sol}
+
+\begin{sol}{prob:ch03-dh}
+(a) $A = 5^6\bmod 23 = 8$, $B = 5^{15}\bmod 23 = 19$.
+$K = B^a = 19^6\bmod 23$: $19^2\equiv 16$, $19^4\equiv 3$, $19^6\equiv 48\equiv 2$.
+Check: $A^b = 8^{15}\bmod 23 = 2$.\;\checkmark
+(b) Eve tries $a\in\{1,\ldots,21\}$ until $5^a\equiv 8$, finding $a=6$ in $\leq 21$ steps.  For 2048-bit primes the search space is $\sim\!2^{2048}$; even NFS-DL requires $\sim\!2^{112}$ operations.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:quantum-algorithms}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch04-shor}
+$f(x)=11^x\bmod 15$: values cycle as $1,11,1,11,\ldots$ with period $r=2$.
+Check: $r$ is even\;\checkmark;\; $11^{r/2}=11\not\equiv -1\pmod{15}$\;\checkmark.
+$\gcd(11^1-1,15) = \gcd(10,15)=5$, $\gcd(11^1+1,15) = \gcd(12,15)=3$.
+Factors: $15 = 3\times 5$.
+\end{sol}
+
+\begin{sol}{prob:ch04-bbbv}
+(a) BBBV proves $\Omega(\sqrt{N})$ queries are necessary for unstructured search.  For AES-256, $N=2^{256}$, so $\geq 2^{128}$ quantum oracle calls are required---128-bit security holds.
+(b) BBBV applies to \emph{black-box} oracles.  Shor's algorithm exploits the algebraic structure of modular exponentiation (periodicity) via the QFT.  The oracle is not a black box; its internal structure is essential, so the BBBV bound does not apply.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:pqc-landscape}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch05-hybrid}
+(a) $K_{\mathrm{final}} = \mathrm{HKDF}(K_C\|K_P)$.  If CDH holds but \mlwe{} is broken, the adversary learns $K_P$ but $K_C$ is random, so $K_{\mathrm{final}}$ is pseudorandom via the extractor property of HKDF.  The symmetric argument applies if \mlwe{} holds but CDH is broken.  Security requires only \emph{one} assumption.
+
+(b) X25519 alone: $32+32=64$\,B.  ML-KEM-768 alone: $1{,}184+1{,}088=2{,}272$\,B.
+Hybrid: $(32+1{,}184)+(32+1{,}088) = 2{,}336$\,B total; overhead vs.\ X25519 is $2{,}272$\,B.
+
+(c) During a cryptographic transition, confidence is asymmetric: ECC has 40 years of cryptanalysis; lattice assumptions have far less.  The hybrid protects against a surprise classical break of \mlwe{} (X25519 still holds) \emph{and} against an early CRQC (ML-KEM still holds).  The $\sim$2\,KB overhead is negligible against the risk of betting on a single assumption family.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:lattice-theory}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch06-hexagonal}
+(a) $\mathbf{B}=\bigl(\begin{smallmatrix}1&1/2\\0&\sqrt{3}/2\end{smallmatrix}\bigr)$, $\det(\lat)=\sqrt{3}/2$.  This is the hexagonal (triangular) lattice---the densest packing in $\R^2$.
+(b) All six nearest neighbours ($\pm\mathbf{b}_1$, $\pm\mathbf{b}_2$, $\pm(\mathbf{b}_1-\mathbf{b}_2)$) have norm~1, so $\lambda_1=\lambda_2=1$.
+(c) Alternative basis: $\mathbf{b}_1'=(1,0)$, $\mathbf{b}_2'=\mathbf{b}_2-\mathbf{b}_1=(-1/2,\sqrt{3}/2)$; determinant $=\sqrt{3}/2$, unchanged.\;\checkmark
+(d) $\mathbf{B}^*=(\mathbf{B}^{-1})^T$: dual basis $\mathbf{d}_1=(1,-1/\sqrt{3})$, $\mathbf{d}_2=(0,2/\sqrt{3})$.
+\end{sol}
+
+\begin{sol}{prob:ch06-dual}
+Basis $\mathbf{B}=\bigl(\begin{smallmatrix}2&1\\0&3\end{smallmatrix}\bigr)$ (rows), $\det(\mathbf{B})=6$.
+
+(a) $\mathbf{B}^{-1}=\frac{1}{6}\bigl(\begin{smallmatrix}3&-1\\0&2\end{smallmatrix}\bigr)$.
+Dual basis (columns of $\mathbf{B}^{-1}$): $\mathbf{d}_1=(1/2,0)$, $\mathbf{d}_2=(-1/6,1/3)$.
+Verify: $\ip{\mathbf{b}_i}{\mathbf{d}_j}=\delta_{ij}$\;\checkmark.
+(b) $\det(\lat)\cdot\det(\lat^*)=6\cdot\frac{1}{6}=1$.\;\checkmark
+(c) $\lambda_1(\lat)=\norm{(2,1)}=\sqrt{5}$.  $\lambda_1(\lat^*)=\norm{(-1/6,1/3)}=\sqrt{5}/6$.
+Transference: $\sqrt{5}\cdot\sqrt{5}/6 = 5/6 < 2 = n$.\;\checkmark
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:lwe-encryption}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch07-regev-enc}
+Public key: $(\mathbf{a}_1,b_1)=((7,11),2)$, $(\mathbf{a}_2,b_2)=((13,4),15)$, $(\mathbf{a}_3,b_3)=((1,9),14)$.
+Parameters: $n=2$, $q=17$, $\mathbf{s}=(3,5)^T$, subset $S=\{1,3\}$, encrypt $\mu=1$.
+
+$\mathbf{u}=\mathbf{a}_1+\mathbf{a}_3=(8,20)\equiv(8,3)\pmod{17}$.
+$v = b_1+b_3+\lfloor q/2\rfloor\cdot\mu = 2+14+8 = 24\equiv 7\pmod{17}$.
+Ciphertext: $((8,3),7)$.
+
+Decrypt: $v-\ip{\mathbf{u}}{\mathbf{s}} = 7-(24+15)=7-39\equiv 7-5=2\pmod{17}$.
+Since $\lfloor q/2\rfloor=8$ and $\abs{2}<q/4\approx 4.25$, the decoder outputs $\mu=0$.
+This is a decryption error: the accumulated noise $e_S=-6$ exceeds the margin.
+Such errors are expected in toy examples with $q=17$; the exercise demonstrates the encryption/decryption mechanics.
+\end{sol}
+
+\begin{sol}{prob:ch07-fo}
+(a) A CPA-secure scheme may be malleable: given ciphertext $c$ encrypting $m$, an adversary can produce $c'$ decrypting to a related $m'$.  In a KEM (active adversary), this lets the adversary manipulate the shared secret.
+
+(b) The FO transform re-encrypts after decryption: compute $c'=\Enc(pk,m';G(m'))$ and check $c'=c$.  Failure means the ciphertext was tampered with.  This converts CPA to CCA security.
+
+(c) Explicit rejection (returning $\bot$) is a distinguishable event enabling Bleichenbacher-style attacks.  Implicit rejection returns $K'=H(\mathit{randomness}\|c)$, a pseudorandom key indistinguishable from a valid one, closing the side channel.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:lattice-signatures}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch08-leakage}
+In the na\"ive scheme, each signature $\mathbf{z}=\mathbf{s}c+\mathbf{y}$ has its distribution centred at $\mathbf{s}c$.  After many signatures, $\EE[\mathbf{z}\mid c]=\mathbf{s}c$ (since $\EE[\mathbf{y}]=0$), so linear regression recovers $\mathbf{s}$.
+
+Rejection sampling fixes this: accept $\mathbf{z}$ with probability $\propto\rho_\sigma(\mathbf{z})/\rho_\sigma(\mathbf{z}-\mathbf{s}c)$, ensuring the output distribution is $D_\sigma$ regardless of $\mathbf{s}$ and $c$.  No information about $\mathbf{s}$ leaks, regardless of the number of signatures.
+\end{sol}
+
+\begin{sol}{prob:ch08-fs-transform}
+(a) With commitment space size $N$, a forger enumerates all $N$ commitments, computes the challenge $c=H(\mathit{com})$ for each, and checks if it can produce a valid response.  If $N$ is polynomial this is efficient---the scheme is broken.  Security requires $N$ super-polynomial.
+
+(b) The classical forking lemma rewinds the adversary to the same commitment with a different challenge.  In the QROM, the adversary queries $H$ in superposition; measuring which input was queried collapses the state, and rewinding is forbidden by no-cloning.  Alternative techniques (e.g., lossy-mode frameworks) are needed, typically with a looser security bound.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:code-based}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch09-hamming}
+(a) Systematic $[7,4,3]$ Hamming code:
+$G=\bigl(\begin{smallmatrix}1&0&0&0&1&1&0\\0&1&0&0&0&1&1\\0&0&1&0&1&0&1\\0&0&0&1&1&1&1\end{smallmatrix}\bigr)$, \;
+$H=\bigl(\begin{smallmatrix}1&0&1&1&1&0&0\\1&1&0&1&0&1&0\\0&1&1&1&0&0&1\end{smallmatrix}\bigr)$.
+(b) $\mathbf{c}=(1,0,1,1)G = (1,0,1,1,1,0,0)$.
+(c) $\mathbf{y}=(1,0,0,1,1,0,0)$.  Syndrome $H\mathbf{y}^T=(1,0,1)^T$, matching column~3 of $H$.  Flip bit~3: recover $\mathbf{c}$.\;\checkmark
+(d) Minimum distance $d=3$; corrects $t=\lfloor(d-1)/2\rfloor=1$ error.
+\end{sol}
+
+\begin{sol}{prob:ch09-mceliece-keysize}
+(a) $n=4096$, $m=12$, $t=64$: $k\geq n-mt=3328$, $d\geq 2t+1=129$.  Parameters: $[4096,3328,129]$.
+(b) Public key (systematic form): $(n-k)\times k$ bits $= 768\times 3328/8 = 319{,}488$\,B $\approx 312$\,KB.
+(c) ML-KEM-768: 1,184\,B; RSA-2048: 256\,B.  McEliece is $\sim\!260\times$ larger than ML-KEM.
+(d) 1,000 sessions/s $\times$ 312\,KB $\approx$ 312\,MB/s $= 2.5$\,Gbps, far exceeding the 100\,Mbps link.  Impractical without key caching.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:hash-based}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch10-wots}
+$n=256$ bits, so each hash value is 32\,bytes.  $\ell_1=\lceil 256/\log_2 w\rceil$, $\ell_2=\lfloor\log_2(\ell_1(w-1))/\log_2 w\rfloor+1$:
+
+\medskip
+\begin{tabular}{lccc}
+\toprule
+& $w=4$ & $w=16$ & $w=256$ \\
+\midrule
+$\ell_1$ & 128 & 64 & 32 \\
+$\ell_2$ & 5 & 3 & 2 \\
+$\ell$ & 133 & 67 & 34 \\
+Sig.\ (bytes) & 4,256 & 2,144 & 1,088 \\
+Avg.\ hashes & $\sim$200 & $\sim$503 & $\sim$4,335 \\
+\bottomrule
+\end{tabular}
+
+\medskip
+(b) As $w$ increases, signatures shrink but hash cost grows---the fundamental WOTS tradeoff.  $w=16$ is the standard compromise.
+(c) Lamport at 256-bit security: $512\times 32=16{,}384$\,B.  WOTS+ ($w=16$): 2,144\,B---a $\mathbf{7.6\times}$ reduction.
+\end{sol}
+
+\begin{sol}{prob:ch10-fors-forgery}
+FORS: $k=30$ trees, $t=2^a=256$ leaves each.  A forgery requires all $k$ target indices to match previously revealed leaves.
+
+(a) After $q=1$: per-tree match probability $=1/256$; forgery probability $=(1/256)^{30}=2^{-240}$.
+(b) After $q=100$: $\leq 100$ leaves per tree revealed; $(100/256)^{30}\approx 2^{-41}$.  Far above $2^{-128}$---security is lost.
+(c) Need $(q/t)^k < 2^{-128}$: $30\log_2(q/256)<-128$, giving $q<256\cdot 2^{-128/30}\approx 13$.  At most $\sim$13 signatures maintain $2^{-128}$ security.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:other-approaches}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch11-mq}
+(a) Brute-force over $\F_2^3$:
+
+\medskip
+\begin{tabular}{ccc|cc|c}
+\toprule
+$x_1$ & $x_2$ & $x_3$ & $f_1$ & $f_2$ & Sol? \\ \midrule
+0&0&0 & 0&0 & \checkmark \\
+0&0&1 & 0&1 & \\
+0&1&0 & 0&1 & \\
+0&1&1 & 1&0 & \\
+1&0&0 & 1&0 & \\
+1&0&1 & 1&1 & \\
+1&1&0 & 1&1 & \\
+1&1&1 & 0&0 & \checkmark \\ \bottomrule
+\end{tabular}
+
+\medskip
+Solutions: $(0,0,0)$ and $(1,1,1)$.
+
+(b) $2^n$ candidates; exceeds $2^{128}$ when $n>128$.
+
+(c) NP-completeness is worst-case.  Specific multivariate cryptosystems use structured instances (with trapdoors), and structure-specific attacks may apply.  MI, SFLASH, and Rainbow were all broken via such attacks despite generic MQ remaining hard.
+\end{sol}
+
+\begin{sol}{prob:ch11-sike}
+(a) Alice sends $E_A$ plus the images $\phi_A(P_B)$, $\phi_A(Q_B)$ of Bob's torsion basis.  Without these, Bob cannot determine the kernel of his secret isogeny on $E_A$.
+
+(b) Castryck--Decru uses the torsion images to lift the problem to a higher-dimensional abelian variety (Kani--Richelot framework, dimension 4 or 8), where the isogeny can be computed in polynomial time.
+
+(c) CSIDH uses commutativity of the ideal class group action on supersingular curves over $\F_p$: $[\mathfrak{a}][\mathfrak{b}]E_0=[\mathfrak{b}][\mathfrak{a}]E_0$.  No auxiliary torsion points are needed.
+
+(d) No: CSIDH faces Kuperberg's subexponential quantum attack on the hidden shift problem, classical meet-in-the-middle attacks, and performance orders of magnitude slower than lattice alternatives.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:implementation}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch12-bandwidth}
+Current: X25519 ($32+32=64$\,B key exchange) + Ed25519 ($32$\,B pk $+ 64$\,B sig).
+
+ML-KEM-768 + ML-DSA-65: KE $=1{,}184+1{,}088=2{,}272$\,B; auth $=1{,}952+3{,}309=5{,}261$\,B.
+Additional bytes: $(2{,}272-64)+(5{,}261-96)=2{,}208+5{,}165=7{,}373$\,B.
+At 1,500\,B MTU ($\sim$1,460 payload), this spans $\sim$6 extra TCP segments.  The handshake no longer fits in one round trip but remains manageable with pipelining.
+
+With SLH-DSA-128s (sig: 7,856\,B; pk: 32\,B): a depth-2 cert chain carries $\sim$15.6\,KB in signatures alone, exceeding the TCP initial congestion window ($\sim$14.6\,KB) and forcing an extra RTT.  Not viable for latency-sensitive handshakes without certificate compression.
+\end{sol}
+
+\begin{sol}{prob:ch12-masking}
+The butterfly $a'=a+\omega b$, $b'=a-\omega b$ is linear.  With shares $a=a_0+a_1$, $b=b_0+b_1$:
+compute $a'_i=a_i+\omega b_i$, $b'_i=a_i-\omega b_i$ independently.  Then $a'_0+a'_1=(a_0+a_1)+\omega(b_0+b_1)=a+\omega b=a'$.\;\checkmark
+
+For multiplication $c=ab$: $(a_0+a_1)(b_0+b_1)=a_0b_0+a_0b_1+a_1b_0+a_1b_1$.  Computing shares independently gives $a_0b_0+a_1b_1\neq ab$; the cross-terms $a_0b_1+a_1b_0$ require share interaction (e.g., ISW multiplication gadget), leaking information without a re-masking protocol.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:migration}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch13-mosca}
+Mosca: begin migration by year $z-x-y$ (CRQC year minus shelf life minus migration time).
+
+(a) Hospital: $2035-50-5=1980$.  Decades past---records encrypted today remain sensitive until 2076, so HNDL exposure is immediate.
+(b) Retail: $2035-2-1.5=2031.5$.  Migration can wait until mid-2031.
+(c) The hospital's urgency is far greater: the 50-year shelf life means today's data is already vulnerable to harvest-now-decrypt-later.  The retail company's 2-year shelf life limits exposure to recent transactions.
+\end{sol}
+
+\begin{sol}{prob:ch13-cert-chain}
+Depth-3 chain (3 certs); each cert = pk + sig + 200\,B overhead.
+
+(a) RSA-2048: $(294+256+200)\times 3 = 2{,}250$\,B.
+(b) ML-DSA-65: $(1{,}952+3{,}309+200)\times 3 = 16{,}383$\,B.
+(c) Hybrid catalyst: $(294+256+1{,}952+3{,}309+200)\times 3 = 18{,}033$\,B.
+
+TCP initial congestion window $\approx 14{,}600$\,B.  Config~(a) fits.  Configs~(b) and~(c) exceed it by 1.8\,KB and 3.4\,KB respectively, forcing one extra RTT.  Mitigations: TLS certificate compression (RFC~8879), caching intermediates at clients, or chain truncation.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:advanced-primitives}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch14-zkp}
+Stern soundness error: $2/3$ per round.
+
+(a) Need $(2/3)^r<2^{-128}$: $r>128/\log_2(3/2)=128/0.585\approx 219$ rounds.
+(b) Per round: 3 commitments $\times$ 32\,B $=96$\,B, plus challenge and responses ($\sim$100\,B).  Total $\approx 219\times 196\approx 43$\,KB.
+(c) QROM loss: $(2/3)^r\cdot 2^{32}<2^{-128}$ requires $(2/3)^r<2^{-160}$, so $r>274$.  Need 55 additional rounds.
+\end{sol}
+
+\begin{sol}{prob:ch14-shamir}
+$(3,5)$-sharing over $\Z_{17}$, $s=11$.  Choose $a_1=3$, $a_2=7$; polynomial $p(x)=11+3x+7x^2$.
+
+(a) Shares: $p(1)=21\equiv 4$, $p(2)=45\equiv 11$, $p(3)=83\equiv 15$, $p(4)=135\equiv 16$, $p(5)=201\equiv 14$.
+
+(b) Reconstruct from $(1,4),(2,11),(3,15)$: Lagrange basis at $x=0$:
+$L_1=\frac{(-2)(-3)}{(-1)(-2)}=3$, $L_2=\frac{(-1)(-3)}{(1)(-1)}=-3\equiv 14$, $L_3=\frac{(-1)(-2)}{(2)(1)}=1$.
+$s=4\cdot 3+11\cdot 14+15\cdot 1 = 12+154+15=181\equiv 11\pmod{17}$.\;\checkmark
+
+(c) Two shares fix two of three coefficients.  The free coefficient $a_2\in\Z_{17}$ yields 17 distinct polynomials, each giving a different $p(0)$.  Every secret is equally consistent: perfect secrecy.
+
+(d) Addition: locally compute $p(i)+p'(i)$; the sum polynomial has the same degree, so no interaction is needed.  Multiplication: $p(i)\cdot p'(i)$ gives shares of a degree-4 polynomial, doubling the threshold from 3 to 5.  Degree reduction requires one round of communication.
+\end{sol}
+
+%%% ---------------------------------------------------------------
+\section*{Problems of Chapter~\ref{ch:open-problems}}
+%%% ---------------------------------------------------------------
+
+\begin{sol}{prob:ch15-hybrid-overhead}
+(a) Typical ClientHello $\approx 300$\,B.  Hybrid key share: $32+1{,}184=1{,}216$\,B.  Total $\approx 1{,}516$\,B, exceeding the $\sim$1,460\,B TCP payload by $\sim$56\,B.  Split across two segments, but both transmit in the same flight---negligible added latency ($<1$\,ms).
+
+(b) ML-KEM-1024: $32+1{,}568=1{,}600$\,B key share.  ClientHello $\approx 1{,}900$\,B, spanning 2 segments.  Qualitatively similar, though some middleboxes reject multi-segment ClientHello messages.
+
+(c) Mitigations: (i) \textbf{HelloRetryRequest}---send ClientHello without the PQC share; server requests it in a second round (one extra RTT, guaranteed compatibility).  (ii) \textbf{QUIC}---uses UDP with its own framing, avoiding TCP segmentation.  (iii) \textbf{TCP Fast Open}---offsets latency by including data in the SYN.
+\end{sol}
