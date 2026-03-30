@@ -267,6 +267,38 @@ Governance adds a further constraint.  Any signature-scheme change requires a ha
 
 Finally, address migration demands active participation from every user.  Funds must be moved to quantum-safe addresses through on-chain transactions, which means every wallet holder must act.  Funds in dormant wallets---including those belonging to lost keys, estimated at 3--4~million BTC---remain permanently vulnerable, creating a systemic risk that no protocol upgrade can eliminate unilaterally.
 
+Figure~\ref{fig:ch14-blockchain-immutability} captures the core dilemma: the blockchain's immutability---its defining strength---means that historical ECDSA signatures cannot be replaced, only supplemented, while a quantum attacker who can forge those signatures threatens every block in the chain.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Blockchain
+    \draw[thick] (0,0) rectangle (2,1);
+    \node at (1,0.5) {Block 1};
+    \draw[thick] (2,0) rectangle (4,1);
+    \node at (3,0.5) {Block 2};
+    \draw[thick] (4,0) rectangle (6,1);
+    \node at (5,0.5) {...};
+    \draw[thick] (6,0) rectangle (8,1);
+    \node at (7,0.5) {Block N};
+
+    % Signatures
+    \node[red] at (1,-0.5) {ECDSA};
+    \node[red] at (3,-0.5) {ECDSA};
+    \node[red] at (7,-0.5) {ECDSA};
+
+    % Quantum attack
+    \draw[thick, red, ->] (4,-2) -- (4,-1);
+    \node[red] at (4,-2.5) {Quantum attacker};
+    \node[red] at (4,-3) {Can forge any signature!};
+
+    % Problem
+    \node[align=center] at (4,2) {Cannot change past blocks\\Cannot invalidate old signatures\\Cannot prevent forgery};
+\end{tikzpicture}
+\caption{Blockchain immutability versus PQC migration: past blocks are secured by ECDSA signatures that cannot be replaced, yet a quantum attacker could forge any of them---making migration nearly impossible for historical data.}
+\label{fig:ch14-blockchain-immutability}
+\end{figure}
+
 \subsection{Frozen Funds Risk}
 \label{subsec:frozen-funds}
 
@@ -350,7 +382,38 @@ Deployment follows the same graduated-rollout discipline used for any high-risk 
 
 The rollout begins with a canary deployment to roughly 1\% of traffic, chosen to include a representative mix of client populations.  At this scale, gross incompatibilities surface---broken middleboxes, misconfigured load balancers, clients that choke on larger handshakes---without affecting the majority of users.  Once the canary is stable, traffic shifts to 10\% (early adopters), where performance under realistic load is validated against the baselines established in testing.  The move to 50\% exercises the system at scale: tail latencies, connection-retry rates, and certificate-chain failures that appear only under heavy load become visible.  Full deployment at 100\% completes the migration, but the classical algorithm is not removed---it remains available as a fallback until the organization is confident that every client ecosystem has adapted.
 
-Throughout each stage, monitoring dashboards track handshake failure rates, latency distributions, and certificate-validation errors.  Any regression beyond predefined thresholds triggers an automatic rollback to the previous traffic split.
+Throughout each stage, monitoring dashboards track handshake failure rates, latency distributions, and certificate-validation errors.  Any regression beyond predefined thresholds triggers an automatic rollback to the previous traffic split.  Figure~\ref{fig:ch14-canary-deploy} illustrates this graduated rollout, with the rollback path that makes each stage reversible.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Timeline
+    \draw[thick, ->] (0,0) -- (10,0);
+
+    % Phases
+    \draw[fill=green!20] (0,0.5) rectangle (2,1.5);
+    \node at (1,1) {1\% traffic};
+
+    \draw[fill=yellow!20] (2,0.5) rectangle (4,1.5);
+    \node at (3,1) {10\% traffic};
+
+    \draw[fill=orange!20] (4,0.5) rectangle (6,1.5);
+    \node at (5,1) {50\% traffic};
+
+    \draw[fill=red!20] (6,0.5) rectangle (8,1.5);
+    \node at (7,1) {100\% traffic};
+
+    % Monitoring
+    \node[above] at (5,2) {Continuous monitoring};
+    \draw[<->] (0,1.8) -- (8,1.8);
+
+    % Rollback
+    \draw[->, dashed, blue] (3,0.3) -- (1,0.3);
+    \node[below, blue] at (2,0) {Rollback};
+\end{tikzpicture}
+\caption{Canary deployment for PQC migration: traffic is shifted in graduated stages with continuous monitoring, and any regression triggers an automatic rollback to the previous stage.}
+\label{fig:ch14-canary-deploy}
+\end{figure}
 
 \subsection{Phase 6: Verify and Maintain}
 \label{subsec:phase-verify}

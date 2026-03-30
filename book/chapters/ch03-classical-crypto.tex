@@ -184,6 +184,42 @@ A function $f: X \to Y$ is a \emph{one-way trapdoor function} if:
 \end{enumerate}
 \end{definition}
 
+Figure~\ref{fig:ch03-trapdoor} illustrates the one-way trapdoor principle: computing the forward direction is efficient, inverting without the trapdoor is infeasible, and possession of the trapdoor restores efficient inversion.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    arrow/.style={->, thick},
+    node distance=4cm
+]
+    % Forward direction
+    \node (x) at (0,0) {$x$ (Private Key)};
+    \node (y) at (6,0) {$y = f(x)$ (Public Key)};
+    \draw[arrow, green!50!black, line width=2pt] (x) -- node[above] {Easy} (y);
+
+    % Backward without trapdoor
+    \draw[arrow, red, line width=2pt, dashed] (y) to[bend right=30] node[below] {Hard without trapdoor} (x);
+
+    % Backward with trapdoor
+    \draw[arrow, blue, line width=2pt] (y) to[bend left=30] node[above] {Easy with trapdoor} (x);
+
+    % Examples
+    \node[align=left, anchor=north] at (0,-2) {
+        \textbf{RSA:} $d$ (private)\\
+        \textbf{DH:} $a$ (private)\\
+        \textbf{ECC:} $k$ (private)
+    };
+
+    \node[align=left, anchor=north] at (6,-2) {
+        \textbf{RSA:} $(n,e)$ (public)\\
+        \textbf{DH:} $g^a \bmod p$ (public)\\
+        \textbf{ECC:} $kG$ (public)
+    };
+\end{tikzpicture}
+\caption{The one-way trapdoor principle.  The forward direction (green) is efficient; inversion without the trapdoor (red, dashed) is computationally infeasible; possession of the trapdoor (blue) restores efficient inversion.  All three classical public-key families---RSA, Diffie--Hellman, and ECC---instantiate this pattern.}
+\label{fig:ch03-trapdoor}
+\end{figure}
+
 In 1976, Diffie and Hellman\index{Diffie--Hellman} proposed separating the key into a public component (for encryption or verification) and a private component (for decryption or signing)~\cite{DiffieHellman1976}.  This idea---\emph{public-key cryptography}\index{public-key cryptography}---resolved the key distribution problem and made the internet possible.
 
 \subsection{RSA}
@@ -364,7 +400,52 @@ The answer is delegation: a small number of universally trusted entities vouch f
 \[
 \text{Root CA} \;\xrightarrow{\text{signs}}\; \text{Intermediate CA} \;\xrightarrow{\text{signs}}\; \text{End-entity (e.g., github.com)}.
 \]
-Verification proceeds bottom-up: the relying party checks each signature in the chain until reaching a root that it trusts.
+Verification proceeds bottom-up: the relying party checks each signature in the chain until reaching a root that it trusts.  Figure~\ref{fig:ch03-pki-hierarchy} depicts a representative PKI hierarchy, from the root CA stored in the browser trust store through intermediate CAs down to end-entity certificates for individual domains.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    cert/.style={rectangle, draw, rounded corners, minimum width=3.5cm, minimum height=1cm},
+    arrow/.style={->, thick},
+    sig/.style={->, thick, blue}
+]
+    % Root CA
+    \node[cert, fill=red!30, thick] (root) at (0,6) {\textbf{Root CA} Self-signed};
+
+    % Intermediate CAs
+    \node[cert, fill=yellow!30] (int1) at (-4,3) {Intermediate CA 1};
+    \node[cert, fill=yellow!30] (int2) at (0,3) {Intermediate CA 2};
+    \node[cert, fill=yellow!30] (int3) at (4,3) {Intermediate CA 3};
+
+    % End entities
+    \node[cert, fill=green!30] (ee1) at (-6,0) {github.com};
+    \node[cert, fill=green!30] (ee2) at (-3,0) {gmail.com};
+    \node[cert, fill=green!30] (ee3) at (0,0) {amazon.com};
+    \node[cert, fill=green!30] (ee4) at (3,0) {yourbank.com};
+    \node[cert, fill=green!30] (ee5) at (6,0) {hospital.org};
+
+    % Signatures
+    \draw[sig] (root) -- node[left] {signs} (int1);
+    \draw[sig] (root) -- node[right] {signs} (int2);
+    \draw[sig] (root) -- node[right] {signs} (int3);
+
+    \draw[sig] (int1) -- (ee1);
+    \draw[sig] (int1) -- (ee2);
+    \draw[sig] (int2) -- (ee3);
+    \draw[sig] (int3) -- (ee4);
+    \draw[sig] (int3) -- (ee5);
+
+    % Trust store
+    \draw[dashed, thick] (-8,4.5) rectangle (8,7.5);
+    \node at (0,7) {\textbf{Browser/OS Trust Store}};
+
+    % User
+    \node[circle, draw, thick] (user) at (0,-3) {User};
+    \draw[arrow, green!50!black] (user) -- node[right] {Verifies chain} (ee3);
+\end{tikzpicture}
+\caption{PKI hierarchy.  The root CA resides in the browser or OS trust store.  Intermediate CAs extend the chain of trust to end-entity certificates for individual domains.  A user verifies the chain bottom-up.}
+\label{fig:ch03-pki-hierarchy}
+\end{figure}
 
 \subsection{X.509 Certificates}
 \label{subsec:x509}
@@ -602,10 +683,78 @@ Given an elliptic curve $E$ over $\F_p$, a base point $G \in E(\F_p)$ of order~$
 
 The best classical algorithm for ECDLP is Pollard's rho method\index{Pollard's rho}, which runs in $\bigO(\sqrt{n})$ time---fully exponential in the key length.  There is no analogue of index calculus for generic elliptic curves, which is why 256-bit ECC achieves 128-bit security whereas 3072-bit RSA is needed for the same level (Table~\ref{tab:key-sizes}).  This efficiency advantage has made ECC the default for internet-scale cryptography.
 
+Figure~\ref{fig:ch03-math-security} maps the three hardness assumptions to the cryptosystems they support, making explicit the dependence of the entire public-key ecosystem on this trio of problems.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    problem/.style={ellipse, draw, thick, minimum width=3cm, minimum height=1.5cm},
+    algo/.style={rectangle, draw, minimum width=2cm},
+    arrow/.style={->, thick}
+]
+    % The three problems
+    \node[problem, fill=red!30] (ifp) at (0,0) {\textbf{Integer} \textbf{Factorization}};
+    \node[problem, fill=blue!30] (dlp) at (5,0) {\textbf{Discrete} \textbf{Logarithm}};
+    \node[problem, fill=green!30] (ecdlp) at (10,0) {\textbf{Elliptic Curve} \textbf{Discrete Log}};
+
+    % Cryptosystems
+    \node[algo] (rsa) at (0,-3) {RSA};
+    \node[algo] (dsa) at (2.5,-3) {DSA};
+    \node[algo] (dh) at (5,-3) {DH};
+    \node[algo] (elgamal) at (7.5,-3) {ElGamal};
+    \node[algo] (ecdsa) at (10,-3) {ECDSA};
+    \node[algo] (ecdh) at (12,-3) {ECDH};
+
+    % Connections
+    \draw[arrow] (ifp) -- (rsa);
+    \draw[arrow] (dlp) -- (dsa);
+    \draw[arrow] (dlp) -- (dh);
+    \draw[arrow] (dlp) -- (elgamal);
+    \draw[arrow] (ecdlp) -- (ecdsa);
+    \draw[arrow] (ecdlp) -- (ecdh);
+\end{tikzpicture}
+\caption{The three computational hardness assumptions and the cryptosystems they support.  Every deployed public-key primitive traces its security to one of these three problems.}
+\label{fig:ch03-math-security}
+\end{figure}
+
 \subsection{The Monoculture Risk}
 \label{subsec:monoculture}
 
-Three problems, three different-looking mathematical structures---yet beneath the surface, they are uncomfortably alike.  All three---IFP, DLP, ECDLP---share a deep structural property: they reduce to instances of the \emph{hidden subgroup problem}\index{hidden subgroup problem} (HSP) over abelian groups.  Shor's algorithm\index{Shor's algorithm} solves the HSP in polynomial time on a quantum computer~\cite{Shor1997}, which means:
+Three problems, three different-looking mathematical structures---yet beneath the surface, they are uncomfortably alike.  All three---IFP, DLP, ECDLP---share a deep structural property: they reduce to instances of the \emph{hidden subgroup problem}\index{hidden subgroup problem} (HSP) over abelian groups.
+
+Before stating the quantum consequence, it is worth recalling the logical structure of a \emph{security reduction}, illustrated in Figure~\ref{fig:ch03-security-reduction}.  A reduction shows that any efficient attack on the cryptosystem can be transformed into an efficient algorithm for the underlying hard problem.  By contrapositive, if no efficient algorithm for the hard problem exists, no efficient attack on the cryptosystem can exist either.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, thick, minimum width=3cm, minimum height=1cm},
+    arrow/.style={->, thick},
+    reduction/.style={<->, thick, blue}
+]
+    % Top level: Cryptosystem
+    \node[box, fill=green!20] (crypto) at (0,3) {Cryptosystem (e.g., RSA)};
+    \node[box, fill=red!20] (attack) at (6,3) {Attack on Cryptosystem};
+
+    % Bottom level: Hard problem
+    \node[box, fill=blue!20] (problem) at (0,0) {Hard Problem (e.g., Factoring)};
+    \node[box, fill=red!20] (solution) at (6,0) {Algorithm for Hard Problem};
+
+    % Arrows
+    \draw[arrow] (attack) -- node[above] {breaks} (crypto);
+    \draw[arrow] (solution) -- node[above] {solves} (problem);
+
+    % Reduction
+    \draw[reduction] (attack) -- node[right] {reduction} (solution);
+
+    % Logic
+    \node[align=center] at (3,-1.5) {If attack exists, then algorithm exists\\
+    If no algorithm exists, then no attack exists};
+\end{tikzpicture}
+\caption{Security reduction diagram.  A reduction transforms any efficient attack on the cryptosystem into an efficient algorithm for the underlying hard problem.  By contrapositive, hardness of the problem implies security of the cryptosystem.}
+\label{fig:ch03-security-reduction}
+\end{figure}
+
+Shor's algorithm\index{Shor's algorithm} solves the HSP in polynomial time on a quantum computer~\cite{Shor1997}, which means:
 
 \begin{theorem}[Quantum Collapse of Classical Assumptions]
 \label{thm:quantum-collapse}

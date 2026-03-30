@@ -190,6 +190,44 @@ This gap is not merely inconvenient; it is potentially disqualifying.  A sensor 
 
 History teaches that every cryptographic algorithm eventually falls\index{cryptographic agility}.  DES lasted 20 years.  MD5 lasted 13.  SHA-1 lasted 12 from the first theoretical cracks to practical collision.  The ability to replace algorithms quickly and safely---\emph{cryptographic agility}---is therefore not a luxury but a survival requirement.  Yet most deployed systems treat their cryptographic algorithms as load-bearing walls rather than replaceable components, and the resulting brittleness has turned every past algorithm deprecation into a multi-year ordeal.
 
+Figure~\ref{fig:ch17-algorithm-decay} plots the lifespans of several major cryptographic algorithms, illustrating the recurring pattern: every algorithm is eventually weakened or broken, and the trend line shows no sign of stopping.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Timeline
+    \draw[thick, ->] (0,0) -- (12,0);
+
+    % Algorithm lifetimes
+    \draw[thick, green] (0,1) -- (3,1);
+    \node[left] at (0,1) {DES};
+    \draw[thick, red] (2.5,1) -- (3,1);
+
+    \draw[thick, green] (2,2) -- (8,2);
+    \node[left] at (2,2) {SHA-1};
+    \draw[thick, red] (7.5,2) -- (8,2);
+
+    \draw[thick, green] (4,3) -- (11,3);
+    \node[left] at (4,3) {RSA-1024};
+    \draw[thick, red] (10.5,3) -- (11,3);
+
+    \draw[thick, green] (6,4) -- (12,4);
+    \node[left] at (6,4) {AES};
+    \draw[thick, orange] (11.5,4) -- (12,4);
+
+    % Legend
+    \node[green] at (2,5) {Secure};
+    \node[red] at (4,5) {Broken};
+    \node[orange] at (6,5) {Weakening};
+
+    % Pattern
+    \draw[dashed, ->] (1,0.5) -- (10,4.5);
+    \node[rotate=25] at (5.5,2) {Every algorithm eventually falls};
+\end{tikzpicture}
+\caption{The inevitable decay of cryptographic algorithms.  Each algorithm enjoys a period of trusted security (green) before cryptanalytic advances weaken (orange) or break (red) it.  No algorithm has proven permanent; cryptographic agility is the only sustainable defence.}
+\label{fig:ch17-algorithm-decay}
+\end{figure}
+
 \subsection{Algorithm-Agnostic Design}
 \label{subsec:agnostic-design}
 
@@ -287,6 +325,46 @@ No single indicator will flash red the day before a break.  Cryptographic collap
 Cryptographic infrastructure protects data whose sensitivity may span decades: medical records, state secrets, financial archives, intellectual property.  A birth certificate issued today may need to be verifiable in 2076.  A classified intelligence assessment filed this year must remain confidential for at least 25 years, often 50.  Planning on this timescale forces us to reason about technologies and mathematical discoveries that do not yet exist\index{50-year horizon}, and to design systems that will survive surprises we cannot anticipate.
 
 This is, in some ways, an absurd task.  Fifty years ago, public-key cryptography itself did not exist---Diffie and Hellman's seminal paper was still a year away.  The notion that we can predict the cryptographic landscape of 2076 is hubris.  Yet the alternative---building infrastructure that assumes today's assumptions will hold forever---is worse than hubris; it is negligence.  The goal is not to predict the future but to build systems that are robust to a wide range of futures.
+
+Figure~\ref{fig:ch17-quantum-futures} sketches three plausible trajectories for quantum computing power over the coming decades.  Each scenario demands a different cryptographic strategy: exponential growth requires immediate and aggressive migration, linear growth allows a measured transition, and a plateau scenario relaxes urgency but does not eliminate it---because even modest quantum capability breaks some classical schemes.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Axes
+    \draw[->] (0,0) -- (10,0) node[right] {Year};
+    \draw[->] (0,0) -- (0,6) node[above] {Quantum Power};
+
+    % Scenarios
+    % Exponential
+    \draw[thick, red] plot[domain=0:8] (\x, {0.1*exp(0.5*\x)});
+    \node[red] at (7,5.5) {Exponential};
+
+    % Linear
+    \draw[thick, blue] (0,0.5) -- (8,4.5);
+    \node[blue] at (8,4) {Linear};
+
+    % Plateau
+    \draw[thick, green] plot[smooth] coordinates {
+        (0,0.5) (2,2) (4,3) (6,3.2) (8,3.3)
+    };
+    \node[green] at (6,2.5) {Plateau};
+
+    % Annotations
+    \draw[dashed] (0,4) -- (10,4);
+    \node[right] at (10,4) {Breaks everything};
+
+    \draw[dashed] (0,2) -- (10,2);
+    \node[right] at (10,2) {Breaks some};
+
+    % Labels
+    \foreach \x/\year in {0/2024, 2/2034, 4/2044, 6/2054, 8/2064} {
+        \node[below] at (\x,0) {\year};
+    }
+\end{tikzpicture}
+\caption{Three quantum futures, each requiring a different cryptographic strategy.  Exponential growth (red) demands immediate migration; linear growth (blue) allows a measured pace; a plateau (green) relaxes urgency but does not eliminate it, since even modest quantum capability breaks some classical schemes.}
+\label{fig:ch17-quantum-futures}
+\end{figure}
 
 \subsection{The Quantum Internet}
 \label{subsec:quantum-internet}

@@ -312,7 +312,34 @@ In secure multiparty computation (MPC)\index{multiparty computation}, $n$ partie
 \subsection{The Millionaires' Problem}
 \label{subsec:millionaires}
 
-Yao's \emph{millionaires' problem}\index{millionaires' problem} (1982) is the canonical MPC example: Alice and Bob each know their net worth and wish to determine who is richer without revealing the actual amounts.  The problem generalises immediately: any function computable by a circuit can be evaluated securely by multiple parties.
+Yao's \emph{millionaires' problem}\index{millionaires' problem} (1982) is the canonical MPC example: Alice and Bob each know their net worth and wish to determine who is richer without revealing the actual amounts.  The problem generalises immediately: any function computable by a circuit can be evaluated securely by multiple parties.  Figure~\ref{fig:ch16-mpc} illustrates the essential guarantee: the protocol reveals only the comparison result, while each party's private input remains hidden from the other.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Alice
+    \node[circle, draw, fill=blue!30] (alice) at (0,0) {Alice};
+    \node[below] at (0,-0.5) {\$X million};
+
+    % Bob
+    \node[circle, draw, fill=red!30] (bob) at (6,0) {Bob};
+    \node[below] at (6,-0.5) {\$Y million};
+
+    % Protocol
+    \draw[<->, thick] (alice) -- node[above] {MPC Protocol} (bob);
+
+    % Result
+    \node[draw, rectangle, fill=green!30] (result) at (3,-2) {Output: $X > Y$ or $X \leq Y$};
+    \draw[->] (alice) -- (result);
+    \draw[->] (bob) -- (result);
+
+    % Privacy
+    \node[red] at (0,-3) {Learns nothing about $Y$};
+    \node[red] at (6,-3) {Learns nothing about $X$};
+\end{tikzpicture}
+\caption{Secure multiparty computation: Alice and Bob jointly evaluate a comparison function, learning only the result while each party's private input remains hidden from the other.}
+\label{fig:ch16-mpc}
+\end{figure}
 
 \begin{definition}[Secure Computation]
 \label{def:mpc}
@@ -419,6 +446,41 @@ A ciphertext-policy ABE scheme consists of:
 \item $\Dec(\mathit{sk}_S, \mathit{ct}) \to m$: Decrypt if and only if $S$ satisfies~$P$.
 \end{itemize}
 \end{definition}
+
+Figure~\ref{fig:ch16-abe} illustrates the access-control mechanism: a document encrypted under the policy ``Physicist \textbf{AND} Q-Cleared'' can be decrypted only by a user whose attribute set satisfies both conditions.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Document
+    \node[draw, rectangle, fill=yellow!30] (doc) at (0,0) {Secret Document};
+
+    % Encryption
+    \draw[->, thick] (2,0) -- (3,0);
+    \node[above] at (2.5,0) {Encrypt};
+
+    % Policy
+    \node[draw, rectangle, fill=blue!30] (policy) at (5,0) {Policy: "Physicist AND Q-Cleared"};
+
+    % Different users
+    \node[circle, draw, fill=green!30] (user1) at (8,2) {Alice};
+    \node[below] at (8,1.5) {Physicist, Q};
+    \draw[->, thick, green] (policy) -- (user1);
+    \node[right, green] at (8.5,2) {\checkmark};
+
+    \node[circle, draw, fill=red!30] (user2) at (8,0) {Bob};
+    \node[below] at (8,-0.5) {Physicist, L};
+    \draw[->, thick, red, dashed] (policy) -- (user2);
+    \node[right, red] at (8.5,0) {$\times$};
+
+    \node[circle, draw, fill=red!30] (user3) at (8,-2) {Eve};
+    \node[below] at (8,-2.5) {CS, Q};
+    \draw[->, thick, red, dashed] (policy) -- (user3);
+    \node[right, red] at (8.5,-2) {$\times$};
+\end{tikzpicture}
+\caption{Attribute-based encryption: fine-grained access control through encryption.  Only users whose attributes satisfy the ciphertext policy can decrypt; others---even those holding a valid key for different attributes---learn nothing about the plaintext.}
+\label{fig:ch16-abe}
+\end{figure}
 
 The lattice realisation of ABE rests on the technique of \emph{attribute-encoding} lattice trapdoors, introduced by Gentry, Sahai, and Waters.  The idea is to embed the policy evaluation directly into the lattice structure: each attribute contributes a matrix, and the policy determines how these matrices combine.  A user whose attribute set satisfies the policy can, through the algebraic structure, reconstruct a short vector that enables decryption; a user whose attributes fall short cannot, because the corresponding lattice problem remains hard.  Current lattice-based ABE constructions support policies expressible as Boolean formulas or even arbitrary circuits, though ciphertext and key sizes grow with policy complexity---the main barrier to deployment.
 

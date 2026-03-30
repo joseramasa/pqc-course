@@ -149,7 +149,42 @@ The fundamental distinction is between \emph{information-theoretic} and \emph{co
 \item \textbf{PQC} derives security from the assumed computational hardness of mathematical problems (lattice problems, syndrome decoding, hash inversion).  Security holds as long as the adversary's computational resources remain bounded.
 \end{itemize}
 
-\noindent Neither paradigm is inherently superior.  QKD wins when the adversary has unlimited computation but must obey physics; PQC wins when the application requires signatures, internet-scale deployment, or a software-only solution.
+\noindent Neither paradigm is inherently superior.  QKD wins when the adversary has unlimited computation but must obey physics; PQC wins when the application requires signatures, internet-scale deployment, or a software-only solution.  Figure~\ref{fig:ch05-qkd-vs-pqc} contrasts the two paradigms side by side.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % QKD side
+    \draw[thick, fill=blue!20] (-5, 0) rectangle (-1, 4);
+    \node[align=center, font=\large\bfseries] at (-3, 3.5) {QKD};
+    \node[align=left] at (-3, 2.8) {\small Physics-based};
+    \node[align=left] at (-3, 2.3) {\small Information-theoretic};
+    \node[align=left] at (-3, 1.8) {\small Detects eavesdropping};
+    \node[align=left] at (-3, 1.3) {\small Requires quantum channel};
+    \node[align=left] at (-3, 0.8) {\small Key distribution only};
+    \node[align=left, red] at (-3, 0.3) {\small No signatures};
+
+    % PQC side
+    \draw[thick, fill=green!20] (1, 0) rectangle (5, 4);
+    \node[align=center, font=\large\bfseries] at (3, 3.5) {PQC};
+    \node[align=left] at (3, 2.8) {\small Math-based};
+    \node[align=left] at (3, 2.3) {\small Computational security};
+    \node[align=left] at (3, 1.8) {\small Assumes hardness};
+    \node[align=left] at (3, 1.3) {\small Software only};
+    \node[align=left] at (3, 0.8) {\small Full cryptography};
+    \node[align=left, green!70!black] at (3, 0.3) {\small Signatures supported};
+
+    % Comparison arrows
+    \draw[<->, thick] (-1, 2) -- (1, 2);
+    \node[above] at (0, 2) {Different};
+    \node[below] at (0, 2) {paradigms};
+
+    % Bottom emphasis
+    \node[align=center, font=\bfseries, red] at (0, -0.5) {Complementary, not interchangeable};
+\end{tikzpicture}
+\caption{QKD versus PQC: two fundamentally different approaches to quantum-safe security.  QKD provides information-theoretic key distribution but cannot produce signatures; PQC provides the full range of cryptographic operations using computational assumptions.}
+\label{fig:ch05-qkd-vs-pqc}
+\end{figure}
 
 \subsection{Infrastructure and Scalability}
 \label{subsec:infrastructure}
@@ -174,7 +209,43 @@ Scalability       & $\binom{n}{2}$ quantum channels for $n$ parties & Any-to-any
 \end{tabular}
 \end{table}
 
-For $n = 1000$ parties, QKD requires 499\,500 dedicated quantum channels (or trusted relay nodes, which weaken the security model).  PQC works over the existing internet infrastructure with no additional hardware.
+For $n = 1000$ parties, QKD requires 499\,500 dedicated quantum channels (or trusted relay nodes, which weaken the security model).  PQC works over the existing internet infrastructure with no additional hardware.  Figure~\ref{fig:ch05-qkd-topology} contrasts the two network topologies: QKD demands dedicated point-to-point quantum links, while PQC operates over any existing network path.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % QKD network
+    \node[draw, circle] (a1) at (0, 2) {A};
+    \node[draw, circle] (b1) at (2, 2) {B};
+    \node[draw, circle] (c1) at (4, 2) {C};
+    \node[draw, circle] (d1) at (2, 0) {D};
+
+    \draw[thick, blue] (a1) -- node[above, font=\footnotesize] {QKD} (b1);
+    \draw[thick, blue] (b1) -- node[above, font=\footnotesize] {QKD} (c1);
+    \draw[thick, blue] (b1) -- node[right, font=\footnotesize] {QKD} (d1);
+
+    \node[below] at (2, -0.5) {QKD: Physical links required};
+    \node[red] at (2, -1) {4 nodes = 6 quantum channels};
+
+    % PQC network
+    \node[draw, circle] (a2) at (7, 2) {A};
+    \node[draw, circle] (b2) at (9, 2) {B};
+    \node[draw, circle] (c2) at (11, 2) {C};
+    \node[draw, circle] (d2) at (9, 0) {D};
+
+    \draw[dashed, green!70!black] (a2) -- (b2);
+    \draw[dashed, green!70!black] (b2) -- (c2);
+    \draw[dashed, green!70!black] (b2) -- (d2);
+    \draw[dashed, green!70!black] (a2) to[bend left] (c2);
+    \draw[dashed, green!70!black] (a2) to[bend right] (d2);
+    \draw[dashed, green!70!black] (c2) -- (d2);
+
+    \node[below] at (9, -0.5) {PQC: Any network path};
+    \node[green!70!black] at (9, -1) {4 nodes = full connectivity};
+\end{tikzpicture}
+\caption{Network topology comparison.  QKD (left) requires dedicated point-to-point quantum links; full connectivity among $n$ nodes demands $\binom{n}{2}$ physical channels.  PQC (right) provides full any-to-any connectivity over existing classical networks.}
+\label{fig:ch05-qkd-topology}
+\end{figure}
 
 \subsection{The Signature Gap}
 \label{subsec:signature-gap}
@@ -276,7 +347,41 @@ QKD is elegant physics with rigorous security proofs, but engineering reality is
 \section{Hybrid Classical/Post-Quantum Approaches}
 \label{sec:hybrid-intro}
 
-PQC is necessary; QKD is complementary.  But even within PQC, a practical concern remains: the new algorithms are young, and trusting them \emph{exclusively} on day one is a leap of faith that many organisations are unwilling to take.  The prudent strategy during the transition is \emph{hybrid deployment}: combining a classical algorithm (e.g., ECDH, ECDSA) with a post-quantum algorithm so that the system remains secure as long as \emph{at least one} of the two underlying assumptions holds.  This defense-in-depth approach hedges against both premature quantum computers and undiscovered weaknesses in new PQC schemes.
+PQC is necessary; QKD is complementary.  But even within PQC, a practical concern remains: the new algorithms are young, and trusting them \emph{exclusively} on day one is a leap of faith that many organisations are unwilling to take.  The prudent strategy during the transition is \emph{hybrid deployment}: combining a classical algorithm (e.g., ECDH, ECDSA) with a post-quantum algorithm so that the system remains secure as long as \emph{at least one} of the two underlying assumptions holds.  This defense-in-depth approach hedges against both premature quantum computers and undiscovered weaknesses in new PQC schemes.  Figure~\ref{fig:ch05-defense-depth} illustrates the layered model: an adversary must defeat every independent security layer simultaneously to compromise the protected data.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Security layers
+    \draw[thick, fill=blue!20] (0,0) rectangle (8,1);
+    \node at (4,0.5) {QKD Layer: Information-theoretic security};
+
+    \draw[thick, fill=green!20] (0,1.2) rectangle (8,2.2);
+    \node at (4,1.7) {PQC Layer: Computational security};
+
+    \draw[thick, fill=yellow!20] (0,2.4) rectangle (8,3.4);
+    \node at (4,2.9) {Classical Layer: Current algorithms (transitional)};
+
+    % Attack arrows
+    \draw[->, ultra thick, red] (9,0.5) -- (8.1,0.5);
+    \node[right, red] at (9,0.5) {Physics attack};
+
+    \draw[->, ultra thick, red] (9,1.7) -- (8.1,1.7);
+    \node[right, red] at (9,1.7) {Algorithm breakthrough};
+
+    \draw[->, ultra thick, red] (9,2.9) -- (8.1,2.9);
+    \node[right, red] at (9,2.9) {Quantum computer};
+
+    % Bottom line
+    \draw[ultra thick] (0,-0.5) -- (8,-0.5);
+    \node[below] at (4,-0.5) {\textbf{Protected Data}};
+
+    % Success requirement
+    \node[draw, thick, fill=red!10] at (11,0) {Must break ALL layers};
+\end{tikzpicture}
+\caption{Defense in depth with multiple independent security layers.  Each layer addresses a distinct threat model; an adversary must defeat all layers simultaneously to compromise the protected data.}
+\label{fig:ch05-defense-depth}
+\end{figure}
 
 \subsection{Composite KEMs}
 \label{subsec:composite-kems}
@@ -342,7 +447,37 @@ Equally important is the \emph{parameter margin} between the concrete security e
 
 Security without deployability is an academic exercise.  Performance determines whether a scheme can actually protect real systems, and it must be evaluated across three interrelated dimensions.
 
-Speed---of key generation, encapsulation or signing, and decapsulation or verification---varies enormously across families and across platforms.  A scheme that runs in microseconds on a server with AVX-512 instructions may take seconds on an ARM Cortex-M4 microcontroller.  Benchmarks on a single platform are misleading; what matters is the speed profile across the range of hardware the scheme will actually encounter.  Closely linked to speed are the \emph{sizes} of public keys, secret keys, ciphertexts, and signatures.  These are not abstract numbers: they translate directly into bandwidth consumption, storage requirements, and protocol round-trips.  ML-KEM-768 public keys are 1\,184~bytes; Classic McEliece public keys exceed 261\,000~bytes.  That three-order-of-magnitude difference determines whether a scheme fits inside a TLS handshake, a DNSSEC record, or the flash memory of a smart card.  The third dimension, often overlooked, is \emph{memory footprint}.  Embedded devices and smart cards may have only a few kilobytes of RAM available for cryptographic operations.  Schemes that require large intermediate buffers---Falcon's FFT-based signing is the canonical example---may deliver excellent speed and compact outputs while remaining entirely unsuitable for constrained environments.
+Speed---of key generation, encapsulation or signing, and decapsulation or verification---varies enormously across families and across platforms.  A scheme that runs in microseconds on a server with AVX-512 instructions may take seconds on an ARM Cortex-M4 microcontroller.  Benchmarks on a single platform are misleading; what matters is the speed profile across the range of hardware the scheme will actually encounter.  Closely linked to speed are the \emph{sizes} of public keys, secret keys, ciphertexts, and signatures.  These are not abstract numbers: they translate directly into bandwidth consumption, storage requirements, and protocol round-trips.  ML-KEM-768 public keys are 1\,184~bytes; Classic McEliece public keys exceed 261\,000~bytes.  That three-order-of-magnitude difference determines whether a scheme fits inside a TLS handshake, a DNSSEC record, or the flash memory of a smart card.  Figure~\ref{fig:ch05-perf-size} plots signature size against verification speed for several signature schemes, illustrating how lattice-based algorithms occupy the ``practical region'' while hash-based schemes trade larger signatures for minimal assumptions.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Axes
+    \draw[->] (0,0) -- (10,0) node[right] {Signature Size};
+    \draw[->] (0,0) -- (0,6) node[above] {Speed};
+
+    % Plot points
+    \node[circle, fill=red!50, minimum size=1cm] (rsa) at (1,1) {RSA};
+    \node[circle, fill=blue!50, minimum size=1.5cm] (dil) at (5,4) {ML-DSA};
+    \node[circle, fill=green!50, minimum size=0.8cm] (fal) at (3,3) {Falcon};
+    \node[circle, fill=yellow!50, minimum size=2cm] (sph) at (8,2) {SLH-DSA};
+
+    % Labels
+    \node[below] at (rsa) {\footnotesize 384\,B};
+    \node[below] at (dil) {\footnotesize 2\,420\,B};
+    \node[below] at (fal) {\footnotesize 666\,B};
+    \node[below] at (sph) {\footnotesize 7\,856\,B};
+
+    % Categories
+    \draw[dashed] (0,5) -- (10,5) node[right] {Very Fast};
+    \draw[dashed] (0,2.5) -- (10,2.5) node[right] {Practical};
+
+    % Note
+    \node[align=center] at (5,-1.5) {Circle size $\propto$ public key size\\Lattice-based shown in blue/green};
+\end{tikzpicture}
+\caption{Performance versus size trade-offs for selected signature schemes.  Lattice-based algorithms (ML-DSA, Falcon) occupy the practical region, offering moderate signature sizes and high speed.  SLH-DSA trades larger signatures for minimal cryptographic assumptions.  RSA is shown for reference.}
+\label{fig:ch05-perf-size}
+\end{figure}  The third dimension, often overlooked, is \emph{memory footprint}.  Embedded devices and smart cards may have only a few kilobytes of RAM available for cryptographic operations.  Schemes that require large intermediate buffers---Falcon's FFT-based signing is the canonical example---may deliver excellent speed and compact outputs while remaining entirely unsuitable for constrained environments.
 
 \subsection{Implementation Quality}
 \label{subsec:eval-implementation}

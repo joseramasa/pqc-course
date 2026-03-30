@@ -169,6 +169,34 @@ The rejection sampling lemma guarantees that the joint distribution of $(\mathbf
 \textbf{The efficiency-security tradeoff.}  Making $\gamma_1$ larger (relative to $\beta$) reduces the rejection probability (fewer restarts, faster signing) but increases the signature size (the vector $\mathbf{z}$ has larger entries).  Making $\gamma_1$ smaller tightens the bound, producing shorter signatures at the cost of more restarts.  ML-DSA's parameter sets (Sect.~\ref{sec:ml-dsa}) represent carefully optimised operating points on this tradeoff curve.
 \end{svgraybox}
 
+Figure~\ref{fig:ch08-rejection-sampling} visualises the effect of rejection sampling on the signature distribution: without it, the output distribution is shifted by the secret key and leaks information; with rejection, the output follows a fixed distribution independent of the secret.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Distribution without rejection
+    \draw[thick, red] plot[smooth, domain=-3:3] (\x, {2*exp(-(\x-1)*(\x-1)/0.5)});
+    \node[red] at (4,2) {Without rejection:};
+    \node[red] at (4,1.5) {Leaks secret};
+
+    % Distribution with rejection
+    \draw[thick, blue] plot[smooth, domain=-2:2] (\x, {1.5*exp(-\x*\x/2)});
+    \node[blue] at (-3,2) {With rejection:};
+    \node[blue] at (-3,1.5) {Uniform};
+
+    % Axes
+    \draw[->] (-4,0) -- (5,0);
+    \draw[->] (0,0) -- (0,3);
+
+    % Rejection region
+    \fill[yellow, opacity=0.3] (2,0) rectangle (3,3);
+    \fill[yellow, opacity=0.3] (-3,0) rectangle (-2,3);
+    \node at (2.5,3.2) {Reject};
+\end{tikzpicture}
+\caption{Rejection sampling: the red curve shows the signature distribution without rejection (shifted by the secret key, leaking information); the blue curve shows the distribution after rejection sampling (centred and independent of the secret).  Signatures falling in the yellow rejection regions are discarded and the signer restarts.}
+\label{fig:ch08-rejection-sampling}
+\end{figure}
+
 
 %% ================================================================
 \section{ML-DSA (CRYSTALS-Dilithium)}
@@ -465,6 +493,39 @@ The sampling uses the \emph{Falcon tree}\index{Falcon!tree}, a precomputed data 
 The key subroutine $\mathsf{ffSampling}$ exploits the recursive structure of the ring $R = \Z[X]/(X^n+1)$.  Since $X^n + 1 = (X^{n/2} + \zeta)(X^{n/2} - \zeta)$ over a suitable extension, the Gram-Schmidt decomposition splits into two half-sized subproblems.  Applied recursively, this yields a binary tree of depth $\log_2 n$, with a one-dimensional Gaussian sample at each leaf.  The total cost is $\bigO(n \log n)$ operations---the same complexity as an FFT.
 
 The contrast with ML-DSA's signing procedure is instructive.  ML-DSA uses rejection sampling: generate a candidate, check whether it leaks information, and restart if it does.  Falcon avoids rejection almost entirely (the norm check on line~6 triggers with probability less than $10^{-4}$ under typical parameters).  Instead, the Gaussian sampling procedure \emph{inherently} produces output that is independent of the secret basis, provided $\sigma$ is large enough.  This makes Falcon's signing faster in terms of expected iterations---but each iteration is more expensive, requiring $\bigO(n \log n)$ floating-point operations rather than the modular integer arithmetic of ML-DSA.
+
+Figure~\ref{fig:ch08-falcon-gaussian} illustrates the geometric picture: the signer samples a lattice point near the target using a discrete Gaussian distribution, with probability concentrated on the nearest lattice points.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Lattice points
+    \foreach \i in {-3,-2,-1,0,1,2,3} {
+        \foreach \j in {-2,-1,0,1,2} {
+            \fill[gray] (\i,\j) circle (1pt);
+        }
+    }
+
+    % Target point
+    \fill[red] (1.3,0.7) circle (3pt);
+    \node[above] at (1.3,0.7) {Target};
+
+    % Gaussian contours
+    \draw[blue, thick] (1.3,0.7) circle (0.5);
+    \draw[blue] (1.3,0.7) circle (1);
+    \draw[blue, dashed] (1.3,0.7) circle (1.5);
+
+    % Sampled point
+    \fill[green] (1,1) circle (3pt);
+    \node[below] at (1,1) {Sample};
+
+    % Axes for illustration
+    \draw[->] (-3.5,0) -- (3.5,0);
+    \draw[->] (0,-2.5) -- (0,2.5);
+\end{tikzpicture}
+\caption{Falcon samples lattice points near the message-dependent target with discrete Gaussian probability.  Blue contours show decreasing probability; the sampled point (green) is the signature.  The spherical symmetry of the Gaussian ensures the output distribution hides the secret basis.}
+\label{fig:ch08-falcon-gaussian}
+\end{figure}
 
 \subsection{Verification}
 \label{subsec:falcon-verify}

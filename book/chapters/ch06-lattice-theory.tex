@@ -170,6 +170,47 @@ Figure~\ref{fig:ch06-good-bad-basis} illustrates this contrast geometrically: tw
 \label{fig:ch06-good-bad-basis}
 \end{figure}
 
+An alternative view of the same idea appears in Figure~\ref{fig:ch06-lattice-bases}, which shows a two-dimensional lattice presented first with an orthogonal basis (as a crystallographer would naturally choose) and then with a highly skewed basis that generates the same set of points but hides the short vectors entirely.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=1.2]
+    % 2D crystallographic lattice
+    \begin{scope}
+        \node at (0,3.5) {\textbf{2D Crystal Lattice}};
+        % Draw lattice points
+        \foreach \i in {0,1,2,3} {
+            \foreach \j in {0,1,2} {
+                \fill[black] (\i,\j) circle (2pt);
+            }
+        }
+        % Draw basis vectors
+        \draw[->, ultra thick, blue] (0,0) -- (1,0) node[below] {$\mathbf{a}_1$};
+        \draw[->, ultra thick, blue] (0,0) -- (0,1) node[left] {$\mathbf{a}_2$};
+        % Draw unit cell
+        \draw[blue, dashed, thick] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;
+    \end{scope}
+
+    % Cryptographic lattice (skewed)
+    \begin{scope}[xshift=6cm]
+        \node at (0,3.5) {\textbf{Same Lattice, Cryptographic Basis}};
+        % Draw same lattice points
+        \foreach \i in {0,1,2,3} {
+            \foreach \j in {0,1,2} {
+                \fill[black] (\i,\j) circle (2pt);
+            }
+        }
+        % Draw bad basis vectors
+        \draw[->, ultra thick, red] (0,0) -- (2,1) node[right] {$\mathbf{b}_1$};
+        \draw[->, ultra thick, red] (0,0) -- (1,2) node[above] {$\mathbf{b}_2$};
+        % Note about hardness
+        \node[red, align=center] at (1.5,-1) {Finding short vectors\\from this basis is hard!};
+    \end{scope}
+\end{tikzpicture}
+\caption{Same lattice, different bases: the crystallographic basis (left) reveals the short vectors immediately, while the cryptographic basis (right) hides them behind large, nearly parallel vectors.}
+\label{fig:ch06-lattice-bases}
+\end{figure}
+
 To make the notion of ``good'' and ``bad'' precise, we need quantitative measures.  Two are standard: one captures how far the basis vectors are from orthogonal, and the other measures how well the first basis vector approximates the true shortest vector.
 
 \begin{definition}[Basis Quality Measures]

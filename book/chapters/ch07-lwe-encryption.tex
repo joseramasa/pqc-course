@@ -137,6 +137,36 @@ For appropriate parameters ($q \leq \poly(n)$, $\sigma \geq 2\sqrt{n}$), there i
 
 The qualifier ``quantum'' refers to the \emph{reduction}, not the attacker.  Even a purely classical \lwe{} solver would, via this quantum reduction, yield a quantum algorithm for worst-case lattice problems.
 
+Figure~\ref{fig:ch07-worst-avg} captures the extraordinary nature of this guarantee: breaking \emph{random} \lwe{} instances would imply breaking \emph{every} lattice, a far stronger statement than any classical cryptographic assumption provides.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Worst-case lattices
+    \node[draw, ellipse, minimum width=3cm, minimum height=2cm, fill=red!20]
+        (worst) at (0,0) {Worst-case lattices};
+
+    % Average-case LWE
+    \node[draw, ellipse, minimum width=3cm, minimum height=2cm, fill=blue!20]
+        (avg) at (6,0) {Average-case LWE};
+
+    % Reduction arrow
+    \draw[->, ultra thick] (avg) -- (worst);
+    \node[above] at (3,0) {Efficient};
+    \node[below] at (3,0) {reduction};
+
+    % Annotations
+    \node[below] at (0,-1.5) {Some lattice is hard};
+    \node[below] at (6,-1.5) {Random LWE is hard};
+
+    % Implication
+    \node[draw, rectangle, fill=green!20] at (3,-3)
+        {Breaking LWE $\Rightarrow$ Breaking \textbf{any} lattice!};
+\end{tikzpicture}
+\caption{LWE's extraordinary guarantee: average-case hardness equals worst-case hardness.  An efficient algorithm for random LWE instances would yield an efficient algorithm for the hardest lattice problems.}
+\label{fig:ch07-worst-avg}
+\end{figure}
+
 \begin{svgraybox}
 \textbf{Reduction intuition for physicists.}
 Regev's reduction exploits the duality between a lattice $\lat$ and its dual $\lat^*$ via the quantum Fourier transform---precisely the position--momentum duality familiar from quantum mechanics.
@@ -149,6 +179,31 @@ Regev's reduction exploits the duality between a lattice $\lat$ and its dual $\l
 \end{enumerate}
 The noise level~$\sigma$ maps to the approximation factor~$\gamma$: more noise means a weaker (larger $\gamma$) lattice guarantee, but stronger \lwe{} security.
 \end{svgraybox}
+
+Figure~\ref{fig:ch07-qft-bridge} illustrates the reduction path: the quantum Fourier transform mediates between the primal lattice (where the hard problem lives) and the dual lattice (where LWE samples provide information).
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Primal lattice
+    \node[draw, circle, minimum size=2cm] (primal) at (0,0) {Primal $\mathcal{L}$};
+    \node[below] at (0,-1.5) {Hard SVP problem};
+
+    % Dual lattice
+    \node[draw, circle, minimum size=2cm] (dual) at (6,0) {Dual $\mathcal{L}^*$};
+    \node[below] at (6,-1.5) {LWE gives info here};
+
+    % QFT connection
+    \draw[<->, ultra thick, blue] (1.5,0.5) to[bend left=30] node[above] {QFT} (4.5,0.5);
+    \draw[<->, ultra thick, blue] (1.5,-0.5) to[bend right=30] node[below] {QFT$^{-1}$} (4.5,-0.5);
+
+    % Process flow
+    \draw[->, thick, red] (6,-2) -- (6,-3) -- (0,-3) -- (0,-2);
+    \node[red, align=center] at (3,-3.5) {Regev's reduction path:\\Use LWE to learn dual, QFT back to primal};
+\end{tikzpicture}
+\caption{The quantum Fourier transform bridges primal and dual lattices in Regev's reduction, mirroring the position--momentum duality of quantum mechanics.}
+\label{fig:ch07-qft-bridge}
+\end{figure}
 
 A full proof sketch appears in Appendix~\ref{app:regev-reduction}.
 
@@ -310,7 +365,33 @@ Given samples
 the search problem is to recover $s \in \Rq$; the decision problem is to distinguish these from uniform pairs $(a_i, u_i)$.
 \end{definition}
 
-Each \rlwe{} sample provides $n$ scalar \lwe{} equations (one per coefficient), so a single sample suffices for encryption.  This compresses public keys from $\bigO(n^2)$ to $\bigO(n)$ elements.
+Each \rlwe{} sample provides $n$ scalar \lwe{} equations (one per coefficient), so a single sample suffices for encryption.  This compresses public keys from $\bigO(n^2)$ to $\bigO(n)$ elements.  Figure~\ref{fig:ch07-ring-compression} illustrates the dramatic reduction in key material.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Vector representation
+    \node at (0,3) {\textbf{Plain LWE:}};
+    \node at (0,2) {Need full matrix $\mathbf{A} \in \mathbb{Z}_q^{n \times m}$};
+    \draw[fill=blue!20] (-2,0) rectangle (2,1.5);
+    \node at (0,0.75) {$n \times m$ entries};
+    \node[red] at (0,-0.5) {Size: $O(n^2)$};
+
+    % Polynomial representation
+    \node at (7,3) {\textbf{Ring-LWE:}};
+    \node at (7,2) {Need one polynomial $a(X) \in R_q$};
+    \draw[fill=green!20] (5.5,0.5) rectangle (8.5,1);
+    \node at (7,0.75) {$n$ coefficients};
+    \node[green!70!black] at (7,-0.5) {Size: $O(n)$};
+
+    % Arrow showing compression
+    \draw[->, ultra thick] (3,0.75) -- (4.5,0.75);
+    \node[above] at (3.75,0.75) {100$\times$};
+    \node[below] at (3.75,0.75) {compression};
+\end{tikzpicture}
+\caption{Ring structure enables massive key compression: a single polynomial in $R_q$ replaces an entire matrix over $\mathbb{Z}_q$, reducing public key size from $O(n^2)$ to $O(n)$ without losing security.}
+\label{fig:ch07-ring-compression}
+\end{figure}
 
 \begin{theorem}[\rlwe{} Hardness~\cite{LPR2010, LPR2013}]
 \label{thm:rlwe-hard}

@@ -269,6 +269,48 @@ The absence of an exponential quantum speedup is the fundamental reason code-bas
 
 We now have all the ingredients for the oldest unbroken public-key encryption scheme.  The idea, due to Robert McEliece~(1978)~\cite{McEliece1978}, is deceptively simple: take a code that we can decode efficiently, disguise it so that it looks like a random code, and publish the disguised version as a public key.  Anyone can encode a message using the public key (adding intentional errors), but only the key holder---who knows the secret structure---can decode it.  The disguise is the entire security argument.  If the public key is indistinguishable from a random generator matrix, then decrypting without the secret key is equivalent to decoding a random code, which we have just seen is NP-hard.
 
+Figure~\ref{fig:ch09-code-encryption} illustrates the overall flow: encoding introduces deliberate errors that only the holder of the secret code structure can remove.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Original message
+    \node[draw, rectangle] (msg) at (0,0) {Message};
+
+    % Encoding
+    \node[draw, rectangle, fill=blue!20] (enc) at (3,0) {Encode};
+    \draw[->] (msg) -- (enc);
+
+    % Add errors
+    \node[draw, rectangle, fill=red!20] (err) at (6,0) {Add errors};
+    \draw[->] (enc) -- (err);
+    \node[above] at (6,0.5) {Secret: where};
+
+    % Ciphertext
+    \node[draw, rectangle] (ct) at (9,0) {Ciphertext};
+    \draw[->] (err) -- (ct);
+
+    % Legitimate decoding
+    \node[draw, rectangle, fill=green!20] (dec1) at (9,-2) {Decode};
+    \draw[->] (ct) -- (dec1);
+    \node[right] at (10.5,-2) {Easy with};
+    \node[right] at (10.5,-2.5) {secret structure};
+
+    % Attacker
+    \node[draw, rectangle, fill=gray!20] (dec2) at (9,-4) {Decode?};
+    \draw[->, dashed] (ct) -- (dec2);
+    \node[right] at (10.5,-4) {Hard without};
+    \node[right] at (10.5,-4.5) {structure};
+
+    % Back to message
+    \draw[->] (dec1) -| (0,-2);
+    \draw[dashed] (dec2) -| (0,-4);
+    \node at (0,-4) {?};
+\end{tikzpicture}
+\caption{Code-based encryption: the sender encodes a message and adds deliberate errors.  The legitimate receiver decodes easily using the secret code structure; an attacker faces the NP-hard problem of decoding a random linear code.}
+\label{fig:ch09-code-encryption}
+\end{figure}
+
 \subsection{Construction}
 \label{subsec:mceliece-construction}
 
@@ -553,7 +595,37 @@ BIKE's public keys and ciphertexts are the smallest among the three code-based s
 \label{sec:code-comparison}
 
 \index{code-based cryptography!comparison}
-The three code-based KEMs examined in this chapter occupy distinct points in the design space, each resolving the tension between security confidence, key size, ciphertext size, and implementation maturity in a different way.  Table~\ref{tab:code-comparison} makes the trade-offs concrete.
+The three code-based KEMs examined in this chapter occupy distinct points in the design space, each resolving the tension between security confidence, key size, ciphertext size, and implementation maturity in a different way.  As Figure~\ref{fig:ch09-impossible-triangle} illustrates, code-based cryptography excels at security and speed but pays a steep price in key size---an ``impossible triangle'' that defines the family's practical limitations.  Table~\ref{tab:code-comparison} makes the trade-offs concrete.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Triangle
+    \draw[thick] (0,0) -- (4,0) -- (2,3.5) -- cycle;
+
+    % Vertices
+    \node[below] at (0,0) {\textbf{Security}};
+    \node[below] at (4,0) {\textbf{Efficiency}};
+    \node[above] at (2,3.5) {\textbf{Key Size}};
+
+    % Regions
+    \node at (2,1) {Code-based};
+    \draw[fill=red!20, opacity=0.5] (0.5,0.3) -- (1,0.3) -- (0.8,1) -- cycle;
+    \node[red] at (0.7,0.5) {A+};
+
+    \draw[fill=yellow!20, opacity=0.5] (3,0.3) -- (3.5,0.3) -- (3.2,1) -- cycle;
+    \node[yellow!80!black] at (3.2,0.5) {B};
+
+    \draw[fill=red!40, opacity=0.5] (1.8,2.8) -- (2.2,2.8) -- (2,2) -- cycle;
+    \node[red] at (2,2.5) {F};
+
+    % Other schemes
+    \node[blue] at (2,1.5) {Lattice};
+    \node[green!70!black] at (1,1.8) {Hash};
+\end{tikzpicture}
+\caption{The impossible triangle: code-based cryptography earns top marks for security confidence and reasonable efficiency, but fails at key size.  Lattice-based and hash-based schemes occupy different regions of the same trade-off space.}
+\label{fig:ch09-impossible-triangle}
+\end{figure}
 
 \begin{table}[t]
 \caption{Comparison of code-based KEMs at NIST Security Level~I (128-bit post-quantum security).  ML-KEM-768 is included as a lattice-based reference point.}

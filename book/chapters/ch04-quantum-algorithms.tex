@@ -498,7 +498,86 @@ The speedup factor is $2^{0.027n}$---polynomial in $2^n$, hence the complexity r
 \subsection{The Polynomial/Exponential Divide as Design Criterion}
 \label{subsec:design-criterion}
 
-The central design criterion for post-quantum cryptography\index{post-quantum cryptography!design criterion} is the \emph{polynomial vs.\ exponential divide}: we select problems where the best known quantum algorithm achieves at most a polynomial speedup over the best classical algorithm, as opposed to problems where quantum algorithms provide an exponential speedup.
+The central design criterion for post-quantum cryptography\index{post-quantum cryptography!design criterion} is the \emph{polynomial vs.\ exponential divide}: we select problems where the best known quantum algorithm achieves at most a polynomial speedup over the best classical algorithm, as opposed to problems where quantum algorithms provide an exponential speedup.  Figure~\ref{fig:ch04-exp-poly-divide} plots this divide, showing how the classical exponential cost of structured problems (e.g., factoring) drops to polynomial under quantum attack, while the cost of quantum-resistant problems remains exponential.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    scale=0.8,
+    axis/.style={->, thick},
+    classical/.style={thick, red},
+    quantum/.style={thick, blue},
+    safe/.style={thick, green}
+]
+    % Axes
+    \draw[axis] (0,0) -- (10,0) node[right] {Problem Size $(n)$};
+    \draw[axis] (0,0) -- (0,8) node[above] {Time};
+
+    % Classical exponential
+    \draw[classical, domain=0:4] plot (\x, {0.1*exp(\x)}) node[right] {Classical: $2^n$};
+
+    % Quantum polynomial
+    \draw[quantum] (0,0) -- (9,3) node[right] {Quantum: $n^3$};
+
+    % Quantum-safe (still exponential)
+    \draw[safe, domain=0:4.5] plot (\x, {0.08*exp(\x)}) node[right] {Quantum-safe: $2^{n/2}$};
+
+    % Specific points
+    \node[circle, fill=red] at (3,2) {};
+    \node[below] at (3,0) {$n=128$};
+    \draw[dashed] (3,0) -- (3,7);
+
+    % Time comparisons
+    \node[align=left, anchor=west] at (5,7) {Factoring RSA-2048:};
+    \node[align=left, anchor=west] at (5,6.3) {Classical: $10^{20}$ years};
+    \node[align=left, anchor=west] at (5,5.6) {Quantum: 8 hours};
+
+    % Regions
+    \fill[yellow, opacity=0.2] (0,0) rectangle (3,8);
+    \fill[red, opacity=0.2] (3,0) rectangle (10,8);
+    \node at (1.5,7.5) {Practical};
+    \node at (6.5,7.5) {Infeasible};
+\end{tikzpicture}
+\caption{The exponential--polynomial divide.  Shor's algorithm (blue) reduces the cost of structured problems from exponential (red) to polynomial.  Quantum-resistant problems (green) remain exponential even under quantum attack, differing only by a constant factor in the exponent.}
+\label{fig:ch04-exp-poly-divide}
+\end{figure}
+
+A useful physical analogy is quantum tunnelling through energy barriers.  A classical algorithm must ``climb'' over an exponential cost barrier, whereas a quantum algorithm exploits interference to ``tunnel'' through it in polynomial time.  Figure~\ref{fig:ch04-quantum-tunneling} depicts this analogy: the barrier height represents the computational cost, and the quantum path passes through the classically forbidden region.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    scale=0.7,
+    barrier/.style={thick},
+    classical/.style={->, thick, red},
+    quantum/.style={->, thick, blue, dashed}
+]
+    % Energy barrier
+    \draw[barrier] (0,0) -- (2,0) -- (2,4) -- (4,4) -- (4,0) -- (6,0);
+    \draw[barrier, fill=gray!30] (2,0) rectangle (4,4);
+
+    % Labels
+    \node[below] at (1,0) {Start};
+    \node[below] at (5,0) {Solution};
+    \node at (3,2) {Barrier};
+    \node[left] at (0,4) {Cost $\sim 2^n$};
+
+    % Classical path
+    \draw[classical] (1,0.2) .. controls (1.5,2) and (2,4.5) .. (3,4.5)
+                            .. controls (4,4.5) and (4.5,2) .. (5,0.2);
+    \node[above, red] at (3,4.5) {Classical};
+
+    % Quantum path
+    \draw[quantum] (1,0.2) -- (5,0.2);
+    \node[below, blue] at (3,0.2) {Quantum};
+
+    % Annotations
+    \node[align=center] at (8,4) {Classical: Must traverse\\exponential barrier};
+    \node[align=center] at (8,1) {Quantum: Tunnels through\\in polynomial time};
+\end{tikzpicture}
+\caption{Quantum tunnelling analogy.  A classical algorithm must surmount the exponential cost barrier; a quantum algorithm exploits interference to traverse the classically forbidden region in polynomial time.  This analogy is imprecise---Shor's algorithm uses the QFT, not adiabatic tunnelling---but captures the essential asymmetry.}
+\label{fig:ch04-quantum-tunneling}
+\end{figure}
 
 \begin{table}[t]
 \caption{The quantum speedup landscape and its cryptographic implications}

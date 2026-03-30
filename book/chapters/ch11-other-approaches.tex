@@ -173,6 +173,48 @@ These graphs are \emph{Ramanujan graphs}\index{Ramanujan graph}: they are optima
 
 The cryptographic hardness assumption is: given two supersingular curves $E_0$ and $E_1$ connected by an isogeny of smooth degree $\ell^e$, find the isogeny.  The best classical algorithm for this ``path-finding'' problem has exponential complexity $\tilde{\bigO}(\sqrt[4]{p})$, and the best quantum algorithm (using Tani's claw-finding) achieves $\tilde{\bigO}(\sqrt[6]{p})$.
 
+Figure~\ref{fig:ch11-isogeny-graph} illustrates the isogeny graph: vertices are supersingular curves and edges are isogenies.  The secret key defines a path from a starting curve $E_0$ to a target curve $E_A$; security relies on the difficulty of finding this path.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Isogeny graph
+    \node[circle, draw, fill=blue!30] (E0) at (0,0) {$E_0$};
+
+    % Level 1
+    \node[circle, draw] (E11) at (-2,1.5) {$E$};
+    \node[circle, draw] (E12) at (0,1.5) {$E$};
+    \node[circle, draw] (E13) at (2,1.5) {$E$};
+
+    % Level 2
+    \node[circle, draw] (E21) at (-3,3) {$E$};
+    \node[circle, draw, fill=red!30] (EA) at (-1,3) {$E_A$};
+    \node[circle, draw] (E23) at (1,3) {$E$};
+    \node[circle, draw] (E24) at (3,3) {$E$};
+
+    % Edges
+    \draw[thick] (E0) -- (E11);
+    \draw[thick] (E0) -- (E12);
+    \draw[thick] (E0) -- (E13);
+    \draw[thick] (E11) -- (E21);
+    \draw[thick] (E11) -- (EA);
+    \draw[thick] (E12) -- (EA);
+    \draw[thick] (E12) -- (E23);
+    \draw[thick] (E13) -- (E23);
+    \draw[thick] (E13) -- (E24);
+
+    % Secret path
+    \draw[ultra thick, red, ->] (E0) -- (E11);
+    \draw[ultra thick, red, ->] (E11) -- (EA);
+
+    \node[right] at (4,1.5) {Find path?};
+    \node[below] at (0,-0.5) {Start};
+    \node[above] at (-1,3.5) {End};
+\end{tikzpicture}
+\caption{The supersingular isogeny graph: vertices are elliptic curves (up to isomorphism) and edges are $\ell$-isogenies.  The secret key is a path (red arrows) from the starting curve $E_0$ to the target $E_A$.  Security depends on the difficulty of finding this path in the Ramanujan expander graph.}
+\label{fig:ch11-isogeny-graph}
+\end{figure}
+
 
 \subsection{SIDH/SIKE: Construction and Collapse}
 \label{subsec:sidh-sike}

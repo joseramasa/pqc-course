@@ -142,6 +142,34 @@ Power and EM attacks require physical proximity, but cache-timing attacks can be
 
 The countermeasure is to ensure all table accesses sweep the entire table in constant time, selecting the desired entry via conditional moves.
 
+Figure~\ref{fig:ch12-gaussian-sampling} summarises the security--efficiency tradeoff among the principal Gaussian sampling strategies: rejection sampling is simple but variable-time, CDT is fast but vulnerable to cache attacks, and inversion sampling achieves constant-time execution at the cost of additional implementation complexity.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Gaussian sampling methods
+    \node[draw, rectangle, fill=red!20] (rej) at (0,2) {Rejection Sampling};
+    \node[draw, rectangle, fill=yellow!20] (cdt) at (4,2) {CDT Method};
+    \node[draw, rectangle, fill=green!20] (inv) at (8,2) {Inversion Sampling};
+
+    % Properties
+    \node[below] at (0,0.5) {Variable time};
+    \node[below] at (0,0) {Hard to protect};
+
+    \node[below] at (4,0.5) {Table lookups};
+    \node[below] at (4,0) {Cache attacks};
+
+    \node[below] at (8,0.5) {Constant time};
+    \node[below] at (8,0) {Recommended};
+
+    % Arrows
+    \draw[thick, ->] (0,-0.5) -- (8,-0.5);
+    \node[below] at (4,-0.5) {Increasing security};
+\end{tikzpicture}
+\caption{Gaussian sampling methods and their side-channel tradeoffs.  Rejection sampling is variable-time and difficult to protect; CDT is fast but leaks through cache access patterns; inversion sampling achieves constant-time execution at the cost of greater implementation complexity.}
+\label{fig:ch12-gaussian-sampling}
+\end{figure}
+
 \subsection{Masking Countermeasures for the NTT}
 \label{subsec:masking-ntt}
 
@@ -257,6 +285,30 @@ The critical requirement is the quality of the initial seed.  A DRBG seeded with
 \textbf{Hardware RNG (HRNG).}  Modern processors include hardware entropy sources: Intel's \texttt{RDRAND}/\texttt{RDSEED} (thermal noise in a metastable circuit), ARM's \texttt{TRNG} (ring oscillator jitter).  These provide the seed entropy that DRBGs expand.  The Linux kernel's \texttt{getrandom()} system call blocks until sufficient entropy is available, making it the recommended interface.
 
 \textbf{Quantum RNG (QRNG).}  Quantum random number generators\index{QRNG} exploit the fundamental indeterminacy of quantum measurements---typically photon arrival times, vacuum fluctuations, or beam splitter outcomes.  Unlike classical entropy sources, whose unpredictability rests on complexity assumptions, QRNG unpredictability is guaranteed by the laws of physics.  For post-quantum cryptography, there is a pleasing conceptual closure: the same quantum mechanics that threatens classical cryptography provides provably random seeds for its replacement.
+
+Regardless of the entropy source, the raw output is \emph{uniform} random bits, whereas lattice-based schemes require samples drawn from a discrete Gaussian distribution.  Figure~\ref{fig:ch12-rng-transform} illustrates this fundamental transformation challenge: converting a flat uniform distribution into the bell-shaped Gaussian that the cryptographic scheme demands, without introducing timing leaks or statistical bias.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Uniform to Gaussian transformation
+    \draw[thick, ->] (0,0) -- (0,3);
+    \draw[thick, ->] (0,0) -- (4,0);
+    \draw[thick, blue] (0,1.5) -- (4,1.5);
+    \node[blue] at (2,2) {Uniform input};
+
+    \draw[thick, ->] (5,1.5) -- (6,1.5);
+    \node[above] at (5.5,1.5) {Transform};
+
+    \draw[thick, ->] (7,0) -- (7,3);
+    \draw[thick, ->] (7,0) -- (11,0);
+    \draw[thick, red] plot[smooth, domain=7:11]
+        (\x, {2.5*exp(-2*(\x-9)*(\x-9))});
+    \node[red] at (9,2.5) {Gaussian output};
+\end{tikzpicture}
+\caption{The RNG transformation challenge: uniform random bits from the entropy source must be converted into a discrete Gaussian distribution required by lattice-based schemes, without introducing timing side channels or statistical bias.}
+\label{fig:ch12-rng-transform}
+\end{figure}
 
 \subsection{Deterministic Key Generation}
 \label{subsec:deterministic-keygen}
