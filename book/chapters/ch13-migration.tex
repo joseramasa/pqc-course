@@ -58,6 +58,35 @@ Given signature schemes $\Sigma_1 = (\KeyGen_1, \Sign_1, \Verify_1)$ and $\Sigma
 
 This ``AND'' composition guarantees existential unforgeability (EUF-CMA) if either component scheme is EUF-CMA secure.  The price is paid in signature and public-key size: for an RSA-2048 + ML-DSA-65 combination, the composite signature is $256 + 3{,}309 = 3{,}565$~bytes, with a composite public key of $294 + 1{,}952 = 2{,}246$~bytes.
 
+Figure~\ref{fig:ch13-hybrid-layers} illustrates the nested-layer structure common to both composite KEMs and composite signatures: each cryptographic layer independently protects the data, so an adversary must break both to compromise confidentiality or integrity.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Nested encryption
+    \node[draw, rectangle, minimum width=6cm, minimum height=1cm] (msg) at (0,0) {Message};
+
+    \draw[thick, blue] (-3.5,-0.8) rectangle (3.5,0.8);
+    \node[blue] at (4.5,0) {PQC Layer};
+
+    \draw[thick, red] (-4.2,-1.5) rectangle (4.2,1.5);
+    \node[red] at (5.2,0) {Classical Layer};
+
+    % Arrows
+    \draw[->, thick] (0,-2.5) -- (0,-3.5);
+    \node[below] at (0,-3.5) {Double protection};
+
+    % Attack scenarios
+    \node[align=left] at (8,0) {
+        Break classical only: PQC protects\\
+        Break PQC only: Classical protects\\
+        Must break both: Infeasible
+    };
+\end{tikzpicture}
+\caption{Nested hybrid layers.  The message is protected by both a post-quantum and a classical cryptographic layer; security is maintained as long as at least one layer remains unbroken.}
+\label{fig:ch13-hybrid-layers}
+\end{figure}
+
 
 \subsection{X.509 Hybrid Certificates}
 \label{subsec:x509-hybrid}
@@ -395,7 +424,44 @@ If $x + y > z$, then the data is \emph{already at risk today}, because an advers
 A hospital system stores patient records that must remain confidential for 50~years ($x = 50$).  Their IT department estimates that a full cryptographic migration will take 5~years ($y = 5$).  Assuming a CRQC arrives by 2035 ($z = 2035 - 2026 = 9$), we have $x + y = 55 \gg 9 = z$.  The inequality has been violated for decades: any patient record encrypted before 2026 with a classical algorithm is exposed to a harvest-now-decrypt-later attack.
 \end{example}
 
-The uncomfortable implication: for any data with a multi-decade confidentiality requirement, migration should have started years ago.
+The uncomfortable implication: for any data with a multi-decade confidentiality requirement, migration should have started years ago.  Figure~\ref{fig:ch13-migration-timeline} plots projected quantum capability against the cryptographic thresholds for current algorithms, making the shrinking migration window visually concrete.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Timeline
+    \draw[thick, ->] (0,0) -- (12,0);
+    \foreach \x/\year in {0/2024, 2/2028, 4/2032, 6/2036, 8/2040, 10/2044} {
+        \draw[thick] (\x,0.1) -- (\x,-0.1);
+        \node[below] at (\x,-0.2) {\year};
+    }
+
+    % Quantum development
+    \draw[thick, red] plot[smooth] coordinates {
+        (0,1) (1,1.3) (2,1.7) (3,2.2) (4,2.8) (5,3.5) (6,4.3) (7,5.2) (8,6.2)
+    };
+    \node[red, right] at (8,6.2) {Quantum capability};
+
+    % Threat levels
+    \draw[dashed, green] (0,2) -- (12,2);
+    \node[green, right] at (12,2) {Break ECC-256};
+
+    \draw[dashed, orange] (0,4) -- (12,4);
+    \node[orange, right] at (12,4) {Break RSA-2048};
+
+    \draw[dashed, red] (0,6) -- (12,6);
+    \node[red, right] at (12,6) {Break everything};
+
+    % Key events
+    \draw[thick, blue, <->] (0,7) -- (4,7);
+    \node[blue, above] at (2,7) {Migration window};
+
+    \draw[thick, purple] (4,0) -- (4,8);
+    \node[purple, above] at (4,8) {Too late to start};
+\end{tikzpicture}
+\caption{Projected quantum capability versus classical cryptographic thresholds.  The migration window closes once quantum hardware crosses the first dashed threshold; organisations that have not begun transitioning by that point face irreversible exposure.}
+\label{fig:ch13-migration-timeline}
+\end{figure}
 
 \subsection{Sector-Specific Deadlines}
 \label{subsec:sector-deadlines}

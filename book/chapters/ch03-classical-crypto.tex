@@ -17,6 +17,79 @@
 
 Modern cryptography\index{cryptography!symmetric} rests on three equally critical pillars: \emph{confidentiality} (only authorised parties read the data), \emph{integrity} (any tampering is detectable), and \emph{authentication} (the identity of the sender is verifiable).  Symmetric cryptography addresses the first two using a single shared secret key.
 
+Figure~\ref{fig:ch03-crypto-stack} shows how these components are organised into a layered architecture: user-facing applications rely on protocols, which in turn invoke cryptographic primitives built atop mathematical structures whose security rests on unproven---but widely believed---hardness assumptions.  The quantum threat strikes at the bottom of this stack.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, minimum width=8cm, minimum height=0.8cm},
+    arrow/.style={->, thick}
+]
+    % Stack layers
+    \node[box, fill=blue!20] (app) at (0,4) {Application Layer: "Send payment to Alice"};
+    \node[box, fill=green!20] (proto) at (0,3) {Protocol Layer: TLS 1.3 + Payment Protocol};
+    \node[box, fill=yellow!20] (crypto) at (0,2) {Crypto Primitives: ECDSA + AES-GCM + SHA-256};
+    \node[box, fill=red!20] (math) at (0,1) {Math Foundation: Elliptic Curves + Galois Fields};
+    \node[box, fill=gray!20] (hard) at (0,0) {Hardness Assumption: ECDLP is classically intractable};
+
+    % Arrows
+    \draw[arrow] (app) -- (proto);
+    \draw[arrow] (proto) -- (crypto);
+    \draw[arrow] (crypto) -- (math);
+    \draw[arrow] (math) -- (hard);
+
+    % Side annotations
+    \node[align=left, anchor=west] at (4.5,4) {\small What users see};
+    \node[align=left, anchor=west] at (4.5,3) {\small What developers implement};
+    \node[align=left, anchor=west] at (4.5,2) {\small What this chapter studies};
+    \node[align=left, anchor=west] at (4.5,1) {\small Mathematical foundations};
+    \node[align=left, anchor=west] at (4.5,0) {\small \textbf{What quantum breaks}};
+\end{tikzpicture}
+\caption{The cryptographic stack: from user action to mathematical foundation.  Each layer depends on the one below it; a quantum break at the bottom propagates upward.}
+\label{fig:ch03-crypto-stack}
+\end{figure}
+
+The three pillars are illustrated in Figure~\ref{fig:ch03-three-pillars}, which also highlights the distinct adversarial models each pillar defends against and the looming quantum threat that cuts across all of them.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    pillar/.style={rectangle, draw, thick, minimum width=2.5cm, minimum height=4cm},
+    label/.style={text width=2.3cm, align=center},
+    attack/.style={->, thick, red}
+]
+    % Three pillars
+    \node[pillar, fill=blue!30] (conf) at (0,0) {};
+    \node[label] at (0,0) {\textbf{Confidentiality}\\[0.3em]Encryption\\[0.3em]AES\\RSA-ENC\\ElGamal};
+
+    \node[pillar, fill=green!30] (inte) at (3.5,0) {};
+    \node[label] at (3.5,0) {\textbf{Integrity}\\[0.3em]Hash/MAC\\[0.3em]SHA-256\\HMAC\\GHASH};
+
+    \node[pillar, fill=yellow!30] (auth) at (7,0) {};
+    \node[label] at (7,0) {\textbf{Authentication}\\[0.3em]Signatures\\[0.3em]RSA-SIG\\ECDSA\\EdDSA};
+
+    % Platform
+    \draw[thick] (-1.5,-2.2) -- (8.5,-2.2);
+    \node at (3.5,-2.5) {\large\textbf{Cryptographic Security}};
+
+    % Attacks
+    \node[above=0.5cm of conf] (attacker1) {Eavesdropper};
+    \draw[attack] (attacker1) -- (conf);
+
+    \node[above=0.5cm of inte] (attacker2) {Tamperer};
+    \draw[attack] (attacker2) -- (inte);
+
+    \node[above=0.5cm of auth] (attacker3) {Impersonator};
+    \draw[attack] (attacker3) -- (auth);
+
+    % Quantum threat
+    \draw[thick, red, dashed] (10,2) -- (10,-3);
+    \node[rotate=90, red] at (10.5,0) {\large Quantum Computer};
+\end{tikzpicture}
+\caption{The three pillars of cryptographic security and the adversaries each defends against.  The dashed line represents the quantum threat, which undermines the asymmetric primitives in confidentiality and authentication.}
+\label{fig:ch03-three-pillars}
+\end{figure}
+
 \subsection{Block Ciphers and AES}
 \label{subsec:block-ciphers}
 
@@ -351,6 +424,77 @@ From this point, all subsequent handshake messages are encrypted.
 
 \item \textbf{Application data.}  Bulk data is encrypted with AES-256-GCM (or ChaCha20-Poly1305) using the derived application traffic keys.
 \end{enumerate}
+
+Figure~\ref{fig:ch03-tls-handshake} visualises this message flow, distinguishing plaintext, encrypted, and signed messages.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    packet/.style={rectangle, draw, rounded corners, minimum width=4cm},
+    arrow/.style={->, thick},
+    encrypt/.style={fill=green!20},
+    sign/.style={fill=blue!20},
+    plain/.style={fill=gray!10}
+]
+    % Client and Server
+    \node[circle, draw, thick] (client) at (0,0) {Client};
+    \node[circle, draw, thick] (server) at (10,0) {Server};
+
+    % Time axis
+    \draw[thick] (0,-0.5) -- (0,-10);
+    \draw[thick] (10,-0.5) -- (10,-10);
+
+    % Message flows
+    % ClientHello
+    \node[packet, plain] (ch) at (5,-1.5) {ClientHello};
+    \draw[arrow] (0,-1.5) -- (ch) -- (10,-1.5);
+    \node[align=left, font=\footnotesize] at (5,-2.2) {
+        • Supported ciphers\\
+        • Random nonce\\
+        • ECDHE key share
+    };
+
+    % ServerHello
+    \node[packet, plain] (sh) at (5,-3.5) {ServerHello};
+    \draw[arrow] (10,-3.5) -- (sh) -- (0,-3.5);
+    \node[align=left, font=\footnotesize] at (5,-4.2) {
+        • Selected cipher\\
+        • Random nonce\\
+        • ECDHE key share
+    };
+
+    % Server Certificate
+    \node[packet, encrypt] (cert) at (5,-5.5) {Certificate};
+    \draw[arrow] (10,-5.5) -- (cert) -- (0,-5.5);
+    \node[align=left, font=\footnotesize] at (5,-6.2) {
+        • Certificate chain\\
+        • \textcolor{blue}{CA signatures}
+    };
+
+    % CertificateVerify
+    \node[packet, sign] (cv) at (5,-7) {CertificateVerify};
+    \draw[arrow] (10,-7) -- (cv) -- (0,-7);
+    \node[align=left, font=\footnotesize] at (5,-7.7) {
+        • \textcolor{blue}{Server signature}\\
+        • Over handshake
+    };
+
+    % Finished
+    \node[packet, encrypt] (fin) at (5,-8.5) {Finished};
+    \draw[arrow] (10,-8.5) -- (fin) -- (0,-8.5);
+
+    % Client Finished
+    \node[packet, encrypt] (cfin) at (5,-9.5) {Finished};
+    \draw[arrow] (0,-9.5) -- (cfin) -- (10,-9.5);
+
+    % Legend
+    \node[packet, plain, minimum width=2cm] at (2,1) {Plaintext};
+    \node[packet, encrypt, minimum width=2cm] at (5,1) {Encrypted};
+    \node[packet, sign, minimum width=2cm] at (8,1) {Signed};
+\end{tikzpicture}
+\caption{TLS~1.3 handshake message flow.  After the initial plaintext exchange, all subsequent messages are encrypted.  The signed CertificateVerify message authenticates the server.}
+\label{fig:ch03-tls-handshake}
+\end{figure}
 
 \subsection{Cipher Suites}
 \label{subsec:cipher-suites}

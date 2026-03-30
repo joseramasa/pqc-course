@@ -142,6 +142,65 @@ v_2 &= H(N_0 \,\|\, v_1), \notag
 and accepts if $v_2 = \mathsf{PK}$.  The verifier needed exactly $h = 3$ sibling hashes---one per level---to walk from a single leaf all the way to the root.
 \end{example}
 
+Figure~\ref{fig:ch10-merkle-tree} illustrates the Merkle tree structure for a height-3 tree.  The root (yellow) serves as the public key, the leaves (green) hold OTS key pairs, and the authentication path for a given signature is highlighted: the red path traces the hash chain from the signing leaf to the root, while the blue dashed edges indicate the sibling nodes that the verifier needs to reconstruct each level.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Level 0 (root)
+    \node[circle, draw, fill=yellow!30] (root) at (4,4) {PK};
+
+    % Level 1
+    \node[circle, draw] (h1) at (2,3) {};
+    \node[circle, draw] (h2) at (6,3) {};
+
+    % Level 2
+    \node[circle, draw] (h11) at (1,2) {};
+    \node[circle, draw] (h12) at (3,2) {};
+    \node[circle, draw] (h21) at (5,2) {};
+    \node[circle, draw] (h22) at (7,2) {};
+
+    % Level 3 (leaves - OTS keys)
+    \foreach \i in {0,1,2,3,4,5,6,7} {
+        \node[rectangle, draw, fill=green!20] (ots\i) at (\i+0.5,1) {$\text{OTS}_\i$};
+    }
+
+    % Connections
+    \draw (root) -- (h1);
+    \draw (root) -- (h2);
+    \draw (h1) -- (h11);
+    \draw (h1) -- (h12);
+    \draw (h2) -- (h21);
+    \draw (h2) -- (h22);
+    \foreach \i in {0,1} {
+        \draw (h11) -- (ots\i);
+    }
+    \foreach \i in {2,3} {
+        \draw (h12) -- (ots\i);
+    }
+    \foreach \i in {4,5} {
+        \draw (h21) -- (ots\i);
+    }
+    \foreach \i in {6,7} {
+        \draw (h22) -- (ots\i);
+    }
+
+    % Authentication path
+    \draw[ultra thick, red] (ots2) -- (h12);
+    \draw[ultra thick, red] (h12) -- (h1);
+    \draw[ultra thick, red] (h1) -- (root);
+    \draw[ultra thick, blue, dashed] (h11) -- (h12);
+    \draw[ultra thick, blue, dashed] (h2) -- (h1);
+
+    % Labels
+    \node[below] at (ots2) {Sign with};
+    \node[right, red] at (8,2.5) {Reveal path};
+    \node[right, blue] at (8,2) {+ siblings};
+\end{tikzpicture}
+\caption{Merkle tree: a single public key authenticates many one-time signatures.  The authentication path (red) and required sibling nodes (blue, dashed) enable verification from any leaf to the root.}
+\label{fig:ch10-merkle-tree}
+\end{figure}
+
 The authentication path has exactly $h$ nodes---one sibling at each level of the tree.  For a tree of height $h = 20$ (supporting $2^{20} \approx 10^6$ signatures) with a 256-bit hash function, the authentication path is $20 \times 32 = 640$~bytes.  This is remarkably compact: a few hundred bytes suffice to prove membership in a tree with a million leaves.
 
 \subsection{Key Generation Cost}
@@ -247,7 +306,45 @@ The stateful schemes of the previous section work well in controlled environment
 
 SLH-DSA organises its signatures in a \emph{hypertree}\index{hypertree}: a tree of XMSS trees arranged in $d$ layers, with total tree height $h$ divided as $h = h' \cdot d$, where $h'$ is the height of each XMSS subtree.
 
-At the top sits a single XMSS tree of height $h'$ whose root is the public key---the only value the verifier needs to store.  Each leaf of this top tree certifies (via a WOTS+ signature) the root of an XMSS tree at the next layer down.  Those second-layer trees in turn certify the roots of third-layer trees, and so on, until the bottom layer is reached.  At the bottom sit FORS instances---the few-time signatures that actually authenticate messages.
+At the top sits a single XMSS tree of height $h'$ whose root is the public key---the only value the verifier needs to store.  Each leaf of this top tree certifies (via a WOTS+ signature) the root of an XMSS tree at the next layer down.  Those second-layer trees in turn certify the roots of third-layer trees, and so on, until the bottom layer is reached.  At the bottom sit FORS instances---the few-time signatures that actually authenticate messages.  Figure~\ref{fig:ch10-sphincs-hypertree} depicts this layered architecture.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Hypertree structure
+    \node[draw, rectangle, fill=yellow!30] (root) at (4,5) {Root Tree};
+
+    % Middle layer
+    \node[draw, rectangle, fill=orange!30] (m1) at (1,3) {Tree};
+    \node[draw, rectangle, fill=orange!30] (m2) at (3,3) {Tree};
+    \node[draw, rectangle, fill=orange!30] (m3) at (5,3) {Tree};
+    \node[draw, rectangle, fill=orange!30] (m4) at (7,3) {Tree};
+
+    % Bottom layer
+    \foreach \i in {1,2,3,4} {
+        \node[draw, rectangle, fill=green!30] (b\i) at (2*\i-1,1) {FORS};
+    }
+
+    % Connections
+    \draw[thick] (root) -- (m1);
+    \draw[thick] (root) -- (m2);
+    \draw[thick] (root) -- (m3);
+    \draw[thick] (root) -- (m4);
+    \foreach \i in {1,2,3,4} {
+        \draw[thick] (m\i) -- (b\i);
+    }
+
+    % Labels
+    \node[right] at (8,5) {Certify lower trees};
+    \node[right] at (8,3) {Intermediate};
+    \node[right] at (8,1) {Sign messages};
+
+    % Parameters
+    \node[below] at (4,0) {Total signatures: $2^{64}$ (effectively unlimited)};
+\end{tikzpicture}
+\caption{SPHINCS+ hypertree: a tree of Merkle trees that enables stateless signing through massive virtual capacity and few-time signatures at the leaves.}
+\label{fig:ch10-sphincs-hypertree}
+\end{figure}
 
 A signature therefore consists of the FORS signature on the message, followed by a chain of $d$ WOTS+ signatures and authentication paths, one per hypertree layer:
 \begin{equation}

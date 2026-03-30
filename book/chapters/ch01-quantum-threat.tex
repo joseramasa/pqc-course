@@ -95,6 +95,44 @@ Consumer web browsing       & 1--3 years   & 2032--2034 \\
 
 The table reveals that for the most sensitive categories---state secrets, medical records, long-lived commercial data---the migration deadline has already passed under even moderate assumptions about when a CRQC will arrive.
 
+Figure~\ref{fig:ch01-hndl-timeline} illustrates the HNDL attack timeline aligned with projected quantum-computing roadmaps, making the overlap between the harvesting window and the migration window visually explicit.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Timeline
+    \draw[thick, ->] (0, 0) -- (12, 0);
+    \foreach \x/\year in {0/2025, 2/2030, 4/2033, 6/2035, 8/2040, 11/2045} {
+        \draw[thick] (\x, -0.1) -- (\x, 0.1);
+        \node[below] at (\x, -0.2) {\year};
+    }
+
+    % Events
+    \draw[fill=red!30] (0, 0.5) rectangle (6, 1.5);
+    \node[align=center] at (3, 1) {Harvest\\encrypted data};
+
+    \draw[fill=yellow!30] (2, 1.7) rectangle (6, 2.7);
+    \node[align=center] at (4, 2.2) {Build quantum\\computer};
+
+    \draw[fill=green!30] (6, 0.5) rectangle (11, 1.5);
+    \node[align=center] at (8.5, 1) {Decrypt\\stored data};
+
+    % IBM milestone
+    \draw[thick, blue] (4, -0.5) -- (4, 0);
+    \node[below, blue] at (4, -0.5) {IBM: 100k qubits};
+
+    % Migration window
+    \draw[<->, thick, blue] (0, -1.5) -- (5, -1.5);
+    \node[below, blue] at (2.5, -1.5) {Migration window};
+
+    % Risk zone
+    \fill[red, opacity=0.2] (0, -0.5) rectangle (12, 3);
+    \node[red, rotate=10] at (8, 0.3) {\Large Data at risk NOW};
+\end{tikzpicture}
+\caption{The harvest now, decrypt later timeline aligned with quantum-computing roadmaps.  The overlap between the harvesting window and the migration window underscores the urgency of early action.}
+\label{fig:ch01-hndl-timeline}
+\end{figure}
+
 \subsection{Evidence of Active Harvesting}
 
 The HNDL model is not hypothetical.  Publicly documented programs confirm that state-level actors routinely intercept and store encrypted communications at scale\index{mass surveillance}.  The economic case for harvesting is straightforward: storage costs roughly USD~$10$ per terabyte per year, while the intelligence value of decrypted diplomatic, military, or corporate communications is immense.  Even a conservative estimate of daily international backbone traffic suggests that targeted collection of high-value encrypted flows is well within the budget of a major intelligence service.

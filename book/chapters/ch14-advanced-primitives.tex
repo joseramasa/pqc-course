@@ -37,6 +37,39 @@ It suffices that $\mathsf{Eval}$ supports addition and multiplication of ciphert
 Public-key encryption protects data \emph{at rest} and \emph{in transit}.  FHE protects data \emph{in use}.  This is the missing piece for privacy-preserving cloud computing: a hospital can outsource genomic analysis, a bank can outsource fraud detection, and a government can outsource census statistics---all without exposing raw data to the computing party.
 \end{svgraybox}
 
+Figure~\ref{fig:ch14-fhe-cloud} summarises the FHE workflow: a client encrypts private data, a cloud server computes on the ciphertext without ever seeing the plaintext, and the client decrypts the result to obtain the output of the computation.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Client side
+    \draw[thick, fill=blue!20] (-2,-1) rectangle (2,1);
+    \node at (0,0) {Private Data: $x$};
+
+    % Encryption
+    \draw[->, thick] (2,0) -- (3,0);
+    \node[above] at (2.5,0) {Encrypt};
+
+    % Cloud
+    \draw[thick, fill=gray!20] (3,-2) rectangle (7,2);
+    \node at (5,1.5) {Cloud Server};
+    \node at (5,0.5) {Sees: $Enc(x)$};
+    \node at (5,0) {Computes: $f(Enc(x))$};
+    \node at (5,-0.5) {Returns: $Enc(f(x))$};
+    \node[red] at (5,-1.5) {Learns: Nothing!};
+
+    % Return
+    \draw[->, thick] (7,0) -- (8,0);
+    \node[above] at (7.5,0) {Return};
+
+    % Decryption
+    \draw[thick, fill=green!20] (8,-1) rectangle (11,1);
+    \node at (9.5,0) {Result: $f(x)$};
+\end{tikzpicture}
+\caption{Fully homomorphic encryption: computing on encrypted data without decryption.  The cloud processes ciphertexts and returns an encrypted result, learning nothing about the underlying data.}
+\label{fig:ch14-fhe-cloud}
+\end{figure}
+
 
 \subsection{Gentry's Blueprint: Somewhat HE Plus Bootstrapping}
 \label{subsec:gentry-blueprint}
@@ -151,6 +184,37 @@ An interactive protocol between a prover~$P$ and a verifier~$V$ for a language $
 The zero-knowledge property is the remarkable one: the verifier learns that ``$x \in \mathcal{L}$'' but gains no additional knowledge---not even a single bit about \emph{why} the statement is true.
 
 The zero-knowledge property has a flavour that readers with a physics background may recognise.  Measuring a qubit in the computational basis yields one bit and irreversibly collapses the state, destroying access to all other information the qubit encoded.  A zero-knowledge proof achieves something analogous by design rather than physics: the verifier receives exactly one bit of information---``the statement is true''---and the simulator argument guarantees, mathematically, that no additional information can be extracted.  The mechanisms are entirely different (cryptographic simulation versus quantum collapse), but the operational consequence is the same: a hard, provable bound on what the receiving party can learn.
+
+A classical illustration of this concept is the graph 3-colorability protocol, shown in Figure~\ref{fig:ch14-zk-coloring}.  The prover knows a valid 3-coloring of a graph and convinces the verifier of this fact by repeatedly committing to a random recoloring (a permutation of the colors), letting the verifier pick an edge, and revealing only the two endpoint colors.  After sufficiently many rounds the verifier is convinced the coloring is valid, yet has learned nothing about the actual coloring itself.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Graph
+    \node[circle, draw, fill=red!50] (1) at (0,2) {1};
+    \node[circle, draw, fill=blue!50] (2) at (2,3) {2};
+    \node[circle, draw, fill=green!50] (3) at (4,2) {3};
+    \node[circle, draw, fill=blue!50] (4) at (3,0) {4};
+    \node[circle, draw, fill=red!50] (5) at (1,0) {5};
+
+    % Edges
+    \draw[thick] (1) -- (2) -- (3) -- (4) -- (5) -- (1);
+    \draw[thick] (1) -- (3);
+    \draw[thick] (2) -- (5);
+
+    % Protocol
+    \node[align=left] at (7,3) {1. Prover commits to random};
+    \node[align=left] at (7,2.5) {recoloring (permutation)};
+    \node[align=left] at (7,2) {2. Verifier picks edge};
+    \node[align=left] at (7,1.5) {3. Prover reveals those colors};
+    \node[align=left] at (7,1) {4. Verifier checks: different};
+    \node[align=left] at (7,0.5) {5. Repeat $\lambda$ times};
+
+    \node[red] at (7,-0.5) {Verifier learns nothing about coloring!};
+\end{tikzpicture}
+\caption{Zero-knowledge proof of graph 3-colorability: the prover demonstrates knowledge of a valid coloring without revealing it, by committing to random permutations and revealing only queried edges.}
+\label{fig:ch14-zk-coloring}
+\end{figure}
 
 
 \subsection{Interactive Proofs and the Fiat--Shamir Heuristic}

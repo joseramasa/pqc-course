@@ -136,6 +136,40 @@ The shortest vector $(1,0)$ has length~$1$ and is read off immediately.
 This generates the same lattice ($\det = 97\cdot 81 - 89\cdot 89 = 1$), but the basis vectors have length $> 100$.  The shortest vector is still $(1,0)$, which equals $97\mathbf{b}_1 - 89\mathbf{b}_2$---a non-trivial integer combination.
 \end{example}
 
+Figure~\ref{fig:ch06-good-bad-basis} illustrates this contrast geometrically: two bases generate the same lattice, but one reveals the short vectors immediately while the other hides them.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=1.5]
+    % Grid of lattice points
+    \foreach \i in {-3,-2,-1,0,1,2,3,4} {
+        \foreach \j in {-2,-1,0,1,2,3} {
+            \fill[black] (\i,\j) circle (1.5pt);
+        }
+    }
+
+    % Good basis
+    \draw[->, ultra thick, blue] (0,0) -- (1,0) node[below] {$\mathbf{b}_1$};
+    \draw[->, ultra thick, blue] (0,0) -- (0,1) node[left] {$\mathbf{b}_2$};
+    \node[blue] at (2.5,2.5) {\textbf{Good Basis}};
+    \node[blue] at (2.5,2) {Nearly orthogonal};
+    \node[blue] at (2.5,1.5) {Short vectors};
+
+    % Bad basis
+    \draw[->, ultra thick, red, dashed] (0,0) -- (3,1) node[right] {$\mathbf{b}_1'$};
+    \draw[->, ultra thick, red, dashed] (0,0) -- (2,3) node[above] {$\mathbf{b}_2'$};
+    \node[red] at (-1.5,2.5) {\textbf{Bad Basis}};
+    \node[red] at (-1.5,2) {Highly skewed};
+    \node[red] at (-1.5,1.5) {Long vectors};
+
+    % Fundamental domains
+    \draw[blue, thick, dotted] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;
+    \draw[red, thick, dotted] (0,0) -- (3,1) -- (5,4) -- (2,3) -- cycle;
+\end{tikzpicture}
+\caption{Same lattice, vastly different bases. Finding the good basis from the bad one is the computational problem that underpins lattice-based cryptography.}
+\label{fig:ch06-good-bad-basis}
+\end{figure}
+
 To make the notion of ``good'' and ``bad'' precise, we need quantitative measures.  Two are standard: one captures how far the basis vectors are from orthogonal, and the other measures how well the first basis vector approximates the true shortest vector.
 
 \begin{definition}[Basis Quality Measures]
@@ -222,6 +256,41 @@ Why is \svp{} hard?
 \item \textbf{No local structure:} gradient-descent methods cannot navigate a discrete set.
 \item \textbf{Basis dependence:} a good basis makes the problem trivial; a bad basis makes it exponentially hard.
 \end{itemize}
+
+Figure~\ref{fig:ch06-svp} visualises the problem: the green vector is the shortest non-zero lattice vector $\lambda_1$, and the dashed circle marks the minimum distance from the origin.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=1.2]
+    % Lattice points
+    \foreach \i in {-3,-2,-1,0,1,2,3} {
+        \foreach \j in {-2,-1,0,1,2} {
+            \pgfmathsetmacro\x{0.8*\i + 0.4*\j}
+            \pgfmathsetmacro\y{0.7*\j}
+            \fill[black] (\x,\y) circle (1.5pt);
+        }
+    }
+
+    % Origin
+    \fill[red] (0,0) circle (3pt);
+
+    % Shortest vector
+    \draw[->, ultra thick, green] (0,0) -- (0.8,0) node[below] {$\lambda_1$};
+
+    % Some longer vectors
+    \draw[->, thick, blue, dashed] (0,0) -- (0.4,0.7);
+    \draw[->, thick, blue, dashed] (0,0) -- (1.2,0.7);
+    \draw[->, thick, blue, dashed] (0,0) -- (-0.4,0.7);
+
+    % Circle showing minimum distance
+    \draw[green, thick, dashed] (0,0) circle (0.8);
+
+    \node at (3,1) {Find the green vector};
+    \node at (3,0.5) {given only a bad basis};
+\end{tikzpicture}
+\caption{The Shortest Vector Problem: find the shortest non-zero lattice vector, given only a bad basis as input.}
+\label{fig:ch06-svp}
+\end{figure}
 
 
 \subsection{The Closest Vector Problem}
@@ -545,6 +614,38 @@ Four structural reasons are commonly cited:
 \item \emph{Grover gives little:} The search space is too large for Grover's quadratic speedup to be meaningful ($2^{0.146n}$ is still exponential).
 \end{enumerate}
 \end{svgraybox}
+
+Figure~\ref{fig:ch06-quantum-speedup} compares the quantum advantage for lattice problems with the exponential speedup that Shor's algorithm provides for factoring.  The narrow gap between classical and quantum SVP curves---in contrast to the chasm between classical and quantum factoring---is the geometric reason that lattice-based cryptography survives the quantum transition.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Axes
+    \draw[->] (0,0) -- (10,0) node[right] {Dimension $n$};
+    \draw[->] (0,0) -- (0,8) node[above] {$\log_2$(Time)};
+
+    % Classical SVP
+    \draw[thick, red] plot[domain=0:9] (\x, {0.292*\x});
+    \node[red] at (7,3) {Classical SVP};
+
+    % Quantum SVP
+    \draw[thick, blue] plot[domain=0:9] (\x, {0.265*\x});
+    \node[blue] at (7,2) {Quantum SVP};
+
+    % Factoring comparison
+    \draw[thick, red, dashed] plot[domain=0:9] (\x, {0.7*\x});
+    \node[red] at (3,3) {Classical factoring};
+
+    \draw[thick, blue, dashed] plot[domain=4:9] (\x, {0.05*\x});
+    \node[blue] at (8,1) {Quantum factoring};
+
+    % Shaded region
+    \fill[yellow, opacity=0.3] (0,0) rectangle (10,0.265*9);
+    \node at (5,0.5) {Quantum advantage minimal};
+\end{tikzpicture}
+\caption{Quantum speedup for lattice problems is polynomial (narrow gap between SVP curves), not exponential as for factoring (wide gap between factoring curves).}
+\label{fig:ch06-quantum-speedup}
+\end{figure}
 
 
 \subsection{Concrete Security Estimates}

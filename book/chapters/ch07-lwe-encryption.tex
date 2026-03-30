@@ -47,6 +47,40 @@ For prime~$q$ and Gaussian error distribution with parameter $\sigma \geq 2\sqrt
 
 This equivalence is essential for cryptographic applications, which typically rely on the \emph{indistinguishability} guarantee of the decision version.
 
+Figure~\ref{fig:ch07-lwe-picture} captures the essence of \lwe{} in a single image: adding small noise to a system of linear equations transforms a trivial computation into a problem believed to be exponentially hard.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.9]
+    % Clean linear system
+    \node at (0,3) {\textbf{Without Noise:}};
+    \node[align=left] at (0,2) {
+        $3x_1 + 7x_2 = 21$ \\
+        $5x_1 + 2x_2 = 16$ \\
+        $8x_1 + 4x_2 = 28$
+    };
+    \node at (0,0.5) {Solve: $(x_1, x_2) = (2, 3)$};
+    \node[green] at (0,0) {Easy!};
+
+    % Noisy system
+    \node at (7,3) {\textbf{With Small Noise:}};
+    \node[align=left] at (7,2) {
+        $3x_1 + 7x_2 \approx 22$ \\
+        $5x_1 + 2x_2 \approx 15$ \\
+        $8x_1 + 4x_2 \approx 29$
+    };
+    \node at (7,0.5) {Find: $(x_1, x_2) = $ ???};
+    \node[red] at (7,0) {Suddenly hard!};
+
+    % Arrow
+    \draw[->, ultra thick] (3,1.5) -- (4,1.5);
+    \node[above] at (3.5,1.5) {Add};
+    \node[below] at (3.5,1.5) {noise};
+\end{tikzpicture}
+\caption{The LWE problem: small noise transforms easy linear algebra into a hard problem.}
+\label{fig:ch07-lwe-picture}
+\end{figure}
+
 
 \subsection{Parameters}
 \label{subsec:lwe-params}
@@ -179,6 +213,45 @@ If decision-\lwe{}$(n,q,\chi)$ is hard, Regev's scheme is IND-CPA secure\index{I
 \begin{proof}[Proof sketch]
 The public key $(\mathbf{A}, \mathbf{b})$ consists of \lwe{} samples.  By the decision-\lwe{} assumption, these are indistinguishable from uniform.  If $\mathbf{b}$ is uniform, then the ciphertext carries no information about $\mu$, so no adversary can distinguish encryptions of $0$ from encryptions of $1$.
 \end{proof}
+
+Figure~\ref{fig:ch07-encryption-geometry} illustrates the geometric picture behind Regev's encryption.  The ciphertext lands in a noise cloud around the secret point; with the secret key, decoding is straightforward, but without it one must solve LWE.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Secret point
+    \fill[red] (3,2) circle (3pt);
+    \node[above] at (3,2) {Secret $\mathbf{s}$};
+
+    % Noise cloud
+    \foreach \i in {1,...,40} {
+        \pgfmathsetmacro\angle{random*360}
+        \pgfmathsetmacro\radius{random*0.8}
+        \pgfmathsetmacro\x{3 + \radius*cos(\angle)}
+        \pgfmathsetmacro\y{2 + \radius*sin(\angle)}
+        \fill[blue!50] (\x,\y) circle (2pt);
+    }
+
+    % Message encoding
+    \draw[thick, green] (3,2) circle (1.5);
+    \node[green] at (5,3) {Message = 0};
+
+    \draw[thick, orange] (3,2) circle (2.5);
+    \node[orange] at (5,1) {Message = 1};
+
+    % Ciphertext point
+    \fill[black] (3.4,2.6) circle (3pt);
+    \node[right] at (3.4,2.6) {Ciphertext};
+
+    % Legend
+    \node[align=left] at (8,2) {
+        With secret: Easy to decode\\
+        Without: Must solve LWE
+    };
+\end{tikzpicture}
+\caption{LWE encryption geometry: messages are encoded as distances from the secret point, hidden within noise clouds.}
+\label{fig:ch07-encryption-geometry}
+\end{figure}
 
 Regev's scheme demonstrates feasibility but is not practical: public keys are $\bigO(n^2 \log q)$ bits.  The route to practical schemes proceeds through two steps: structured lattices (Sect.~\ref{sec:ring-lwe}--\ref{sec:module-lwe}) and the Fujisaki--Okamoto transform (Sect.~\ref{sec:fo-transform}).
 

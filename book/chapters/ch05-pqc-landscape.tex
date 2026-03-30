@@ -188,7 +188,7 @@ The implication is stark: \emph{you cannot deploy QKD without also deploying PQC
 
 QKD is justified when \emph{all} of the following hold: the data value is extreme, the link is point-to-point between fixed facilities, the distance is within fiber reach, the budget supports dedicated quantum infrastructure, and the threat model includes adversaries with potentially unbounded future computation.  In practice, this means a small number of government and critical-infrastructure links.
 
-For the remaining 99.9\% of cryptographic applications---web browsing, email, software signing, cloud services, mobile devices, IoT, blockchain---PQC is the only viable technology.  Table~\ref{tab:qkd-pqc-use} provides a concise summary.
+For the remaining 99.9\% of cryptographic applications---web browsing, email, software signing, cloud services, mobile devices, IoT, blockchain---PQC is the only viable technology.  Table~\ref{tab:qkd-pqc-use} provides a concise summary, and the decision tree in Figure~\ref{fig:ch05-qkd-decision} formalises the evaluation: QKD is warranted only when every branch of the tree leads to ``yes.''
 
 \begin{table}[t]
 \caption{Technology applicability by use case}
@@ -211,6 +211,65 @@ Nuclear / diplomatic      & Yes   & Yes & QKD + PQC hybrid \\
 \textbf{The engineering reality.}
 QKD is elegant physics with rigorous security proofs, but engineering reality is unforgiving.  PQC is less exotic, yet it solves the actual problem for the vast majority of use cases: a software update that deploys in minutes, works over existing networks, supports signatures, and costs nothing beyond development effort.  The two technologies are complementary layers, not competing alternatives.
 \end{svgraybox}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    decision/.style={diamond, draw, aspect=2, inner sep=0pt, text width=3cm, align=center},
+    block/.style={rectangle, draw, text width=3cm, align=center, minimum height=1cm},
+    outcome/.style={rectangle, draw, fill=green!20, text width=2.5cm, align=center},
+    scale=0.8
+]
+    % Start
+    \node[block] (start) at (0,0) {Security Requirement};
+
+    % First decision
+    \node[decision] (d1) at (0,-2.5) {Need signatures?};
+    \draw[->] (start) -- (d1);
+
+    % Signatures needed - PQC only
+    \node[outcome] (pqc1) at (4,-2.5) {PQC Required};
+    \draw[->] (d1) -- node[above] {Yes} (pqc1);
+
+    % No signatures needed
+    \node[decision] (d2) at (0,-5) {Fixed endpoints?};
+    \draw[->] (d1) -- node[right] {No} (d2);
+
+    % Not fixed - PQC
+    \node[outcome] (pqc2) at (4,-5) {PQC Only};
+    \draw[->] (d2) -- node[above] {No} (pqc2);
+
+    % Fixed endpoints
+    \node[decision] (d3) at (0,-7.5) {Distance <100km?};
+    \draw[->] (d2) -- node[right] {Yes} (d3);
+
+    % Too far - PQC
+    \node[outcome] (pqc3) at (4,-7.5) {PQC Only};
+    \draw[->] (d3) -- node[above] {No} (pqc3);
+
+    % Distance OK
+    \node[decision] (d4) at (0,-10) {Budget >\$100k/link?};
+    \draw[->] (d3) -- node[right] {Yes} (d4);
+
+    % No budget - PQC
+    \node[outcome] (pqc4) at (4,-10) {PQC Only};
+    \draw[->] (d4) -- node[above] {No} (pqc4);
+
+    % Has budget
+    \node[decision] (d5) at (0,-12.5) {Extreme value?};
+    \draw[->] (d4) -- node[right] {Yes} (d5);
+
+    % Not extreme - PQC preferred
+    \node[outcome] (pqc5) at (4,-12.5) {PQC Preferred};
+    \draw[->] (d5) -- node[above] {No} (pqc5);
+
+    % Extreme value - Consider QKD
+    \node[outcome, fill=yellow!20] (qkd) at (-4,-12.5) {Consider QKD\\+PQC};
+    \draw[->] (d5) -- node[above] {Yes} (qkd);
+\end{tikzpicture}
+\caption{Decision tree for evaluating QKD viability.  Only when every constraint---signatures not required, fixed endpoints, short distance, sufficient budget, and extreme data value---is satisfied does QKD merit consideration, and even then it must be paired with PQC.}
+\label{fig:ch05-qkd-decision}
+\end{figure}
 
 
 %% ================================================================
