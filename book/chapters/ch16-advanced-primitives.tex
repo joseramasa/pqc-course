@@ -524,6 +524,57 @@ Functional encryption & Partial & Limited & General functions \\
 \end{table}
 
 
+\section{Cryptography for Machine Learning}
+\label{sec:crypto-ml}
+
+\index{machine learning!cryptographic protection}
+The advanced primitives surveyed in this chapter---FHE, zero-knowledge proofs, MPC, and the lattice-based constructions above---were developed to protect \emph{data}.  But the most valuable digital assets of the current decade are not databases or documents; they are trained machine-learning models.  A large language model may cost tens of millions of dollars to train, yet it can be queried through an API that, without cryptographic protection, leaks enough information for an adversary to reconstruct the model, poison its behaviour, or extract the private data on which it was trained.  The intersection of cryptography and machine learning is no longer a curiosity---it is a pressing deployment problem, and the primitives introduced earlier in this chapter are its primary tools.
+
+\subsection{The Threat Landscape}
+\label{subsec:ml-threats}
+
+\index{model stealing}\index{adversarial examples}\index{training data extraction}
+Four classes of attack define the threat model for deployed ML systems, and each admits a cryptographic defence:
+
+\textbf{Model stealing.}  An adversary with query access to a model submits carefully chosen inputs and observes the outputs.  With enough queries---often surprisingly few---the adversary can train a surrogate model that approximates the original with high fidelity.  The economic damage is direct: the adversary obtains a multi-million-dollar model for the cost of API calls.  Cryptographic defence: \emph{secure inference} via FHE or MPC, where the model's internal computations are never exposed to the querier, even in encrypted form.  The FHE-based approach (Sect.~\ref{sec:fhe}) encrypts the model weights and evaluates the neural network homomorphically on encrypted inputs; the querier receives only the encrypted output, which it decrypts with its own key.  Current FHE-based inference is practical for small models (logistic regression, decision trees, shallow networks) but remains prohibitively slow for large transformer architectures---a gap that bootstrapping improvements are steadily closing.
+
+\textbf{Data poisoning and adversarial examples.}  An adversary who can inject malicious samples into the training set can embed hidden triggers (backdoors) that cause the model to behave predictably on attacker-chosen inputs while performing normally on clean data.  At inference time, adversarial examples---inputs crafted to fool the model into misclassification---exploit the same fragility from a different angle.  Cryptographic defence: \emph{verified training} via zero-knowledge proofs (Sect.~\ref{sec:zkp}).  The model trainer produces a ZK proof that the training process followed a specified protocol on a committed dataset, without revealing the data itself.  Verifiers can check the proof to confirm that no poisoning occurred.  For adversarial robustness at inference time, \emph{cryptographic commitments} can bind model outputs to specific inputs, enabling auditable predictions---though certified robustness against all adversarial perturbations remains an open problem at the intersection of optimisation theory and cryptography.
+
+\textbf{Training data extraction.}  Large models memorise fragments of their training data, and targeted prompting can extract verbatim passages---including personally identifiable information, copyrighted text, or proprietary data that was never intended for disclosure.  Cryptographic defence: \emph{private learning} combines differential privacy\index{differential privacy} with cryptographic protocols.  Differential privacy injects calibrated noise during training so that no single training example significantly influences the model's outputs; MPC-based training (Sect.~\ref{sec:mpc}) allows multiple data holders to contribute training data without any party---including the model trainer---seeing another party's raw data.  The combination provides a formal privacy guarantee backed by both information-theoretic and computational assumptions.
+
+Table~\ref{tab:ml-crypto-defences} summarises the mapping from ML attacks to cryptographic defences.
+
+\begin{table}[t]
+\caption{Cryptographic defences for machine-learning systems\index{machine learning!defence table}}
+\label{tab:ml-crypto-defences}
+\begin{tabular}{p{3cm}p{3.5cm}p{3cm}p{2.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Attack class} & \textbf{Cryptographic defence} & \textbf{Primitive} & \textbf{Maturity} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Model extraction & Secure inference & FHE, MPC & Prototypes \\
+Data poisoning & Verified training & Zero-knowledge proofs & Research \\
+Adversarial examples & Certified robustness & Commitments & Research \\
+Privacy leakage & Private learning & DP + MPC & Deployed \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{AI-Assisted Cryptanalysis}
+\label{subsec:ai-cryptanalysis}
+
+\index{cryptanalysis!AI-assisted}
+The relationship between cryptography and machine learning runs in both directions.  ML techniques are increasingly applied \emph{to} cryptanalysis, and post-quantum schemes are not immune.
+
+Side-channel analysis was among the first beneficiaries.  Deep-learning classifiers trained on power or electromagnetic traces can recover secret keys from protected implementations with fewer traces than classical statistical methods (CPA, template attacks), because they learn non-linear leakage models that Hamming-weight assumptions miss~\cite{MaghrebiBrierDanger2019}.  For PQC hardware, this means that the masking-order calculations in Chapter~\ref{ch:hardware-security} are conservative: an ML-enhanced attacker may need fewer traces than the theoretically predicted minimum for a given masking order, particularly when the implementation has subtle leakage beyond the assumed power model.
+
+Beyond side channels, ML is being applied to lattice cryptanalysis itself: learning lattice-sieving heuristics, optimising BKZ block strategies, and searching for structural weaknesses in new algebraic constructions.  The results so far are incremental---no ML-driven break of a NIST-standardised parameter set---but the trajectory suggests that ML will become a standard tool in the cryptanalyst's repertoire, accelerating the discovery of weaknesses and widening the gap between ``provably hard'' and ``hard in practice.''
+
+The implication for post-quantum cryptography is a familiar one, stated with renewed force: security margins matter.  Parameter sets should be chosen not merely to resist today's best algorithms but to absorb the accelerating pace of both classical and ML-assisted cryptanalysis.  The lattice-reduction evolution documented in Table~\ref{tab:lattice-reduction-evolution} of Chapter~\ref{ch:hardware-security} illustrates the trend; ML-assisted optimisation is likely to steepen it.
+
+The primitives in this chapter---FHE for secure inference, ZK proofs for verified computation, MPC for private training---are the building blocks of a future where machine-learning systems are both cryptographically protected and cryptographically accountable.  The constructions are mature enough for targeted deployment today; making them efficient enough for large-scale ML workloads is one of the most consequential open problems at the intersection of cryptography and computer science.
+
+
 %% ================================================================
 \section*{Problems}
 \addcontentsline{toc}{section}{Problems}

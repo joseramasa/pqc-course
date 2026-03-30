@@ -257,6 +257,8 @@ where the last step follows from Euler's theorem\index{Euler's theorem}: $m^{\ph
 
 Textbook RSA as described above is \emph{insecure} in practice: it is deterministic (identical plaintexts yield identical ciphertexts) and malleable (given $c = m^e$, an adversary can compute $(2m)^e = 2^e \cdot c$).  Real deployments use \emph{Optimal Asymmetric Encryption Padding} (OAEP)\index{OAEP}, which randomises the input and achieves chosen-ciphertext security in the random oracle model.
 
+The reason RSA works at all is the staggering scale of the numbers involved.  An RSA-2048\index{RSA!RSA-2048 scale} modulus~$n$ has approximately 617 decimal digits; the number of possible values is $2^{2048} \approx 10^{617}$.  Even the na\"ive strategy of trial division would need to check roughly $\sqrt{n} \approx 10^{308}$ candidate factors.  To appreciate how absurd this search space is, consider three cosmological benchmarks: the observable universe contains roughly $10^{80}$ atoms, only about $10^{17}$ seconds have elapsed since the Big Bang, and the fastest classical supercomputers perform on the order of $10^{18}$ operations per second.  If every atom in the universe were a processor that had been testing one candidate factor per second since the beginning of time, the total work would amount to approximately $10^{115}$ trials---a number that does not even begin to dent the $10^{308}$ candidates.  Trial division, of course, is not how real factoring algorithms work; the General Number Field Sieve is vastly more efficient.  But even it runs in sub-exponential time, and no classical algorithm has come close to factoring a 2048-bit modulus.  The security margin, at least against classical adversaries, is immense.
+
 \subsection{Diffie--Hellman Key Exchange}
 \label{subsec:dh}
 
@@ -308,7 +310,25 @@ The group law is defined geometrically: to add two distinct points $P$ and $Q$, 
 \end{tabular}
 \end{table}
 
-The dramatic key-size advantage (Table~\ref{tab:key-sizes}) has made ECC the dominant choice for modern protocols: TLS~1.3 mandates ECDHE key exchange (typically over Curve25519 or P-256) and supports ECDSA signatures.
+The dramatic key-size advantage (Table~\ref{tab:key-sizes}) has made ECC the dominant choice for modern protocols: TLS~1.3 mandates ECDHE key exchange (typically over Curve25519 or P-256) and supports ECDSA signatures.  The abstract definition above leaves the curve parameters unspecified; in practice, three standardised curves dominate deployed systems.
+
+\begin{example}[Curves in the Wild]
+\label{ex:famous-curves}
+\index{secp256k1}\index{Curve25519}\index{NIST P-256}
+The Bitcoin protocol signs every transaction with ECDSA over \textbf{secp256k1}\index{elliptic curve!secp256k1}, a Koblitz curve with the deceptively simple Weierstrass equation
+\begin{equation}
+y^2 = x^3 + 7 \quad \text{over } \F_p, \qquad p = 2^{256} - 2^{32} - 2^9 - 2^8 - 2^7 - 2^6 - 2^4 - 1.
+\end{equation}
+Signal, SSH, and most modern TLS deployments prefer \textbf{Curve25519}\index{elliptic curve!Curve25519}, specified in Montgomery form as
+\begin{equation}
+v^2 = u^3 + 486662\,u^2 + u \quad \text{over } \F_{2^{255} - 19},
+\end{equation}
+which is equivalent to a Weierstrass curve but admits a constant-time ladder algorithm that resists side-channel attacks.  Government and enterprise systems typically use \textbf{NIST P-256}\index{elliptic curve!NIST P-256}, defined by
+\begin{equation}
+y^2 = x^3 - 3x + b \quad \text{over } \F_p,
+\end{equation}
+where $b$ and $p$ are standardised 256-bit values.  Despite their different forms, all three curves target the 128-bit security level, and all three fall to Shor's algorithm on a sufficiently large quantum computer.
+\end{example}
 
 \begin{svgraybox}
 \textbf{The hybrid approach.}  In practice, public-key cryptography is never used to encrypt bulk data directly---it is too slow.  Instead, modern protocols employ a \emph{hybrid} design: an asymmetric algorithm (ECDHE, RSA) establishes a shared symmetric key, and a fast symmetric cipher (AES-GCM) encrypts the actual data.  This division of labour---asymmetric for trust establishment, symmetric for throughput---pervades every protocol discussed in this chapter.

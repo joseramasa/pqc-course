@@ -407,7 +407,130 @@ With a 1{,}500-byte MTU, the classical handshake fits in $\sim\!2$ TCP segments;
 \item \textbf{Hybrid schemes.}  During the transition period, using a compact classical algorithm alongside PQC (e.g., X25519~+~ML-KEM-768) adds only $\sim\!32$~bytes over the PQC-only cost while providing backward security.
 \end{itemize}
 
-Larger artefacts demand not only bandwidth but also confidence: a single incorrect coefficient in a public key renders the scheme insecure.  The final section addresses how implementations are tested, validated, and formally verified.
+Larger artefacts demand more bandwidth, but how much \emph{time} do they cost?  Byte counts alone do not answer the question that every systems architect eventually asks: will this be fast enough?  The next section moves from sizes to wall-clock performance, examining where post-quantum operations spend their cycles and what hardware and software techniques bring the overhead within acceptable bounds.
+
+
+%% ================================================================
+\section{Performance in Practice}
+\label{sec:performance}
+
+The size tables of the previous section paint only half the picture.  A 1{,}184-byte public key is meaningless if the encapsulation takes ten milliseconds on the target hardware---or irrelevant if it takes sixty microseconds.  Performance determines whether a post-quantum algorithm is deployable, and performance depends on the full stack: polynomial arithmetic at the bottom, protocol-level handshakes at the top, and the hardware in between.
+
+\subsection{TLS Handshake Timings}
+\label{subsec:tls-timings}
+
+\index{TLS!handshake timing}Consider a TLS~1.3 handshake---the most performance-sensitive cryptographic ceremony on the internet.  Each phase involves distinct operations, and replacing classical primitives with post-quantum ones affects each phase differently.
+
+\begin{table}[t]
+\caption{TLS~1.3 handshake timing breakdown (ms, Intel Xeon server, 100\,Mbps link)}
+\label{tab:tls-timing}
+\begin{tabular}{p{3.5cm}rrrr}
+\hline\noalign{\smallskip}
+\textbf{Phase} & \textbf{ECDH} & \textbf{ML-KEM} & \textbf{Hybrid} & \textbf{Overhead} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+ClientHello creation   & 0.3 & 0.1 & 0.4 & 33\% \\
+ServerHello processing & 0.7 & 0.1 & 0.8 & 14\% \\
+Key derivation         & 0.2 & 0.1 & 0.3 & 50\% \\
+Certificate verify     & 1.2 & 1.8 & 3.0 & 150\% \\
+Application data start & 2.4 & 2.1 & 4.5 & 88\% \\
+\noalign{\smallskip}\hline\noalign{\smallskip}
+\textbf{Total}         & \textbf{2.4} & \textbf{2.1} & \textbf{4.5} & \textbf{88\%} \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+Two features of Table~\ref{tab:tls-timing} stand out.  First, pure ML-KEM key exchange is \emph{faster} than ECDH---lattice encapsulation involves only NTT multiplications, which are cheaper than elliptic-curve scalar multiplication.  The bottleneck is certificate verification, where ML-DSA signatures are slower to verify than Ed25519.  Second, the hybrid column (classical + post-quantum in parallel) roughly doubles the total, because both algorithms execute sequentially.  In practice, session resumption and 0-RTT data amortise this cost: only the \emph{first} handshake to a new server pays the full price.
+
+On mobile networks with 50--100\,ms round-trip latency, the computational overhead of 2--3\,ms is negligible compared to the network delay.  What hurts mobile connections is not computation but the larger certificate chain requiring additional TCP segments, as quantified in \cref{subsec:tls-impact}.
+
+\subsection{Hardware Acceleration}
+\label{subsec:hw-accel}
+
+\index{FPGA!PQC acceleration}\index{NTT!hardware}\index{SIMD}When software performance is insufficient---or when the deployment target is an HSM, a network card, or an embedded controller---dedicated hardware closes the gap.  Three acceleration strategies have emerged, each targeting a different layer of the computation.
+
+\textbf{FPGA acceleration.}\quad
+Field-programmable gate arrays\index{FPGA} can implement the NTT as a deeply pipelined datapath, processing one butterfly per clock cycle.  Table~\ref{tab:fpga-accel} summarises representative results on mid-range Xilinx FPGAs.
+
+\begin{table}[t]
+\caption{FPGA implementations of NIST PQC standards (mid-range Xilinx devices)}
+\label{tab:fpga-accel}
+\begin{tabular}{p{2.8cm}rrrr}
+\hline\noalign{\smallskip}
+\textbf{Algorithm} & \textbf{LUTs} & \textbf{BRAM (KB)} & \textbf{Freq.\ (MHz)} & \textbf{Speedup vs.\ SW} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+ML-KEM-768\cite{FIPS203}   & 15K & 128 & 200 & $25\times$ \\
+ML-DSA-65\cite{FIPS204}    & 22K & 256 & 150 & $18\times$ \\
+SLH-DSA-128f\cite{FIPS205} & 12K &  64 & 250 & $10\times$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The $25\times$ speedup for ML-KEM comes almost entirely from parallelising the NTT: where a CPU executes butterflies sequentially, the FPGA instantiates multiple butterfly units operating in parallel on separate polynomial coefficients.  ASIC implementations push further---ten to one hundred times more area-efficient than FPGAs---but the non-recurring engineering cost restricts them to high-volume products such as smartphone SoCs and cloud HSMs.
+
+\textbf{SIMD vectorisation.}\quad
+On commodity server hardware, SIMD instruction sets---AVX2 on x86-64, NEON on ARM---offer the most accessible speedup.  The key insight is that NTT butterflies and coefficient-wise operations are embarrassingly parallel across coefficients.
+
+\begin{table}[t]
+\caption{SIMD speedup for polynomial operations (relative to scalar baseline)}
+\label{tab:simd-speedup}
+\begin{tabular}{p{4cm}rrr}
+\hline\noalign{\smallskip}
+\textbf{Operation} & \textbf{Scalar} & \textbf{AVX2} & \textbf{AVX-512} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Polynomial addition     & $1\times$ & $7.2\times$ & $14.1\times$ \\
+Coefficient reduction   & $1\times$ & $5.8\times$ & $11.3\times$ \\
+NTT butterfly           & $1\times$ & $3.2\times$ & $5.9\times$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+AVX2 processes sixteen 16-bit coefficients per instruction; AVX-512 doubles that to thirty-two.  The NTT butterfly benefits less than pure addition because it interleaves multiplication and reduction, which limits instruction-level parallelism.  The NIST reference implementations of ML-KEM and ML-DSA include optimised AVX2 code paths that reduce encapsulation time to under 30\,$\mu$s on modern server CPUs~\cite{FIPS203, FIPS204}.
+
+\textbf{Cache-optimised NTT.}\quad\index{NTT!cache optimisation}
+Even without SIMD, restructuring the NTT for cache locality yields substantial gains.  A naive recursive NTT on 256 coefficients suffers L1 cache miss rates around 45\%; an iterative in-place NTT with bit-reversed indexing drops this to 8\%, and a cache-line-aligned implementation reduces it to 2\%.  Combined with SIMD, the fully optimised NTT runs 5--6$\times$ faster than the naive version, entirely through memory hierarchy exploitation.
+
+\subsection{IoT and Constrained Devices}
+\label{subsec:iot-feasibility}
+
+\index{IoT!PQC feasibility}\index{ARM Cortex-M4}The acceleration techniques above assume server-class or at least desktop hardware.  Embedded systems---smart cards, industrial sensors, medical devices---face a harder question: can post-quantum algorithms run \emph{at all} within the available memory and energy budget?
+
+The ARM Cortex-M4 has become the de facto benchmarking platform for constrained PQC, with its 168\,MHz clock, single-cycle multiply, and 256\,KB of flash paired with 64--192\,KB of SRAM.  Table~\ref{tab:iot-feasibility} maps PQC memory requirements against typical device classes.
+
+\begin{table}[t]
+\caption{PQC feasibility on constrained devices (RAM requirements vs.\ availability)}
+\label{tab:iot-feasibility}
+\begin{tabular}{p{3cm}rrrr}
+\hline\noalign{\smallskip}
+\textbf{Device class} & \textbf{RAM} & \textbf{ML-KEM-512} & \textbf{ML-DSA-44} & \textbf{Feasible?} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Microcontroller     & 32--256\,KB & 2\,KB & 3\,KB & Yes \\
+Smart card          & 8--32\,KB   & 2\,KB & 3\,KB & Marginal \\
+RFID tag            & 1--8\,KB    & 2\,KB & 3\,KB & No \\
+Sensor node         & 64--512\,KB & 2\,KB & 3\,KB & Yes \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The 2--3\,KB RAM figures are deceptively small: they represent \emph{peak working memory} during the operation, but the implementation also needs space for the public key, the ciphertext, stack frames, and application data.  On an ARM Cortex-M4 running at 168\,MHz, ML-KEM-512 key generation completes in approximately 0.5\,ms and encapsulation in 0.6\,ms---fast enough for most IoT authentication scenarios~\cite{FIPS203}.
+
+Energy is the tighter constraint.  NTT arithmetic is energy-efficient (integer multiplies and adds), but the larger messages that PQC produces increase radio transmission time, and radio is the dominant energy consumer on wireless sensor nodes.  Measurements on LoRaWAN-class devices show a 20--50\% increase in per-message energy consumption, driven almost entirely by the extra bytes on the air rather than by computation.  For devices on coin-cell batteries with multi-year lifetimes, this is a serious design constraint that may require architectural changes such as gateway-mediated PQC (where the sensor uses lightweight symmetric crypto to a nearby gateway, and the gateway handles the PQC handshake to the cloud).
+
+\subsection{Case Studies}
+\label{subsec:perf-case-studies}
+
+\textbf{High-frequency trading.}\quad\index{high-frequency trading}
+A financial exchange evaluated PQC for its matching-engine interconnect, where every microsecond of added latency translates directly to lost revenue.  The existing system authenticated messages using ECDSA with a measured end-to-end latency of 2.3\,$\mu$s.  Replacing ECDSA with ML-DSA on commodity hardware increased latency to 8.7\,$\mu$s---unacceptable for the firm's trading strategy.
+
+The engineering team adopted a two-pronged approach.  First, they deployed custom FPGA accelerator cards with dedicated NTT pipelines and precomputed key material held in on-chip SRAM, reducing ML-DSA signature verification to under 1\,$\mu$s.  Second, they restructured the protocol to precompute session-level authentication tokens during low-activity periods, so that individual trade messages carried only a lightweight symmetric MAC during peak hours.  The resulting hybrid system achieved 3.1\,$\mu$s average latency---a 35\% increase over the classical baseline, which the firm's risk committee accepted as the cost of quantum resilience.  The hardware investment was substantial, but for an operation where a single day's latency advantage covers the cost, it was straightforward to justify.
+
+\textbf{IoT sensor network.}\quad\index{IoT!sensor network}
+A water-utility company deployed 12{,}000 environmental sensors across a metropolitan area, each reporting hourly readings over a LoRaWAN mesh.  The sensors ran on CR2032 coin cells with a five-year target lifetime, leaving no margin for the energy overhead of full PQC on every transmission.
+
+The solution was a tiered architecture.  Each sensor authenticated to its nearest gateway using AES-128-GCM with a pre-shared key rotated monthly.  The gateways---mains-powered Cortex-A53 devices with ample RAM---ran ML-KEM-768 for key exchange and ML-DSA-65 for firmware-update authentication when communicating with the cloud backend.  Sensor data was aggregated at the gateway and forwarded in batch, amortising the PQC handshake cost over hundreds of readings.  Gateway CPU utilisation rose by 40\%, and cloud-bound bandwidth increased by 60\%, but sensor battery life was unaffected.  The approach sacrificed end-to-end post-quantum security between sensor and cloud---an acceptable trade-off, since the threat model assumed the short-range LoRaWAN links were not targets for harvest-now-decrypt-later attacks.
+
+These two cases illustrate a general principle: post-quantum performance is not a single number but a system-design problem.  The right answer depends on the threat model, the hardware budget, and the willingness to redesign protocols around the new cost structure.
+
+With performance bounds established and optimisation strategies in hand, the remaining question is whether the implementation is \emph{correct}.  A fast but buggy implementation is worse than a slow correct one.  The next section addresses testing, validation, and formal verification.
 
 
 %% ================================================================

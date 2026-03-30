@@ -63,6 +63,32 @@ Isogeny     & Isogeny computation      & Small     & Slow      & $\sim$15  & SIK
 \end{tabular}
 \end{table}
 
+What the comparative overview does not capture is why one family has come to dominate the standardised landscape.  Table~\ref{tab:lattice-scorecard} applies a finer-grained scorecard across seven criteria that any practical cryptosystem must satisfy simultaneously.  Lattice-based schemes are the only family that scores well on \emph{every} criterion---not best on each, but adequate-to-excellent on all---which is precisely why NIST selected lattice-based constructions for both its KEM and its primary signature standard\index{lattice-based cryptography!advantages}.
+
+\begin{table}[t]
+\caption{Why lattices dominate: a seven-criterion scorecard across PQC families}
+\label{tab:lattice-scorecard}
+\begin{tabular}{p{3.2cm}cccc}
+\hline\noalign{\smallskip}
+\textbf{Criterion} & \textbf{Lattice} & \textbf{Code} & \textbf{Hash} & \textbf{Multivariate} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Key encapsulation       & \checkmark & \checkmark & ---        & \checkmark \\
+Digital signatures       & \checkmark & ---        & \checkmark & \checkmark \\
+Key exchange             & \checkmark & ---        & ---        & --- \\
+Advanced protocols       & \checkmark & ---        & ---        & --- \\
+Reasonable key sizes     & \checkmark & ---        & \checkmark & \checkmark \\
+Fast operations          & \checkmark & \checkmark & \checkmark & --- \\
+Conservative security    & \checkmark & \checkmark & \checkmark & --- \\
+\noalign{\smallskip}\hline\noalign{\smallskip}
+\textbf{Score}           & 7/7        & 3/7        & 4/7        & 3/7 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+No other family achieves this breadth.  Code-based schemes lack signatures and carry large keys; hash-based schemes are signature-only and cannot participate in key exchange or advanced protocols; multivariate schemes have been plagued by structural attacks and offer neither conservative security nor fast operations at competitive parameters.  Isogeny-based cryptography, which once promised the smallest keys of any family, is omitted entirely---after the SIKE collapse (Chap.~\ref{ch:other-approaches}), no isogeny-based scheme is under active standardisation.  The scorecard makes visible a fact that the single-axis comparison in Table~\ref{tab:family-comparison} obscures: cryptographic standards must be \emph{simultaneously} good at many things, and lattice-based schemes are uniquely positioned in this regard.
+
+How these families were tested, compared, and ultimately winnowed down to a handful of federal standards is the subject of the next section.
+
 
 %% ================================================================
 \section{The NIST Standardization Process}
@@ -492,6 +518,11 @@ The most critical dimension is \emph{side-channel resistance}: does the algorith
 Maturity is the criterion that cannot be bought, accelerated, or simulated.  It is the difference between a scheme that has survived a decade of scrutiny from cryptanalysts, side-channel experts, formal-methods researchers, and production engineers---and one that has survived only the review of its own authors.
 
 The relevant metric is not merely the number of years since publication, but the \emph{diversity and intensity} of the analysis the scheme has received.  A scheme examined only by algebraic cryptanalysts may harbour implementation vulnerabilities that a side-channel expert would spot immediately; one studied only in academia may contain engineering assumptions that shatter on contact with production workloads.  ML-KEM and ML-DSA have benefited from seven years of public scrutiny within the NIST process, adversarial implementation in dozens of libraries, and large-scale deployment experiments by Google, Cloudflare, and others.  That operational history surfaces classes of bugs---memory safety issues, platform-specific timing leaks, interoperability failures---that no amount of paper analysis can anticipate.  Classic McEliece and SLH-DSA carry even longer pedigrees, their underlying problems dating to the late 1970s.  At the other extreme, a newly proposed scheme, however elegant, carries a maturity debt that only time and diverse adversarial attention can repay.
+
+\begin{svgraybox}
+\textbf{The 20-year cryptanalytic rule\index{20-year rule}.}
+An informal but widely respected heuristic in the post-quantum community holds that no cryptographic approach should be trusted for high-assurance deployment with fewer than twenty years of serious cryptanalytic study.  The reasoning is cumulative: specialised attack techniques take time to mature; security--performance tradeoffs become clear only after sustained parameter exploration; side-channel vulnerabilities emerge only after diverse implementations on diverse hardware; and a growing research community brings more creative attack attempts.  Twenty years is not a magic number---it is the empirically observed timescale over which all of these processes have historically converged.  By this measure, lattice problems ($\sim$30 years), syndrome decoding ($\sim$45 years), and hash-function security ($\sim$45 years) have earned their place; multivariate schemes ($\sim$35 years of the general problem, but far less for any specific scheme) remain borderline; and isogeny-based constructions were at roughly half the threshold when SIKE collapsed.
+\end{svgraybox}
 
 \subsection{Flexibility}
 \label{subsec:eval-flexibility}

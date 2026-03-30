@@ -439,6 +439,28 @@ ML-DSA signing uses rejection sampling\index{rejection sampling!timing channel}:
 
 For ML-DSA-65, the expected number of iterations is 4--7, with significant variance.  The attacker does not need to determine the exact count.  The total signing time is proportional to the iteration count and is trivially measurable---even remotely, via network timing.  With $10^4$--$10^5$ timed signatures, statistical analysis can distinguish keys.
 
+The vulnerability is worth seeing in pseudocode, because it looks deceptively innocuous:
+
+\begin{algorithm}[h]
+\caption{ML-DSA signing with timing leak\index{ML-DSA!timing leak}}
+\label{alg:mldsa-timing-leak}
+\begin{algorithmic}[1]
+\Require Secret key $(\mathbf{s}_1, \mathbf{s}_2)$, message $\mu$
+\State $\text{attempts} \gets 0$
+\Repeat
+    \State $\text{attempts} \gets \text{attempts} + 1$
+    \State Sample masking vector $\mathbf{y} \gets D_{\gamma_1}^{\ell}$
+    \State Compute $\mathbf{w} \gets \mathbf{A}\mathbf{y}$
+    \State Derive challenge $c \gets H(\mu \| \mathbf{w}_1)$
+    \State Compute $\mathbf{z} \gets \mathbf{y} + c\,\mathbf{s}_1$ \Comment{Secret enters here}
+    \State Check $\|\mathbf{z}\|_\infty < \gamma_1 - \beta$ \Comment{Rejection depends on $\mathbf{s}_1$}
+\Until{all conditions satisfied}
+\State \Return $(\mathbf{z}, \mathbf{h}, c)$ \Comment{Total time $\propto$ \texttt{attempts}}
+\end{algorithmic}
+\end{algorithm}
+
+The variable \texttt{attempts}\index{rejection sampling!iteration count} is the timing channel.  Keys with larger coefficients in $\mathbf{s}_1$ cause more rejections, increasing the iteration count.  The attacker's procedure is straightforward: collect timing measurements over $10^4$--$10^5$ signatures, compute per-message timing statistics, correlate timing variation with known message structure, and recover secret-key bits through the resulting bias.  The attack is practical---it requires patience, not sophistication.
+
 This is not a bug in the implementation; it is a structural property of the algorithm.  The only countermeasure is \emph{constant-time padding}\index{constant-time padding}: always execute $N_{\max}$ iterations, discarding the extra results.  The value $N_{\max}$ must be calibrated so that $\Pr[\text{iterations} > N_{\max}] < 2^{-128}$.  All iterations---including the discarded ones---must write to the output buffer unconditionally.  Only the valid result is selected at the end via a masked multiplexer.
 
 The constant-time padding has a severe performance cost.  For ML-DSA-65 with $p \approx 0.2$ success probability per iteration, the geometric distribution gives $\Pr[\text{iterations} > N] = (1-p)^N = 0.8^N$.  To achieve $0.8^{N_{\max}} < 2^{-128}$, we need $N_{\max} > 128 / \log_2(1/0.8) \approx 398$ iterations.  Since the expected number of iterations is only $1/p = 5$, the worst-case latency exceeds the average by a factor of roughly 80.  This is the price of constant-time execution for a rejection-sampling-based scheme, and it is one of the principal engineering arguments for preferring ML-KEM (which has no rejection sampling) when latency-sensitive hardware is a priority.
@@ -742,6 +764,26 @@ For PQC specifically, several open questions remain in the certification landsca
 \item \textbf{Hash-based signature volume:} Whether the SCA evaluation for SLH-DSA should account for the cumulative trace volume over the key's expected lifetime, not just a single operation.
 \item \textbf{DRBG-PQC composition:} Whether the DRBG and PQC modules can be certified separately or must be evaluated as a composed system.
 \end{itemize}
+
+Beyond implementation attacks, there is a subtler gap: certification fixes a \emph{security level} at the time of evaluation, but the underlying hardness assumptions erode as lattice-reduction algorithms\index{lattice reduction!progressive improvement} improve.  Table~\ref{tab:lattice-reduction-evolution} traces the progression of best-known lattice sieving complexities over a fifteen-year span.  The exponent has dropped from $2^{0.292d}$ to $2^{0.280d}$---a modest-looking shift that translates to a 5--12~bit loss in concrete security for typical lattice dimensions.
+
+\begin{table}[t]
+\caption{Evolution of lattice reduction algorithms\index{lattice reduction!algorithm evolution}: best-known asymptotic sieving complexity as a function of lattice dimension~$d$}
+\label{tab:lattice-reduction-evolution}
+\begin{tabular}{p{1.5cm}p{3.5cm}p{2.5cm}p{4.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Year} & \textbf{Algorithm} & \textbf{Complexity} & \textbf{Impact} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+2010 & BKZ 2.0 & $2^{0.292d}$ & Established baseline for NIST parameter selection \\
+2016 & Progressive BKZ & $2^{0.290d}$ & Minor improvement; parameters still comfortable \\
+2018 & G6K Sieving & $2^{0.285d}$ & 5--10 bit security reduction at $d \approx 800$ \\
+2021 & BDGL Sieving & $2^{0.283d}$ & Continued erosion; no parameter changes needed \\
+2024 & Tensor methods & $2^{0.280d}$ & Under active investigation \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The NIST ML-KEM and ML-DSA parameters were chosen with a substantial margin above the $2^{0.292d}$ baseline, so the current erosion does not demand parameter changes.  But the trend is clear and monotonic: every few years, the exponent drops.  A certified module deployed in 2026 with a 20-year operational lifetime will face lattice-reduction algorithms that do not yet exist.  Certification captures the security posture at a point in time; periodic reassessment against updated hardness estimates is essential for any long-lived deployment.
 
 These gaps mean that a vendor pursuing early PQC hardware certification must engage proactively with the evaluation laboratory, proposing test methodologies rather than waiting for published standards.  The technical analysis in this chapter provides the foundation for those proposals.
 

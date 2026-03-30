@@ -440,6 +440,8 @@ ECC-256   & $\sim$2{,}500  & $\sim 1.3 \times 10^{11}$ & $\sim$14 million & $\si
 
 The physical qubit counts assume superconducting qubits with $p_\text{phys} = 10^{-3}$, surface code with distance $d \approx 27$, and a reaction time (classical control latency) of $10\;\mu\text{s}$, yielding a logical clock speed of approximately $10$~kHz.
 
+A counterintuitive lesson emerges from the table: elliptic curve cryptography\index{ECC!quantum vulnerability}, despite offering stronger classical security per bit of key, is \emph{more} vulnerable to quantum attack than RSA.  Breaking ECC-256 requires roughly 2{,}500 logical qubits and a few hours of wall-clock time, whereas RSA-2048 demands approximately 4{,}000 logical qubits and around eight hours.  The quantum circuits for ECDLP are smaller, the attacks faster, and---crucially---ECC offers no simple fallback to larger parameters because the sub-exponential index-calculus techniques that force RSA to use multi-thousand-bit keys do not apply to elliptic curves; their classical security already scales efficiently.  In the quantum regime this advantage vanishes.  Shor's algorithm reduces both problems to period finding in a cyclic group, and ECC's shorter group order translates directly into a smaller quantum circuit.  The very compactness that made elliptic curves attractive classically makes them the first domino to fall in the quantum era.
+
 \subsection{Current Hardware vs.\ Requirements}
 \label{subsec:hardware-gap}
 

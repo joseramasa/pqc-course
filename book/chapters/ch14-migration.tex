@@ -45,6 +45,28 @@ Let $\mathsf{KEM}_1$ be $(t_1, \epsilon_1)$-IND-CCA2 secure and $\mathsf{KEM}_2$
 \end{svgraybox}
 
 
+The $\mathrm{KDF}$ in the composite construction is not a stylistic choice---it is the entire security argument.  The temptation to simplify key combination to a bitwise XOR is strong (it is cheaper and requires no additional library dependency), but it destroys the security guarantee.  The following example makes the failure mode concrete.
+
+\begin{example}[Insecure vs.\ Secure Hybrid Key Derivation]
+\label{ex:hybrid-key-derivation}
+\index{hybrid cryptography!key derivation}
+\index{KDF!hybrid key combination}
+Suppose a composite KEM combines an ECDH shared secret $K_{\text{classical}}$ with an ML-KEM shared secret $K_{\text{pqc}}$.
+
+\textbf{Insecure construction.}  The combined key is computed as
+\[
+K = K_{\text{classical}} \oplus K_{\text{pqc}}.
+\]
+If a quantum adversary recovers $K_{\text{classical}}$ (by solving the discrete logarithm), then $K = K_{\text{classical}} \oplus K_{\text{pqc}}$ yields $K_{\text{pqc}} = K \oplus K_{\text{classical}}$---the PQC secret is recovered from the combined key.  Worse, if $K_{\text{pqc}}$ is ever compromised independently, $K_{\text{classical}}$ is recovered by the same identity.  XOR provides no security if \emph{either} component key is known; the composite is only as strong as its weakest component, defeating the entire purpose of hybridisation.
+
+\textbf{Secure construction.}  The combined key is derived through a cryptographic KDF:
+\[
+K = \mathrm{HKDF}(K_{\text{classical}} \| K_{\text{pqc}} \| \mathit{context}),
+\]
+where \emph{context} includes protocol-specific binding data (session identifiers, public keys).  In the random-oracle model, $K$ is pseudorandom even if one input is fully known to the adversary---the KDF acts as a computational extractor, not a reversible combiner.  This is the construction used in Theorem~\ref{thm:hybrid-kem-security} and the one specified by NIST and IETF drafts for hybrid TLS key exchange.
+\end{example}
+
+
 \subsection{Dual Signatures}
 \label{subsec:dual-signatures}
 
@@ -561,6 +583,47 @@ Delaying migration incurs compounding costs:
 \begin{svgraybox}
 \textbf{Lessons from previous cryptographic migrations.}
 The AES transition (2001--2010) succeeded because it offered a drop-in replacement with better performance.  The IPv6 transition (1998--present, still incomplete) stalled because it required infrastructure changes with no immediate benefit.  PQC migration resembles IPv6 more than AES: the threat is not yet tangible, the changes are invasive, and the performance trade-offs are unfavorable.  Without deliberate urgency, a 20-year transition is a realistic worst case.
+\end{svgraybox}
+
+
+%% ================================================================
+\section{Case Studies}
+\label{sec:case-studies}
+
+The six-phase roadmap, the regulatory deadlines, and the cost-of-delay analysis are abstractions until they collide with organisational reality.  Two early adopters---one in finance, one in government---illustrate how different threat models and institutional constraints shape the migration path.  Neither organisation is named, but the details are drawn from published deployment reports and direct consultation.
+
+\subsection{A Major Financial Institution: Phased Hybrid Migration}
+\label{subsec:case-finance}
+
+\index{case study!financial institution}
+A large international bank confronted the PQC transition with a straightforward threat model: high-value transactions and long-lived customer records protected by TLS, code-signing, and HSM-bound keys.  Regulatory pressure from multiple jurisdictions (CNSA~2.0 in the U.S., BSI guidance in Europe) compressed the timeline.  The bank chose a hybrid migration strategy---classical plus post-quantum in parallel---executed across four phases:
+
+\begin{enumerate}
+\item \textbf{Phase~1 (2024):} Internal systems and employee access.  VPN tunnels, internal certificate authorities, and developer code-signing keys were migrated to hybrid (X25519 + ML-KEM-768 for key exchange, RSA-2048 + ML-DSA-65 for signatures).  These systems had controlled client populations and could tolerate compatibility issues.
+\item \textbf{Phase~2 (2025):} Customer-facing applications.  Online banking, mobile apps, and API gateways adopted hybrid TLS, using the X25519Kyber768 key exchange described in Sect.~\ref{subsec:x25519kyber768}.  A canary deployment at 1\% traffic (Sect.~\ref{subsec:phase-deploy}) caught three middlebox incompatibilities before wider rollout.
+\item \textbf{Phase~3 (2026):} Inter-bank communication protocols.  SWIFT messaging and inter-bank settlement channels required coordination with counterparties---the hardest phase, because the bank could not unilaterally upgrade a bilateral protocol.
+\item \textbf{Phase~4 (2027):} Legacy system integration.  Mainframe-based transaction processors and embedded HSMs with 10--15~year hardware refresh cycles---the ``long tail'' that every migration encounters.
+\end{enumerate}
+
+The bank encountered several obstacles that the six-phase roadmap anticipated but could not fully prepare for.  Regulatory approval for new cryptographic methods took longer than expected: two jurisdictions required independent validation of the hybrid construction before permitting its use for regulated transactions.  Performance impact on high-frequency trading systems was measurable---the larger ML-KEM ciphertexts increased TLS handshake latency by 15--20\%, triggering latency-budget reviews.  Integration with third-party vendors proved difficult when those vendors had not begun their own PQC migration.  Staff training and certification requirements consumed more calendar time than the technical work itself.
+
+The lessons distilled from this deployment are worth stating plainly: start with low-risk internal systems to build operational experience before touching customer-facing infrastructure; engage regulators early, because cryptographic-method approval is a serial dependency that cannot be parallelised with engineering; invest in testing infrastructure before it is needed, not after the first production incident; and plan for timelines 50--100\% longer than initial estimates, because every phase reveals dependencies that were invisible during planning.
+
+
+\subsection{A Government Agency: Pure Post-Quantum with Aggressive Timeline}
+\label{subsec:case-government}
+
+\index{case study!government agency}
+A national-security agency faced a different constraint: classified communications cannot rely on ``probably still secure'' classical cryptography, even in hybrid mode.  The threat model assumed a well-resourced state adversary with both harvest-now capability and eventual quantum access.  The agency chose pure post-quantum deployment---no classical fallback---with an 18-month target timeline.
+
+The requirements were correspondingly stringent.  The agency could not rely on classical cryptography as a safety net, ruling out hybrid modes.  High-assurance implementation was mandatory, requiring formal verification of critical code paths.  Custom hardware was developed---ASIC-based PQC accelerators with the masking and fault-injection countermeasures discussed in Chapter~\ref{ch:hardware-security}.  Air-gapped deployment further constrained the architecture: no over-the-air updates meant the implementation had to be correct at first deployment.
+
+The implementation approach reflected these constraints.  Custom ASICs for ML-KEM and ML-DSA were designed with first-order masking and redundant fault detection, following the DOM-1 methodology described in Sect.~\ref{subsec:dom}.  All cryptographic code underwent formal verification---not just functional correctness, but absence of timing side channels at the source-code level.  Red-team testing by adversarial cryptanalysts (including side-channel evaluation against the ASICs) preceded deployment.  The systems were deployed in isolated, air-gapped networks where the controlled environment simplified the threat model relative to a public-facing deployment.
+
+The agency achieved full deployment within 18 months.  Performance was competitive with the classical systems it replaced---a result attributable to custom hardware rather than algorithmic improvement.  The security assurance was high, though the cost (custom ASICs, formal verification, dedicated red team) was correspondingly extreme---this is not a path available to most organisations.  The deployment's lasting contribution is the set of lessons that now inform broader government adoption: the custom ASIC designs have been declassified at the architecture level, and the formal-verification methodology is being adapted for commercial certification pipelines.
+
+\begin{svgraybox}
+\textbf{The common thread.}  Both case studies---despite radically different threat models, budgets, and timelines---converge on the same operational insight: the technical migration is the easier half.  Regulatory approval, vendor coordination, staff training, and organisational inertia consume more calendar time than algorithm integration.  Any migration plan that accounts only for engineering effort will underestimate the total duration by a factor of two or more.
 \end{svgraybox}
 
 
