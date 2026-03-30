@@ -3,70 +3,414 @@
 
 \abstract*{Not every post-quantum proposal has survived scrutiny. This chapter examines the multivariate and isogeny-based families---including the spectacular collapse of SIKE in 2022---not merely as historical curiosities, but as case studies in what makes a cryptographic assumption trustworthy. Understanding how schemes break is as important as understanding how they work.}
 
-% =============================================================
-% SOURCE: notes.tex §3.4.4 (lines 4237–4488)
-% REUSE: ~40%. Good narrative on failures. Expand isogeny math,
-%        add CSIDH, draw lessons.
-% =============================================================
+\abstract{Not every post-quantum proposal has survived scrutiny. This chapter examines the multivariate and isogeny-based families---including the spectacular collapse of SIKE in 2022---not merely as historical curiosities, but as case studies in what makes a cryptographic assumption trustworthy. Understanding how schemes break is as important as understanding how they work.}
 
+
+%% ================================================================
 \section{Multivariate Polynomial Cryptography}
 \label{sec:multivariate}
 
-% TODO: Adapt from notes.tex §3.4.4
-% - The MQ problem: definition, NP-completeness
-% - Oil-Vinegar construction
-% - The pattern of breaks: C*, HFE, SFLASH, Rainbow
-% - Rainbow's fall (Beullens 2022): the attack explained
-% - Why structure keeps leaking: a fundamental design tension
-% - UOV: the survivor — current status
-% - Cite: Kipnis-Shamir 1999, Beullens 2022
+The idea behind multivariate cryptography is seductively simple: solving systems of multivariate quadratic equations over finite fields is NP-complete.  Why not build cryptography on this?  The answer, as three decades of cryptanalysis have demonstrated, is that NP-completeness of the general problem provides no guarantee whatsoever for the structured instances required by a cryptosystem.
 
+\subsection{The MQ Problem}
+\label{subsec:mq-problem}
+
+\begin{definition}[Multivariate Quadratic (MQ) Problem]
+\label{def:mq}
+\index{MQ problem}
+Given $m$ quadratic polynomials $p_1,\ldots,p_m$ in $n$ variables over a finite field~$\F_q$,
+\begin{equation}
+\label{eq:mq}
+p_k(x_1, \ldots, x_n) \;=\; \sum_{1\leq i \leq j \leq n} \alpha_{ijk}\, x_i x_j \;+\; \sum_{i=1}^{n} \beta_{ik}\, x_i \;+\; \gamma_k \;=\; 0, \qquad k = 1,\ldots,m,
+\end{equation}
+find a solution $(x_1,\ldots,x_n)\in\F_q^n$ satisfying all $m$ equations simultaneously.
+\end{definition}
+
+\begin{theorem}[NP-Completeness]
+\label{thm:mq-np}
+The MQ problem over $\F_2$ is NP-complete, even when $m = n$.
+\end{theorem}
+
+This result fuelled optimism that multivariate systems could serve as one-way functions.  The catch is that a cryptosystem cannot use \emph{random} quadratic systems---a trapdoor is needed to decrypt or sign.  The trapdoor introduces hidden algebraic structure, and it is this structure that cryptanalysis has repeatedly exploited.
+
+
+\subsection{The Oil-Vinegar Construction}
+\label{subsec:oil-vinegar}
+
+The Oil-Vinegar scheme, introduced by Patarin in 1997, is the ancestor of most surviving multivariate signature schemes\index{Oil-Vinegar}.
+
+\begin{definition}[Oil-Vinegar Map]
+\label{def:oil-vinegar}
+Partition the $n$ variables into two sets: \emph{oil variables} $o_1,\ldots,o_v$ and \emph{vinegar variables} $v_1,\ldots,v_o$, with $n = v + o$.  Define a system of $o$ quadratic equations in which no monomial $o_i o_j$ (product of two oil variables) appears:
+\begin{equation}
+\label{eq:ov-map}
+p_k(\mathbf{o}, \mathbf{v}) \;=\; \sum_{i,j} \alpha_{ijk}\, v_i o_j \;+\; \sum_{i \leq j} \beta_{ijk}\, v_i v_j \;+\; \text{linear terms} \;=\; t_k, \qquad k=1,\ldots,o.
+\end{equation}
+Once the vinegar variables are fixed to random values, the system becomes \emph{linear} in the oil variables and can be solved by Gaussian elimination.
+\end{definition}
+
+The private key is an invertible affine change of variables $S$ that mixes oil and vinegar, hiding the partition.  The public key is the composed system $\mathcal{P} = p \circ S$, which looks like a random quadratic map.
+
+\begin{svgraybox}
+\textbf{The multivariate design tension.}  Every multivariate scheme faces the same dilemma: the trapdoor must introduce enough structure for efficient inversion, but this structure must remain invisible in the public key.  Thirty-five years of evidence suggest that hiding algebraic structure from Gr\"obner basis algorithms and differential attacks is extraordinarily difficult.
+\end{svgraybox}
+
+
+\subsection{A Pattern of Breaks}
+\label{subsec:multivariate-breaks}
+
+The history of multivariate cryptography is a repeating cycle: proposal, parameter tuning, break.
+
+\begin{table}[t]
+\caption{Multivariate schemes: a timeline of proposals and breaks}
+\label{tab:multivariate-timeline}
+\begin{tabular}{p{2.5cm}p{2cm}p{2cm}p{5cm}}
+\hline\noalign{\smallskip}
+\textbf{Scheme} & \textbf{Proposed} & \textbf{Broken} & \textbf{Attack method} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+C*              & 1988 & 1995 & Linearisation (Patarin) \\
+HFE             & 1996 & 2003 & Algebraic (Faug\`ere--Joux) \\
+SFLASH          & 2003 & 2007 & Differential (Dubois et al.) \\
+Rainbow         & 2005 & 2022 & Rectangular MinRank (Beullens) \\
+GeMSS           & 2017 & 2020 & Algebraic (key recovery) \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\paragraph{C* and HFE.}
+Matsumoto and Imai's C* scheme~(1988) used a monomial map $x \mapsto x^{1+q^i}$ over an extension field $\F_{q^n}$, composed with affine changes of coordinates to produce a quadratic map over the base field.  Patarin~(1995) observed that C* satisfies bilinear relations between plaintext and ciphertext, reducing decryption to linear algebra.  His repair, the Hidden Field Equations (HFE) scheme, replaced the monomial with a low-degree polynomial over the extension field.  Faug\`ere and Joux~(2003) showed that the HFE public key generates an ideal in a polynomial ring whose Gr\"obner basis can be computed efficiently when the hidden polynomial has low degree---precisely the regime needed for practical parameters.
+
+\paragraph{SFLASH.}
+A signature variant of C* was submitted to NESSIE and selected for the portfolio in~2003.  It fell four years later to a differential attack that recovered the secret affine maps by analysing the differential $\mathrm{D}p(\mathbf{x}, \mathbf{y}) = p(\mathbf{x}+\mathbf{y}) - p(\mathbf{x}) - p(\mathbf{y}) + p(\mathbf{0})$ of the public map.
+
+\paragraph{Rainbow and Beullens' attack.}
+Rainbow, proposed by Ding and Schmidt~(2005), generalised Oil-Vinegar to a multi-layer structure with a ``rainbow'' of variable partitions.  It was a NIST PQC Round~3 finalist, offering 66-byte signatures---by far the most compact among all candidates.
+
+In February~2022, Ward Beullens\index{Beullens, Ward} posted a devastating attack~\cite{Beullens2022}.  The core insight: Rainbow's multi-layer structure implies that certain matrices derived from the public key have unexpectedly low rank.  Specifically, the \emph{MinRank problem}\index{MinRank problem}---given matrices $M_0,M_1,\ldots,M_m$, find a linear combination of rank at most~$r$---can be solved efficiently when the matrix is ``rectangular'' (more columns than rows).  Rainbow's layered structure creates exactly this rectangular MinRank instance.
+
+\begin{example}[Breaking Rainbow]
+\label{ex:rainbow-break}
+Beullens' attack on the Rainbow-Ia parameter set (NIST Security Level~I):
+\begin{enumerate}
+\item Extract a system of bilinear equations from the public key by computing the differential.
+\item Formulate the resulting system as a rectangular MinRank instance with target rank $r = v_1$ (the number of vinegar variables in the first layer).
+\item Solve the MinRank instance using Kipnis--Shamir modelling combined with Gr\"obner basis computation.
+\item The recovered rank-deficient matrix reveals the layer structure, enabling full key recovery.
+\end{enumerate}
+The attack runs in $2^{53}$ operations for Rainbow-Ia---well below the claimed 128-bit security.  All three parameter sets (Ia, IIIc, Vc) fell.
+\end{example}
+
+
+\subsection{UOV: The Survivor}
+\label{subsec:uov}
+
+Unbalanced Oil-Vinegar (UOV), where the number of vinegar variables greatly exceeds the number of oil variables ($v \gg o$), remains unbroken.  The key observation is that the single-layer structure of UOV does not create the rectangular MinRank instances that Beullens exploited.  UOV was submitted to NIST's additional signature call and is under active evaluation\index{UOV}.
+
+The cost is large public keys (tens to hundreds of kilobytes), which has motivated compressed variants such as MAYO and VOX.  Whether these compressed variants introduce new exploitable structure remains an open question.
+
+
+%% ================================================================
 \section{Isogeny-Based Cryptography}
 \label{sec:isogenies}
 
-% TODO: Expand significantly
-% - Elliptic curves and isogenies: mathematical background
-% - Supersingular isogeny graphs: the expander graph structure
-% - SIDH/SIKE: the construction and its elegant key exchange
-% - The Castryck-Decru attack (2022): exploiting auxiliary points
-% - Why the break was possible: the torsion point information leak
-% - Timeline: from NIST finalist to broken in a weekend
-% - Cite: Jao-De Feo 2011, Castryck-Decru 2022
+Isogeny-based cryptography was the newest and most mathematically sophisticated approach to post-quantum key exchange.  Its collapse in 2022 is the most instructive failure in modern cryptographic history.
 
+\subsection{Elliptic Curves and Isogenies}
+\label{subsec:ec-isogenies}
+
+We assume familiarity with elliptic curves at the level of an introductory number theory course.
+
+\begin{definition}[Elliptic Curve]
+\label{def:elliptic-curve}
+\index{elliptic curve}
+An \emph{elliptic curve} over a field $K$ is a smooth projective curve of genus~$1$ with a distinguished rational point.  In short Weierstrass form over a field of characteristic $\neq 2,3$:
+\begin{equation}
+E \;:\; y^2 \;=\; x^3 + ax + b, \qquad a,b\in K, \quad 4a^3 + 27b^2 \neq 0.
+\end{equation}
+The set $E(K)$ of $K$-rational points forms an abelian group under the chord-and-tangent law.
+\end{definition}
+
+\begin{definition}[Isogeny]
+\label{def:isogeny}
+\index{isogeny}
+An \emph{isogeny} $\phi\colon E_1 \to E_2$ is a non-constant morphism of elliptic curves that maps the identity to the identity.  Equivalently, it is a surjective group homomorphism with finite kernel.  Its \emph{degree} is $\deg\phi = \abs{\ker\phi}$ (for separable isogenies).
+\end{definition}
+
+Every finite subgroup $G \leq E$ determines an isogeny $\phi_G\colon E \to E/G$ by V\'elu's formulae~(1971)\index{V\'elu's formulae}, which give explicit rational functions for the map.  The degree of $\phi_G$ equals $\abs{G}$.  Conversely, every separable isogeny from~$E$ arises from a finite subgroup of~$E$.
+
+\begin{example}[Isogenies in Practice]
+\label{ex:isogeny-practice}
+Let $E\colon y^2 = x^3 + x$ over $\F_p$ and let $P\in E(\F_p)$ have order~$\ell$.  Then $G = \langle P \rangle$ defines an $\ell$-isogeny $\phi_G\colon E \to E' = E/G$, computed via V\'elu's formulae.  The curve~$E'$ is determined (up to isomorphism) by $G$ alone; different generators of the same subgroup yield the same target curve.
+\end{example}
+
+
+\subsection{Supersingular Isogeny Graphs}
+\label{subsec:ss-graphs}
+
+\begin{definition}[Supersingular Curve]
+\label{def:supersingular}
+\index{supersingular curve}
+An elliptic curve $E$ over $\overline{\F}_p$ is \emph{supersingular} if $E[p] = \{O\}$ (trivial $p$-torsion over the algebraic closure).  Equivalently, $\#E(\F_p) \equiv 1 \pmod{p}$.  Over $\overline{\F}_p$, there are approximately $p/12$ supersingular $j$-invariants.
+\end{definition}
+
+\begin{definition}[Supersingular Isogeny Graph]
+\label{def:ss-graph}
+\index{isogeny graph}
+Fix a prime~$\ell \neq p$.  The \emph{$\ell$-isogeny graph} $\mathcal{G}_\ell(p)$ is the graph whose vertices are supersingular $j$-invariants over $\overline{\F}_p$ and whose edges are $\ell$-isogenies (up to isomorphism).  Each vertex has degree $\ell + 1$.
+\end{definition}
+
+These graphs are \emph{Ramanujan graphs}\index{Ramanujan graph}: they are optimal expanders, meaning that random walks mix rapidly and the graph has no exploitable bottlenecks.  A walk of length~$e$ in $\mathcal{G}_\ell(p)$ corresponds to a composition of $e$ isogenies of degree~$\ell$, yielding a single isogeny of degree~$\ell^e$.
+
+The cryptographic hardness assumption is: given two supersingular curves $E_0$ and $E_1$ connected by an isogeny of smooth degree $\ell^e$, find the isogeny.  The best classical algorithm for this ``path-finding'' problem has exponential complexity $\tilde{\bigO}(\sqrt[4]{p})$, and the best quantum algorithm (using Tani's claw-finding) achieves $\tilde{\bigO}(\sqrt[6]{p})$.
+
+
+\subsection{SIDH/SIKE: Construction and Collapse}
+\label{subsec:sidh-sike}
+
+Supersingular Isogeny Diffie--Hellman (SIDH), proposed by Jao and De~Feo in 2011~\cite{JaoDeFeo2011}\index{SIDH}, translates the path-finding problem into a key exchange protocol.
+
+\begin{definition}[SIDH Key Exchange]
+\label{def:sidh}
+Fix a supersingular curve $E_0$ over $\F_{p^2}$ where $p = 2^a \cdot 3^b - 1$.  Fix generators $\{P_A, Q_A\}$ of $E_0[2^a]$ and $\{P_B, Q_B\}$ of $E_0[3^b]$.
+\begin{enumerate}
+\item \textbf{Alice:} Chooses secret integers $(\alpha_1,\alpha_2)$ with $\gcd(\alpha_1, 2^a) = 1$.  Computes kernel $\langle P_A + \alpha_2 Q_A \rangle$, yielding a $2^a$-isogeny $\phi_A\colon E_0 \to E_A$.  Sends $(E_A,\; \phi_A(P_B),\; \phi_A(Q_B))$ to Bob.
+\item \textbf{Bob:} Chooses secret integers $(\beta_1,\beta_2)$ similarly.  Computes $\phi_B\colon E_0 \to E_B$ with kernel $\langle P_B + \beta_2 Q_B \rangle$.  Sends $(E_B,\; \phi_B(P_A),\; \phi_B(Q_A))$ to Alice.
+\item \textbf{Shared secret:} Alice computes $\phi_A'\colon E_B \to E_{AB}$ using kernel $\langle \phi_B(P_A) + \alpha_2\,\phi_B(Q_A) \rangle$.  Bob computes $\phi_B'\colon E_A \to E_{BA}$ analogously.  By commutativity, $j(E_{AB}) = j(E_{BA})$.
+\end{enumerate}
+\end{definition}
+
+The auxiliary torsion points $\phi_A(P_B), \phi_A(Q_B)$ (and their counterparts from Bob) are essential: without them, Bob cannot compute his isogeny from $E_A$, because he does not know Alice's secret and therefore cannot determine the correct kernel on $E_A$.
+
+SIKE (Supersingular Isogeny Key Encapsulation) wrapped SIDH in a KEM transform and was submitted to the NIST PQC competition.  It offered the smallest key sizes among all candidates---just 335~bytes for a shared secret at the 128-bit security level---and reached Round~4 as an alternate candidate.
+
+\paragraph{The Castryck--Decru attack.}
+On 30 July 2022, Wouter Castryck and Thomas Decru posted a preprint~\cite{CastryckDecru2023} that broke SIDH in polynomial time\index{Castryck--Decru attack}.  Within days, Maino and Martindale gave an independent attack, and Robert provided a further simplification.
+
+The attack exploits precisely the auxiliary torsion point information that the protocol requires.  The key idea:
+
+\begin{enumerate}
+\item The images $\phi_A(P_B), \phi_A(Q_B)$ reveal how Alice's secret isogeny acts on the $3^b$-torsion of $E_0$.
+\item By the theory of abelian surfaces, one can ``lift'' the problem from elliptic curves to the Jacobian of a genus-2 curve, where additional endomorphism structure becomes available.
+\item On this abelian surface, the Richelot isogeny (the genus-2 analogue of a 2-isogeny) can be iterated, and each step is determined by the torsion point data.
+\item After $a$ steps, Alice's secret curve $E_A$ is recovered.
+\end{enumerate}
+
+\begin{svgraybox}
+\textbf{Why auxiliary points are fatal.}  In standard Diffie--Hellman over a group~$G$, Alice publishes $g^a$ but reveals \emph{nothing else} about her secret~$a$.  In SIDH, Alice publishes $E_A$ \emph{and} the images $\phi_A(P_B), \phi_A(Q_B)$---effectively revealing how her secret isogeny acts on a large subgroup of $E_0$.  This additional information is not merely helpful; it is sufficient to reconstruct the secret isogeny entirely.  The attack uses no quantum resources.  It runs in minutes on a standard laptop.
+\end{svgraybox}
+
+\begin{example}[Timeline of SIKE's Collapse]
+\label{ex:sike-timeline}
+\begin{itemize}
+\item 2011: SIDH proposed by Jao and De~Feo~\cite{JaoDeFeo2011}.
+\item 2017: SIKE submitted to NIST PQC competition.
+\item 2020: SIKE advances to Round~3 as alternate candidate.
+\item 2022 (July 5): SIKE advances to Round~4.
+\item 2022 (July 30): Castryck--Decru attack posted.
+\item 2022 (August 5): All SIKE parameter sets broken; attack verified independently.
+\item 2022 (August): Microsoft removes SIKE from cryptographic libraries.
+\item Result: 11 years of research invalidated by a classical attack using 1990s mathematics.
+\end{itemize}
+\end{example}
+
+
+%% ================================================================
 \section{Group Actions and CSIDH}
 \label{sec:csidh}
 
-% TODO: New section
-% - Class group actions on elliptic curves
-% - CSIDH: commutative supersingular isogeny DH
-% - Why CSIDH survives the SIKE attack
-% - Challenges: class group computation, constant-time implementation
-% - Current status and open problems
-% - Cite: Castryck et al. (CSIDH) 2018
+The destruction of SIDH/SIKE did not kill all isogeny-based cryptography.  Commutative Supersingular Isogeny Diffie--Hellman (CSIDH, pronounced ``seaside''), proposed by Castryck, Lange, Martindale, Panny, and Renes in 2018~\cite{CSIDH2018}\index{CSIDH}, survives because it avoids the fatal flaw.
 
+\subsection{Class Group Actions}
+\label{subsec:class-group}
+
+CSIDH is built on the action of an abelian group on a set of elliptic curves, rather than on the path-finding problem in supersingular isogeny graphs.
+
+\begin{definition}[Group Action on Elliptic Curves]
+\label{def:group-action}
+\index{group action}
+Let $p$ be a large prime with $p \equiv 3 \pmod{4}$, and let $\mathcal{E}_p$ denote the set of supersingular elliptic curves over $\F_p$ (defined over $\F_p$ itself, not $\F_{p^2}$).  The ideal class group $\mathrm{cl}(\Z[\sqrt{-p}])$ acts on $\mathcal{E}_p$: for an ideal class $[\mathfrak{a}]$ and a curve $E\in\mathcal{E}_p$,
+\begin{equation}
+[\mathfrak{a}] \star E \;=\; E / E[\mathfrak{a}],
+\end{equation}
+where $E[\mathfrak{a}] = \{P \in E(\overline{\F}_p) : \alpha(P) = O \;\text{for all}\; \alpha \in \mathfrak{a}\}$.
+This action is free, transitive, and---crucially---\emph{commutative}, since $\mathrm{cl}(\Z[\sqrt{-p}])$ is abelian.
+\end{definition}
+
+The commutativity means that a Diffie--Hellman-style protocol works directly:
+
+\begin{definition}[CSIDH Key Exchange]
+\label{def:csidh}
+Fix a public supersingular curve $E_0$ over $\F_p$.
+\begin{enumerate}
+\item \textbf{Alice:} Chooses a secret class group element $[\mathfrak{a}]$.  Computes $E_A = [\mathfrak{a}] \star E_0$.  Sends $E_A$.
+\item \textbf{Bob:} Chooses a secret $[\mathfrak{b}]$.  Computes $E_B = [\mathfrak{b}] \star E_0$.  Sends $E_B$.
+\item \textbf{Shared secret:} Alice computes $[\mathfrak{a}] \star E_B = [\mathfrak{a}] \star [\mathfrak{b}] \star E_0$.  Bob computes $[\mathfrak{b}] \star E_A = [\mathfrak{b}] \star [\mathfrak{a}] \star E_0$.  By commutativity, both obtain the same curve.
+\end{enumerate}
+\end{definition}
+
+\subsection{Why CSIDH Survives the SIKE Attack}
+\label{subsec:csidh-survives}
+
+The Castryck--Decru attack on SIDH exploits auxiliary torsion point information.  CSIDH transmits \emph{only the target curve} $E_A$---no images of torsion points, no auxiliary data.  There is nothing for the attack to exploit.
+
+More precisely:
+\begin{itemize}
+\item In SIDH, Alice sends $(E_A, \phi_A(P_B), \phi_A(Q_B))$---the curve plus two points revealing the action of $\phi_A$ on the $3^b$-torsion.
+\item In CSIDH, Alice sends only $E_A$.  Bob can compute $[\mathfrak{b}] \star E_A$ because the group action is defined intrinsically on curves over $\F_p$, without needing to know Alice's secret or its action on any torsion subgroup.
+\end{itemize}
+
+The underlying hard problem for CSIDH is the \emph{vectorisation problem}\index{vectorisation problem}: given $E_0$ and $E_A = [\mathfrak{a}] \star E_0$, find $[\mathfrak{a}]$.  This is a discrete-logarithm-like problem in the class group, and the best known quantum attack uses Kuperberg's algorithm for the hidden shift problem, achieving subexponential complexity $2^{\tilde{\bigO}(\sqrt{p})}$.
+
+\subsection{Challenges}
+\label{subsec:csidh-challenges}
+
+Despite surviving the SIKE catastrophe, CSIDH faces significant practical hurdles:
+
+\begin{enumerate}
+\item \textbf{Class group computation:} The class group $\mathrm{cl}(\Z[\sqrt{-p}])$ must be large enough for security, but its structure is difficult to compute for large~$p$.  This complicates parameter selection.
+
+\item \textbf{Constant-time implementation:} The group action is computed by walking through small-degree isogenies.  The number of steps depends on the secret key, creating timing side channels.  Constant-time implementations (CTIDH) exist but are significantly slower.
+
+\item \textbf{Quantum security estimates:}  Kuperberg's algorithm places CSIDH in an uncomfortable middle ground---not clearly broken by quantum computers, but not clearly safe either.  Achieving NIST Level~I security requires primes of 4096 bits or more, yielding public keys of 64~bytes but slow computation ($\sim$100\,ms).
+
+\item \textbf{Limited functionality:}  The commutative group action enables key exchange (and with extensions, signatures via CSI-FiSh), but the algebraic structure is less flexible than lattices for building advanced primitives.
+\end{enumerate}
+
+CSIDH remains an active research area.  Its theoretical elegance---a true group-action-based analogue of classical Diffie--Hellman---ensures continued interest, even if practical deployment is uncertain.
+
+
+%% ================================================================
 \section{Lessons Learned}
 \label{sec:lessons}
 
-% TODO: New section (pedagogically valuable)
-% - What makes a cryptographic assumption trustworthy?
-% - The role of time: 45 years (McEliece) vs 10 years (SIKE)
-% - Structured vs unstructured problems
-% - The danger of auxiliary information
-% - Diversification: why multiple families matter
-% - Crypto-agility as a survival strategy
+The failures of multivariate and isogeny-based schemes, combined with the survival of lattice-based and code-based approaches, reveal patterns that should guide the evaluation of any future cryptographic proposal.
 
-%% Exercises
+\subsection{What Makes an Assumption Trustworthy?}
+\label{subsec:trustworthy}
+
+Not all NP-hard problems make good cryptographic foundations.  The following criteria distinguish assumptions that have survived from those that have not:
+
+\begin{enumerate}
+\item \textbf{Worst-case to average-case reductions.}  Lattice problems enjoy provable connections between worst-case and average-case hardness (Chap.~\ref{ch:lattice-theory}).  The MQ problem and the supersingular isogeny problem have no such reductions.  The presence of a worst-case/average-case connection does not guarantee security, but its absence should be a warning flag.
+
+\item \textbf{Time under scrutiny.}  McEliece's cryptosystem has withstood 45~years of cryptanalysis.  Lattice-based schemes have been studied for 25+ years.  SIKE survived only 11 years.  There is no shortcut to cryptographic confidence.
+
+\item \textbf{Size of the research community.}  More researchers examining a scheme means more diverse attack strategies.  The isogeny community, while brilliant, was small.  The lattice community is an order of magnitude larger.
+
+\item \textbf{Structural simplicity.}  The hard problems underlying lattice cryptography (find short vectors) and code-based cryptography (decode a random linear code) are simple to state.  The problems underlying multivariate and isogeny schemes involve layers of algebraic structure that provide more surfaces for attack.
+\end{enumerate}
+
+
+\subsection{Structured vs.\ Unstructured Problems}
+\label{subsec:structured-unstructured}
+
+A recurring theme: the structure that enables efficient cryptosystems is the same structure that enables efficient attacks.
+
+\begin{table}[t]
+\caption{Structure and its consequences for cryptographic security}
+\label{tab:structure}
+\begin{tabular}{p{2.8cm}p{3cm}p{3cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Scheme family} & \textbf{Hidden structure} & \textbf{Exploited by} & \textbf{Outcome} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+C*/HFE        & Extension field map      & Linearisation, Gr\"obner & Broken \\
+Rainbow       & Layered partitions       & Rectangular MinRank       & Broken \\
+SIDH/SIKE     & Torsion point images     & Richelot isogenies        & Broken \\
+Lattice (LWE) & Ring/module structure     & No known exploit          & Survives \\
+Code-based    & Goppa code structure      & No known exploit          & Survives \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The surviving schemes share a property: their structure (ring structure in Module-LWE, Goppa structure in Classic McEliece) has been intensely studied, and the best known attacks do not exploit it more efficiently than generic attacks on the unstructured variants.  This does not mean they are immune, but it provides a degree of confidence that the other schemes lacked.
+
+
+\subsection{The Danger of Auxiliary Information}
+\label{subsec:auxiliary-info}
+
+The SIKE attack is a case study in a principle that should be tattooed on every protocol designer's forearm: \emph{every piece of auxiliary information published by a protocol is a potential attack surface}.
+
+In classical Diffie--Hellman, Alice publishes $g^a$ and nothing else.  In SIDH, Alice publishes $E_A$ \emph{and} two points $\phi_A(P_B), \phi_A(Q_B)$ that reveal the action of her secret isogeny on a large torsion subgroup.  The protocol requires this information---without it, Bob cannot compute the shared secret---but the information is also sufficient for an attacker to recover the secret.
+
+This is not hindsight bias.  Galbraith, Petit, Shani, and Ti raised concerns about torsion point information in 2016.  Petit showed in 2017 that certain oversharing variants of SIDH could be attacked.  The community was aware of the risk; the surprise was that the ``minimal'' information required by the protocol was already too much.
+
+\begin{svgraybox}
+\textbf{Design principle.}  A key exchange protocol should reveal the minimum information necessary for the counterparty to compute the shared secret.  If the protocol inherently requires publishing information about the secret's action on a structured subobject, treat this as a fundamental vulnerability, not a parameter to tune.
+\end{svgraybox}
+
+
+\subsection{Diversification and Crypto-Agility}
+\label{subsec:diversification}
+
+NIST's decision to standardise schemes from multiple mathematical families---lattices (ML-KEM, ML-DSA), hash-based signatures (SLH-DSA), and codes (under evaluation)---reflects a hard-won lesson: no single family should be trusted unconditionally.
+
+\begin{definition}[Crypto-Agility]
+\label{def:crypto-agility}
+\index{crypto-agility}
+A system exhibits \emph{crypto-agility} if its cryptographic algorithms can be replaced without redesigning the overall architecture.  This requires:
+\begin{itemize}
+\item Algorithm negotiation in protocols (as in TLS cipher suites).
+\item Abstraction layers separating cryptographic primitives from application logic.
+\item Key and certificate formats that accommodate multiple algorithm families.
+\item Operational procedures for rapid algorithm rotation.
+\end{itemize}
+\end{definition}
+
+The SIKE collapse vindicated this approach.  Had SIKE been the sole post-quantum standard, the 2022 attack would have been a civilisation-scale infrastructure crisis.  Because NIST had diversified across families, SIKE's failure was a research setback, not an operational catastrophe.
+
+The practical implication for system designers: architect systems so that the cryptographic layer is a replaceable module, not a load-bearing wall.  The history of cryptography guarantees that algorithms will break; the only question is when.
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch11-mq}
-Consider a system of 2 quadratic equations in 3 variables over $\F_2$. Enumerate all solutions by brute force. Then explain why this approach becomes infeasible as the number of variables grows, despite the problem being NP-complete.
+Consider a system of 2 quadratic equations in 3 variables over $\F_2$:
+\begin{align*}
+x_1 x_2 + x_2 x_3 + x_1 &= 0, \\
+x_1 x_3 + x_2 + x_3 &= 0.
+\end{align*}
+\begin{enumerate}
+\item[(a)] Enumerate all solutions by brute force (there are only $2^3 = 8$ candidates).
+\item[(b)] How many candidates would there be for a system in $n$ variables over $\F_2$?  At what value of $n$ does brute-force search exceed $2^{128}$ operations?
+\item[(c)] Explain why the NP-completeness of the MQ problem does not directly imply that any specific multivariate cryptosystem is secure.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch11-ov}
+In the Oil-Vinegar construction with $o$ oil variables and $v$ vinegar variables:
+\begin{enumerate}
+\item[(a)] Explain why fixing the vinegar variables reduces the system to linear equations in the oil variables.
+\item[(b)] Kipnis and Shamir~(1999) showed that the original balanced Oil-Vinegar scheme ($v = o$) can be broken.  Why does making the scheme ``unbalanced'' ($v \gg o$) defeat their attack?  (Hint: consider the rank of the matrix that the attack needs to find.)
+\item[(c)] Rainbow uses multiple layers of Oil-Vinegar.  Explain intuitively why the layered structure creates low-rank matrices that Beullens' MinRank attack can exploit.
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
 \label{prob:ch11-sike}
-Explain the key exchange protocol of SIDH at a high level. Identify the auxiliary torsion point information that Alice sends to Bob. Why is this information necessary for the protocol, and how did Castryck and Decru exploit it?
+\begin{enumerate}
+\item[(a)] In the SIDH key exchange, identify the auxiliary torsion point information that Alice sends to Bob.  Why is this information necessary for the protocol to work?
+\item[(b)] Explain, at a high level, how the Castryck--Decru attack uses this auxiliary information to recover Alice's secret isogeny.
+\item[(c)] CSIDH does not transmit any auxiliary torsion point information.  Explain how Bob can still compute the shared secret without this information.
+\item[(d)] Does CSIDH's immunity to the Castryck--Decru attack guarantee its long-term security?  What other threats exist?
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
 \label{prob:ch11-trust}
-Propose a set of criteria for evaluating the trustworthiness of a post-quantum cryptographic assumption. Apply your criteria to: (a)~Module-LWE, (b)~the syndrome decoding problem, (c)~the MQ problem, (d)~the supersingular isogeny problem (post-SIKE). Rank them and justify your ranking.
+Propose a set of at least four criteria for evaluating the trustworthiness of a post-quantum cryptographic assumption.  Apply your criteria to: (a)~Module-LWE, (b)~the syndrome decoding problem, (c)~the MQ problem, (d)~the supersingular isogeny problem (post-SIKE).  Rank them from most to least trustworthy and justify your ranking.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch11-agility}
+\textbf{Design exercise.}\\
+You are architecting a TLS-based communication system that must remain secure for 30 years.
+\begin{enumerate}
+\item[(a)] Explain why choosing a single post-quantum algorithm family is risky, citing specific historical examples from this chapter.
+\item[(b)] Design a layered architecture that achieves crypto-agility.  Specify what is abstracted, what negotiation is needed, and how algorithm rotation would work operationally.
+\item[(c)] Discuss the performance and complexity costs of your design.  Is crypto-agility free?
+\end{enumerate}
 \end{prob}

@@ -3,91 +3,597 @@
 
 \abstract*{Constructing digital signatures from lattices requires fundamentally different techniques than encryption. This chapter develops two paradigms: the Fiat-Shamir-with-aborts approach underlying ML-DSA (CRYSTALS-Dilithium) and the hash-and-sign paradigm with Gaussian sampling used by Falcon. Both are NIST standards, and their contrasting designs illuminate deep tradeoffs in lattice-based cryptographic engineering.}
 
+\abstract{Constructing digital signatures from lattices requires fundamentally different techniques than encryption. This chapter develops two paradigms: the Fiat-Shamir-with-aborts approach underlying ML-DSA (CRYSTALS-Dilithium) and the hash-and-sign paradigm with Gaussian sampling used by Falcon. Both are NIST standards, and their contrasting designs illuminate deep tradeoffs in lattice-based cryptographic engineering.}
+
 % =============================================================
-% SOURCE: notes.tex §4.4.3–4.4.4 (lines 6145–6425)
-% REUSE: ~35%. Currently overview-level. Largest expansion in Part II.
-% NEW: Fiat-Shamir with aborts, rejection sampling, NTRU lattices,
-%      GPV framework, QROM security.
+% Adapted from notes.tex §4.4.3–4.4.4 (lines 6145–6425).
+% Significant expansion: Fiat-Shamir with aborts, rejection sampling,
+% NTRU lattices, GPV framework, QROM security.
 % =============================================================
+
 
 \section{The Challenge of Lattice-Based Signatures}
 \label{sec:sig-challenge}
 
-% TODO: New section
-% - Why "encrypt in reverse" doesn't work for lattices
-% - The information leakage problem: signatures leak secret key info
-% - Two solutions: rejection sampling (Dilithium) and preimage sampling (Falcon)
+For public-key encryption, the ``encrypt in reverse'' paradigm provides a natural route from lattice problems to cryptographic schemes: the secret key holder can decode a noisy codeword that is computationally infeasible for anyone else to decode.  One might hope that a similar inversion---sign by decrypting, verify by encrypting---would yield lattice-based signatures just as easily.  It does not.
 
+\subsection{Why ``Encrypt in Reverse'' Fails}
+\label{subsec:encrypt-reverse}
+
+In RSA, the algebraic symmetry between encryption ($m \mapsto m^e \bmod N$) and signing ($m \mapsto m^d \bmod N$) makes signatures almost free once encryption exists.  Lattice-based encryption lacks this symmetry.  The fundamental asymmetry is as follows:
+
+\begin{itemize}
+\item \textbf{Encryption} adds a small error $\mathbf{e}$ to a lattice point; the secret key holder removes it.  The error is freshly sampled each time and does not depend on the secret key.
+\item \textbf{Signing} must produce a response that depends on both the message and the secret key.  If that response involves a short vector $\mathbf{z} = \mathbf{s} \cdot c + \mathbf{y}$, where $\mathbf{s}$ is the secret, $c$ the challenge, and $\mathbf{y}$ a random mask, then $\mathbf{z}$ is \emph{correlated with} $\mathbf{s}$.
+\end{itemize}
+
+\subsection{The Information Leakage Problem}
+\label{subsec:info-leakage}
+
+Consider a na\"ive scheme where the signer outputs $\mathbf{z} = \mathbf{y} + c\,\mathbf{s}$ for a uniformly random mask $\mathbf{y}$ and a challenge $c$ derived from the message.  Each signature is a sample from the distribution $\mathbf{z} \sim U + c\,\mathbf{s}$, where $U$ denotes the distribution of $\mathbf{y}$.  After $t$ signatures $(\mathbf{z}_1, c_1), \ldots, (\mathbf{z}_t, c_t)$, an adversary forms the system
+\begin{equation}
+\label{eq:naive-leak}
+\begin{pmatrix} \mathbf{z}_1 \\ \vdots \\ \mathbf{z}_t \end{pmatrix}
+=
+\begin{pmatrix} \mathbf{y}_1 \\ \vdots \\ \mathbf{y}_t \end{pmatrix}
++
+\begin{pmatrix} c_1 \\ \vdots \\ c_t \end{pmatrix}
+\mathbf{s}.
+\end{equation}
+Since $\mathbf{y}_i$ is bounded, the average $\frac{1}{t}\sum_i c_i^{-1}\mathbf{z}_i$ converges to $\mathbf{s}$ as $t$ grows.  More sophisticated attacks recover $\mathbf{s}$ from far fewer signatures by exploiting the distribution shift.
+
+\begin{svgraybox}
+\textbf{The core difficulty.}  A signature scheme must be \emph{deterministic} in verification (anyone can check) yet must not leak the secret across multiple uses.  For lattice schemes, this means the distribution of signatures must be \emph{independent of the secret key}---a property that does not hold for the na\"ive construction above.
+\end{svgraybox}
+
+\subsection{Two Solutions}
+\label{subsec:two-solutions}
+
+The lattice signature literature has converged on two paradigms that solve the leakage problem in fundamentally different ways:
+
+\begin{enumerate}
+\item \textbf{Rejection sampling} (Sect.~\ref{sec:fs-aborts}): the signer generates a candidate signature, then \emph{rejects and restarts} with carefully controlled probability so that the output distribution is independent of $\mathbf{s}$.  This is the approach of ML-DSA / CRYSTALS-Dilithium~\cite{Dilithium2018}.
+
+\item \textbf{Preimage sampling with trapdoors} (Sect.~\ref{sec:ntru-gpv}): the signer uses a secret ``good basis'' to sample from a discrete Gaussian centred at a message-dependent point.  Because the Gaussian distribution is spherically symmetric, the output hides the trapdoor.  This is the approach of Falcon~\cite{Falcon2020}.
+\end{enumerate}
+
+Both solutions are provably secure under standard lattice assumptions, but they lead to schemes with markedly different engineering characteristics.
+
+
+%% ================================================================
 \section{The Fiat-Shamir Framework}
 \label{sec:fiat-shamir}
 
-% TODO: New section
-% - Interactive identification protocols
-% - The Fiat-Shamir transform: removing interaction with a hash
-% - Security in the random oracle model
-% - Extension to the quantum random oracle model (QROM)
-% - Cite: Fiat-Shamir 1986, Kiltz et al. 2018
+Most lattice-based signature schemes are constructed by applying the \emph{Fiat-Shamir transform}\index{Fiat-Shamir transform}~\cite{FiatShamir1986} to an interactive identification protocol.  We develop this framework in its general form before specialising to lattices.
 
+\subsection{Interactive Identification Protocols}
+\label{subsec:id-protocols}
+
+A canonical identification scheme\index{identification scheme} is a three-move protocol between a prover $\mathcal{P}$ (who knows the secret key) and a verifier $\mathcal{V}$ (who knows only the public key):
+
+\begin{enumerate}
+\item \textbf{Commit.}  $\mathcal{P}$ samples randomness and sends a \emph{commitment} $w$ to $\mathcal{V}$.
+\item \textbf{Challenge.}  $\mathcal{V}$ sends a random \emph{challenge} $c$ to $\mathcal{P}$.
+\item \textbf{Response.}  $\mathcal{P}$ computes a \emph{response} $z$ using $c$, the secret key, and the commitment randomness, and sends $z$ to $\mathcal{V}$.
+\end{enumerate}
+
+\noindent The verifier accepts if $(w, c, z)$ satisfies a public relation.  Security requires:
+\begin{itemize}
+\item \textbf{Completeness:} an honest prover is always accepted.
+\item \textbf{Special soundness:} given two accepting transcripts $(w, c, z)$ and $(w, c', z')$ with $c \neq c'$, one can efficiently extract the secret key.
+\item \textbf{Honest-verifier zero-knowledge (HVZK):} transcripts can be simulated without the secret key.
+\end{itemize}
+
+\subsection{The Fiat-Shamir Transform}
+\label{subsec:fs-transform}
+
+The Fiat-Shamir transform removes interaction by replacing the verifier's random challenge with the output of a hash function applied to the commitment and the message:
+\begin{equation}
+\label{eq:fs-transform}
+c \;=\; H(w \,\|\, \mu),
+\end{equation}
+where $\mu$ is the message to be signed.  The resulting non-interactive scheme is:
+
+\begin{itemize}
+\item $\KeyGen$: same as the identification scheme.
+\item $\Sign(\mathsf{sk}, \mu)$: sample commitment randomness, compute $w$; set $c = H(w \| \mu)$; compute response $z$; output $\sigma = (c, z)$ (or equivalently $(w, z)$).
+\item $\Verify(\mathsf{pk}, \mu, \sigma)$: recompute $w$ from $(c, z)$ using the public key; check $c = H(w \| \mu)$.
+\end{itemize}
+
+\subsection{Security: ROM and QROM}
+\label{subsec:rom-qrom}
+
+In the \emph{random oracle model}\index{random oracle model} (ROM), where $H$ is modelled as a truly random function, Fiat-Shamir signatures from a secure identification scheme satisfy existential unforgeability under chosen-message attacks (EU-CMA).  The proof proceeds by programming the random oracle: the simulator embeds a challenge instance into the hash responses, then uses the forking lemma to extract a forgery into two accepting transcripts with the same commitment but different challenges, breaking special soundness.
+
+In the post-quantum setting, the adversary can query $H$ in \emph{superposition}, requiring security in the \emph{quantum random oracle model}\index{quantum random oracle model} (QROM).  The classical forking lemma fails when the adversary can query $H$ on superpositions of inputs, because measuring the query to ``rewind'' destroys the quantum state.  Several techniques address this:
+
+\begin{itemize}
+\item \textbf{Unruh's transform}~(2015): adds a commitment to the signature, increasing size but enabling a QROM proof.
+\item \textbf{The measure-and-reprogram technique} of Don, Fehr, Majenz, and Schaffner~(2019): directly proves Fiat-Shamir security in the QROM for schemes with large challenge spaces.
+\item \textbf{Deterministic commitments:} using a pseudorandom function (keyed by the secret key and the message) to derive the commitment randomness eliminates a subtle QROM attack vector and is the approach adopted by ML-DSA~\cite{FIPS204}.
+\end{itemize}
+
+Both ML-DSA and Falcon have proofs of EU-CMA security in the QROM, establishing their soundness against quantum adversaries.
+
+
+%% ================================================================
 \section{Fiat-Shamir with Aborts}
 \label{sec:fs-aborts}
 
-% TODO: New section (core technique for Dilithium)
-% - Lyubashevsky's framework: commit, challenge, respond, reject
-% - Why rejection sampling is necessary: preventing secret leakage
-% - The rejection sampling lemma
-% - Uniform distribution of signatures regardless of secret key
-% - Cite: Lyubashevsky 2009, 2012
+The na\"ive lattice identification protocol leaks the secret key through the distribution of responses (Sect.~\ref{subsec:info-leakage}).  Lyubashevsky's \emph{Fiat-Shamir with aborts}\index{Fiat-Shamir with aborts} framework~\cite{Lyubashevsky2012} solves this by adding a rejection step.
 
+\subsection{The Protocol}
+\label{subsec:fs-aborts-protocol}
+
+Let $\mathbf{A} \in \Zq^{k \times \ell}$ be the public matrix and $\mathbf{s} \in R_q^{\ell}$ the secret key, with public key $\mathbf{t} = \mathbf{A}\mathbf{s}$.  The identification protocol proceeds as follows:
+
+\begin{enumerate}
+\item \textbf{Commit.}  Sample $\mathbf{y} \getsr S_{\gamma_1}^{\ell}$ (uniform over vectors with $\norm{\mathbf{y}}_\infty < \gamma_1$).  Compute $\mathbf{w} = \mathbf{A}\mathbf{y}$ and send the high-order bits $\mathbf{w}_1 = \mathsf{HighBits}(\mathbf{w})$.
+\item \textbf{Challenge.}  Receive challenge $c \in \mathcal{C}$, where $\mathcal{C}$ is a set of polynomials with small coefficients and bounded norm.
+\item \textbf{Response.}  Compute $\mathbf{z} = \mathbf{y} + c\,\mathbf{s}$.
+\item \textbf{Reject.}  If $\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$, \textbf{abort and restart from step~1}.
+\end{enumerate}
+
+\noindent The verifier checks that $\norm{\mathbf{z}}_\infty < \gamma_1 - \beta$ and that $\mathsf{HighBits}(\mathbf{A}\mathbf{z} - c\,\mathbf{t}) = \mathbf{w}_1$.
+
+\subsection{Why Rejection Sampling is Necessary}
+\label{subsec:rejection-necessity}
+
+Without rejection, the response $\mathbf{z} = \mathbf{y} + c\,\mathbf{s}$ follows the distribution $U_{S_{\gamma_1}}$ shifted by $c\,\mathbf{s}$.  Different secret keys produce different shifts, and an adversary observing multiple signatures can statistically distinguish (and eventually recover) the secret.
+
+With rejection, the signer outputs $\mathbf{z}$ only when it falls in the ``safe'' region $\norm{\mathbf{z}}_\infty < \gamma_1 - \beta$.  The key insight is that when $\gamma_1$ is sufficiently larger than $\norm{c\,\mathbf{s}}_\infty \leq \beta$, the conditional distribution of $\mathbf{z}$ given acceptance is \emph{nearly independent} of $\mathbf{s}$.
+
+\subsection{The Rejection Sampling Lemma}
+\label{subsec:rejection-lemma}
+
+\begin{theorem}[Rejection Sampling Lemma~\cite{Lyubashevsky2012}]
+\label{thm:rejection-sampling}
+\index{rejection sampling lemma}
+Let $V$ be a set of vectors with $\norm{\mathbf{v}}_\infty \leq \beta$ for all $\mathbf{v} \in V$.  Let $h: V \to [0,1]$ be a probability function and $\sigma > 0$ a parameter.  Sample $\mathbf{v} \sim h$ and $\mathbf{y} \sim D_\sigma^m$ (discrete Gaussian with parameter $\sigma$).  Define $\mathbf{z} = \mathbf{y} + \mathbf{v}$.  Then:
+\begin{equation}
+\label{eq:rejection-sampling}
+\Pr\!\left[\text{output } \mathbf{z} \text{ with probability } \min\!\left(\frac{D_\sigma^m(\mathbf{z})}{M \cdot D_{\mathbf{v},\sigma}^m(\mathbf{z})},\, 1\right)\right]
+\;\geq\; \frac{1}{M},
+\end{equation}
+where $M = \exp(12\beta/\sigma + 1/(2\sigma^2))$, and the output distribution is within statistical distance $2^{-100}/M$ of $D_\sigma^m$, \emph{independent of} $\mathbf{v}$.
+\end{theorem}
+
+The constant $M$ controls the expected number of repetitions before a signature is accepted.  In ML-DSA, parameters are chosen so that $M \approx 4$--$7$, meaning the signer restarts on average 4--7 times per signature.
+
+\subsection{Uniform Signature Distribution}
+\label{subsec:uniform-sigs}
+
+The rejection sampling lemma guarantees that the joint distribution of $(\mathbf{z}, c)$ in accepted signatures is (statistically close to) a \emph{fixed} distribution that depends only on the public key and the message, not on the secret key.  This is the lattice analogue of the perfect zero-knowledge property in Schnorr signatures: no matter which secret key produced the signature, the output ``looks the same.''
+
+\begin{svgraybox}
+\textbf{The efficiency-security tradeoff.}  Making $\gamma_1$ larger (relative to $\beta$) reduces the rejection probability (fewer restarts, faster signing) but increases the signature size (the vector $\mathbf{z}$ has larger entries).  Making $\gamma_1$ smaller tightens the bound, producing shorter signatures at the cost of more restarts.  ML-DSA's parameter sets (Sect.~\ref{sec:ml-dsa}) represent carefully optimised operating points on this tradeoff curve.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{ML-DSA (CRYSTALS-Dilithium)}
 \label{sec:ml-dsa}
 
-% TODO: Expand from notes.tex §4.4.3
-% - KeyGen, Sign, Verify: complete algorithms
-% - Module-LWE and Module-SIS foundations
-% - Parameter sets: ML-DSA-44, ML-DSA-65, ML-DSA-87
-% - Hints and compression: reducing signature size
-% - Security proof sketch
-% - Cite: FIPS 204, Ducas et al. (Dilithium paper)
+ML-DSA (Module-Lattice-Based Digital Signature Algorithm), standardised as FIPS~204~\cite{FIPS204}, instantiates the Fiat-Shamir-with-aborts framework over module lattices.  We present the complete scheme following the standard.
 
+\subsection{Algebraic Setting}
+\label{subsec:ml-dsa-setting}
+
+ML-DSA works over the polynomial ring $R_q = \Z_q[X]/(X^{256}+1)$ with $q = 8\,380\,417$.  Keys and operations involve matrices and vectors of elements from $R_q$.  The module structure---vectors of ring elements rather than single ring elements---provides flexible parameterisation (Chap.~\ref{ch:lwe-encryption}).
+
+Two hard problems underlie the security of ML-DSA:
+\begin{itemize}
+\item \textbf{Module-\lwe{}:} given $(\mathbf{A}, \mathbf{t} = \mathbf{A}\mathbf{s}_1 + \mathbf{s}_2)$, distinguish $\mathbf{t}$ from uniform, where $\mathbf{s}_1, \mathbf{s}_2$ have small coefficients.
+\item \textbf{Module-SIS\index{SIS!module variant}:} given $\mathbf{A}$, find a short vector $\mathbf{z}$ such that $\mathbf{A}\mathbf{z} = \mathbf{0} \pmod{q}$.
+\end{itemize}
+
+\subsection{Key Generation}
+\label{subsec:ml-dsa-keygen}
+
+\begin{algorithm}[t]
+\caption{ML-DSA $\KeyGen$}
+\label{alg:ml-dsa-keygen}
+\begin{algorithmic}[1]
+\Require Security parameter (determining $k, \ell, \eta$)
+\Ensure Public key $\mathsf{pk} = (\mathbf{A}, \mathbf{t}_1)$, secret key $\mathsf{sk} = (\mathbf{A}, \mathbf{t}_0, \mathbf{s}_1, \mathbf{s}_2)$
+\State Sample seed $\rho \getsr \{0,1\}^{256}$
+\State Expand $\mathbf{A} \in R_q^{k \times \ell}$ from $\rho$ \Comment{Public matrix}
+\State Sample $\mathbf{s}_1 \getsr S_\eta^{\ell}$, $\mathbf{s}_2 \getsr S_\eta^{k}$ \Comment{Short secret vectors}
+\State $\mathbf{t} \gets \mathbf{A}\mathbf{s}_1 + \mathbf{s}_2$
+\State $(\mathbf{t}_1, \mathbf{t}_0) \gets \mathsf{Power2Round}(\mathbf{t})$ \Comment{Split into high/low bits}
+\State \Return $\mathsf{pk} = (\rho, \mathbf{t}_1)$, $\mathsf{sk} = (\rho, K, \mathsf{tr}, \mathbf{s}_1, \mathbf{s}_2, \mathbf{t}_0)$
+\end{algorithmic}
+\end{algorithm}
+
+The function $\mathsf{Power2Round}$ splits each coefficient of $\mathbf{t}$ into high-order bits $\mathbf{t}_1$ and low-order bits $\mathbf{t}_0$.  Only $\mathbf{t}_1$ is included in the public key, compressing it significantly; $\mathbf{t}_0$ is retained in the secret key for use during signing.
+
+\subsection{Signing}
+\label{subsec:ml-dsa-sign}
+
+\begin{algorithm}[t]
+\caption{ML-DSA $\Sign$}
+\label{alg:ml-dsa-sign}
+\begin{algorithmic}[1]
+\Require Message $\mu$, secret key $\mathsf{sk} = (\rho, K, \mathsf{tr}, \mathbf{s}_1, \mathbf{s}_2, \mathbf{t}_0)$
+\Ensure Signature $\sigma = (\tilde{c}, \mathbf{z}, \mathbf{h})$
+\State $\mathbf{A} \gets \mathsf{ExpandA}(\rho)$
+\State $\mu' \gets H(\mathsf{tr} \| \mu)$ \Comment{Bind message to public key}
+\State $\kappa \gets 0$
+\Repeat
+  \State $\mathbf{y} \gets \mathsf{ExpandMask}(\rho', \kappa)$ \Comment{Deterministic mask from $K, \mu$}
+  \State $\mathbf{w} \gets \mathbf{A}\mathbf{y}$
+  \State $\mathbf{w}_1 \gets \mathsf{HighBits}(\mathbf{w})$ \Comment{High-order bits of commitment}
+  \State $\tilde{c} \gets H(\mu' \| \mathbf{w}_1)$ \Comment{Challenge hash}
+  \State $c \gets \mathsf{SampleInBall}(\tilde{c})$ \Comment{Challenge polynomial, $\norm{c}_1 = \tau$}
+  \State $\mathbf{z} \gets \mathbf{y} + c \cdot \mathbf{s}_1$ \Comment{Response}
+  \State $\mathbf{r}_0 \gets \mathsf{LowBits}(\mathbf{w} - c \cdot \mathbf{s}_2)$
+  \State $\kappa \gets \kappa + \ell$
+  \If{$\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$ \textbf{or} $\norm{\mathbf{r}_0}_\infty \geq \gamma_2 - \beta$} \Comment{Rejection check}
+    \State \textbf{continue} \Comment{Abort and restart}
+  \EndIf
+  \State $\mathbf{h} \gets \mathsf{MakeHint}(-c\,\mathbf{t}_0,\; \mathbf{w} - c\,\mathbf{s}_2 + c\,\mathbf{t}_0)$ \Comment{Hint for verification}
+  \If{$\norm{c\,\mathbf{t}_0}_\infty \geq \gamma_2$ \textbf{or} number of $1$'s in $\mathbf{h}$ $> \omega$}
+    \State \textbf{continue}
+  \EndIf
+\Until{signature produced}
+\State \Return $\sigma = (\tilde{c}, \mathbf{z}, \mathbf{h})$
+\end{algorithmic}
+\end{algorithm}
+
+Several aspects merit emphasis:
+
+\begin{itemize}
+\item \textbf{Deterministic nonce generation.}  The mask $\mathbf{y}$ is derived deterministically from the secret key material $K$ and the message, eliminating the risk of nonce-reuse attacks and simplifying QROM security arguments.
+\item \textbf{Two rejection conditions.}  The first ($\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$) ensures that $\mathbf{z}$ does not leak $\mathbf{s}_1$.  The second ($\norm{\mathbf{r}_0}_\infty \geq \gamma_2 - \beta$) ensures that the low-order bits of the commitment do not leak $\mathbf{s}_2$.
+\item \textbf{Hints.}  The vector $\mathbf{h}$ is a sparse binary vector that tells the verifier how to recover the high-order bits of $\mathbf{w} - c\,\mathbf{s}_2$ from $\mathbf{A}\mathbf{z} - c\,\mathbf{t}$.  This avoids transmitting $\mathbf{w}_1$ directly, saving bandwidth.
+\end{itemize}
+
+\subsection{Verification}
+\label{subsec:ml-dsa-verify}
+
+\begin{algorithm}[t]
+\caption{ML-DSA $\Verify$}
+\label{alg:ml-dsa-verify}
+\begin{algorithmic}[1]
+\Require Public key $\mathsf{pk} = (\rho, \mathbf{t}_1)$, message $\mu$, signature $\sigma = (\tilde{c}, \mathbf{z}, \mathbf{h})$
+\Ensure Accept or reject
+\State $\mathbf{A} \gets \mathsf{ExpandA}(\rho)$
+\State $\mu' \gets H(\mathsf{tr} \| \mu)$
+\State $c \gets \mathsf{SampleInBall}(\tilde{c})$
+\State $\mathbf{w}_1' \gets \mathsf{UseHint}(\mathbf{h},\; \mathbf{A}\mathbf{z} - c \cdot \mathbf{t}_1 \cdot 2^d)$ \Comment{Recover high bits}
+\State \Return $\norm{\mathbf{z}}_\infty < \gamma_1 - \beta$ \textbf{and} $\tilde{c} = H(\mu' \| \mathbf{w}_1')$ \textbf{and} $\abs{\mathbf{h}} \leq \omega$
+\end{algorithmic}
+\end{algorithm}
+
+Verification requires only one matrix-vector multiplication $\mathbf{A}\mathbf{z}$, making it fast.  The check $\tilde{c} = H(\mu' \| \mathbf{w}_1')$ ensures that the recovered commitment matches the challenge.
+
+\subsection{Parameter Sets}
+\label{subsec:ml-dsa-params}
+
+ML-DSA defines three parameter sets targeting NIST security levels~I, III, and V:
+
+\begin{table}[t]
+\caption{ML-DSA parameter sets~\cite{FIPS204}.  Sizes include encoding overhead.}
+\label{tab:ml-dsa-params}
+\begin{tabular}{p{2cm}p{1cm}p{1cm}p{1cm}p{1cm}p{1.5cm}p{1.5cm}p{1.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Param.\ set} & $k$ & $\ell$ & $\eta$ & $\tau$ & \textbf{PK (B)} & \textbf{SK (B)} & \textbf{Sig (B)} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+ML-DSA-44 & 4 & 4 & 2 & 39 & 1\,312 & 2\,560 & 2\,420 \\
+ML-DSA-65 & 6 & 5 & 4 & 49 & 1\,952 & 4\,032 & 3\,309 \\
+ML-DSA-87 & 8 & 7 & 2 & 60 & 2\,592 & 4\,896 & 4\,627 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The naming convention encodes the module dimensions: ML-DSA-44 uses a $4 \times 4$ module, ML-DSA-65 uses $6 \times 5$, and ML-DSA-87 uses $8 \times 7$.  Larger modules provide higher security at the cost of larger keys and signatures.
+
+\subsection{Hints and Compression}
+\label{subsec:hints-compression}
+
+The hint mechanism is one of ML-DSA's most elegant engineering contributions.  During signing, the signer computes $\mathbf{w} = \mathbf{A}\mathbf{y}$ and extracts its high-order bits $\mathbf{w}_1$.  The verifier, who does not know $\mathbf{y}$, instead computes $\mathbf{A}\mathbf{z} - c\,\mathbf{t} = \mathbf{A}\mathbf{y} - c\,\mathbf{s}_2 + (c\,\mathbf{s}_2 - c\,\mathbf{s}_2)$, which may have slightly different high-order bits due to carries from the low-order part.  The hint $\mathbf{h}$ records exactly which coefficients require correction.  Because $\mathbf{h}$ is sparse (at most $\omega$ ones), it is far cheaper to transmit than $\mathbf{w}_1$ itself.
+
+\subsection{Security}
+\label{subsec:ml-dsa-security}
+
+The security of ML-DSA reduces to the hardness of Module-\lwe{} and Module-SIS in the QROM.  Specifically, if there exists a quantum adversary that produces an existential forgery under a chosen-message attack, then there exists a quantum algorithm that either solves Module-\lwe{} with the scheme's parameters, or solves Module-SIS---both of which reduce (via Chap.~\ref{ch:lattice-theory}) to worst-case lattice problems.
+
+
+%% ================================================================
 \section{NTRU Lattices and the GPV Framework}
 \label{sec:ntru-gpv}
 
-% TODO: New section (foundation for Falcon)
-% - NTRU lattices: definition and properties
-% - The GPV framework: hash-and-sign from lattice trapdoors
-% - Preimage sampling: Gaussian sampling with a trapdoor basis
-% - The quality of the trapdoor: Gram-Schmidt norms
-% - Cite: NTRU (Hoffstein et al. 1998), GPV 2008
+The second paradigm for lattice signatures follows the classical hash-and-sign approach: the signer uses a trapdoor to ``invert'' a hash function.  The mathematical foundation combines NTRU lattices with the GPV (Gentry-Peikert-Vaikuntanathan) framework~\cite{GPV2008}.
 
+\subsection{NTRU Lattices}
+\label{subsec:ntru-lattices}
+
+The NTRU cryptosystem~\cite{NTRU1998} works in the polynomial ring $R = \Z[X]/(X^n + 1)$ for $n$ a power of~$2$, with computations modulo a prime $q$.
+
+\begin{definition}[NTRU Lattice]
+\label{def:ntru-lattice}
+\index{NTRU!lattice}
+Given polynomials $f, g \in R$ with small coefficients and $f$ invertible modulo $q$, define the public key $h = g \cdot f^{-1} \bmod q$.  The \emph{NTRU lattice} is the $2n$-dimensional integer lattice
+\begin{equation}
+\label{eq:ntru-lattice}
+\lat_h \;=\; \bigl\{(\mathbf{u}, \mathbf{v}) \in \Z^{2n} : \mathbf{u} \equiv h \cdot \mathbf{v} \pmod{q}\bigr\}.
+\end{equation}
+Equivalently, in matrix form, $\lat_h$ is generated by the rows of
+\begin{equation}
+\label{eq:ntru-basis}
+\mathbf{B}_{\mathrm{pub}} = \begin{pmatrix} q\,\mathbf{I}_n & \mathbf{0} \\ \mathbf{H} & \mathbf{I}_n \end{pmatrix},
+\end{equation}
+where $\mathbf{H}$ is the anti-circulant matrix corresponding to multiplication by $h$.
+\end{definition}
+
+The pair $(f, g)$ provides a \emph{short basis} of $\lat_h$:
+\begin{equation}
+\label{eq:ntru-short-basis}
+\mathbf{B}_{\mathrm{sec}} = \begin{pmatrix} f & g \\ F & G \end{pmatrix},
+\end{equation}
+where $F, G \in R$ satisfy the NTRU equation $f\,G - g\,F = q$.  The rows of $\mathbf{B}_{\mathrm{sec}}$ have norm $\bigO(\sqrt{q})$, while the public basis $\mathbf{B}_{\mathrm{pub}}$ has a row of norm $q$---an exponential quality gap in terms of the Gram-Schmidt norms.
+
+\begin{svgraybox}
+\textbf{The NTRU hardness assumption.}  Given only $h = g\,f^{-1} \bmod q$, it is computationally infeasible to recover the short pair $(f, g)$ or any equivalently short basis of $\lat_h$.  This is closely related to the problem of finding short vectors in the NTRU lattice, and it has resisted cryptanalysis for over 25~years~\cite{NTRU1998}.
+\end{svgraybox}
+
+\subsection{The GPV Hash-and-Sign Framework}
+\label{subsec:gpv-framework}
+
+Gentry, Peikert, and Vaikuntanathan~\cite{GPV2008} showed how to build signature schemes from any lattice equipped with a \emph{trapdoor}---a short basis that enables efficient sampling of short lattice vectors near any target point.
+
+\begin{definition}[Hash-and-Sign Signature~\cite{GPV2008}]
+\label{def:gpv-signature}
+\index{GPV framework}
+Let $\lat$ be a lattice with public basis $\mathbf{B}_{\mathrm{pub}}$ and trapdoor (short basis) $\mathbf{B}_{\mathrm{sec}}$.  Let $H$ be a hash function mapping messages to points in $\R^n$.
+\begin{itemize}
+\item $\KeyGen$: output $\mathsf{pk} = \mathbf{B}_{\mathrm{pub}}$, $\mathsf{sk} = \mathbf{B}_{\mathrm{sec}}$.
+\item $\Sign(\mathsf{sk}, \mu)$: compute $\mathbf{c} = H(\mu)$; use $\mathbf{B}_{\mathrm{sec}}$ to sample $\mathbf{v} \sim D_{\lat, \sigma, \mathbf{c}}$ (discrete Gaussian over $\lat$ centred at $\mathbf{c}$); output $\sigma = \mathbf{v}$.
+\item $\Verify(\mathsf{pk}, \mu, \sigma)$: check that $\sigma \in \lat$ and $\norm{\sigma - H(\mu)} \leq B$ for an appropriate bound $B$.
+\end{itemize}
+\end{definition}
+
+\subsection{Preimage Sampling}
+\label{subsec:preimage-sampling}
+
+The core algorithmic challenge is sampling from $D_{\lat, \sigma, \mathbf{c}}$---the discrete Gaussian distribution over lattice points, centred at $\mathbf{c}$, with standard deviation $\sigma$.  This distribution assigns probability proportional to $\exp(-\pi\norm{\mathbf{x} - \mathbf{c}}^2/\sigma^2)$ to each point $\mathbf{x} \in \lat$.
+
+\begin{theorem}[GPV Preimage Sampling~\cite{GPV2008}]
+\label{thm:gpv-sampling}
+\index{preimage sampling}
+Given a basis $\mathbf{B}$ of a lattice $\lat$ and a Gaussian parameter $\sigma \geq \norm{\widetilde{\mathbf{B}}} \cdot \omega(\sqrt{\log n})$, where $\norm{\widetilde{\mathbf{B}}} = \max_i \norm{\widetilde{\mathbf{b}}_i}$ is the maximum Gram-Schmidt norm, there exists an efficient algorithm to sample from a distribution statistically close to $D_{\lat, \sigma, \mathbf{c}}$ for any centre $\mathbf{c}$.
+\end{theorem}
+
+The critical constraint is that $\sigma$ must exceed the Gram-Schmidt norm of the basis.  A shorter basis (smaller $\norm{\widetilde{\mathbf{B}}}$) allows a smaller $\sigma$, which in turn produces shorter signatures.  This is why the trapdoor quality---measured by $\norm{\widetilde{\mathbf{B}}}$---directly determines the scheme's efficiency.
+
+\subsection{Security of GPV Signatures}
+\label{subsec:gpv-security}
+
+\begin{theorem}[GPV Security~\cite{GPV2008}]
+\label{thm:gpv-security}
+If $\sigma$ is sufficiently large relative to $\norm{\widetilde{\mathbf{B}_{\mathrm{sec}}}}$, then:
+\begin{enumerate}
+\item The distribution of signatures is statistically close to $D_{\lat, \sigma, H(\mu)}$, which depends only on the public lattice and the message---not on which short basis was used.  This ensures zero-knowledge.
+\item Forging a signature requires finding a lattice vector close to $H(\mu)$, which is an instance of approximate \cvp{}.  The security reduces to the hardness of \sivp{} in the underlying lattice.
+\end{enumerate}
+\end{theorem}
+
+The GPV framework is general: it applies to any lattice with an efficiently sampleable trapdoor.  Falcon instantiates it using NTRU lattices, where the trapdoor is the short basis $(f, g, F, G)$.
+
+
+%% ================================================================
 \section{Falcon}
 \label{sec:falcon}
 
-% TODO: Expand from notes.tex §4.4.4
-% - Construction: NTRU lattice + fast Fourier sampling
-% - KeyGen: generating quality NTRU bases
-% - Sign: tree-based Gaussian sampling (the "Falcon tree")
-% - Verify: checking norm bounds
-% - Parameters and security levels
-% - Implementation challenge: constant-time floating-point
-% - Cite: Fouque et al. (Falcon specification)
+Falcon (Fast-Fourier Lattice-based Compact Signatures over NTRU)~\cite{Falcon2020} combines the GPV hash-and-sign framework with NTRU lattices and a tree-based fast Fourier sampling algorithm to achieve the smallest signatures among all lattice-based schemes.
 
+\subsection{Construction Overview}
+\label{subsec:falcon-overview}
+
+The high-level structure follows the GPV template (Definition~\ref{def:gpv-signature}), with two crucial specialisations:
+
+\begin{enumerate}
+\item The underlying lattice is an NTRU lattice $\lat_h$ (Definition~\ref{def:ntru-lattice}), whose algebraic structure enables compact keys.
+\item The discrete Gaussian sampling uses a \emph{fast Fourier} decomposition of the basis, replacing the $\bigO(n^2)$ Gram-Schmidt-based sampler with an $\bigO(n \log n)$ tree-based algorithm.
+\end{enumerate}
+
+\subsection{Key Generation}
+\label{subsec:falcon-keygen}
+
+Key generation produces an NTRU pair with controlled quality:
+
+\begin{algorithm}[t]
+\caption{Falcon $\KeyGen$}
+\label{alg:falcon-keygen}
+\begin{algorithmic}[1]
+\Require Degree $n$ (512 or 1024)
+\Ensure Public key $h$, secret key $(f, g, F, G)$ and Falcon tree $\mathcal{T}$
+\Repeat
+  \State Sample $f, g \getsr D_{\Z^n, \sigma_{\mathrm{kg}}}$ \Comment{Short polynomials}
+  \State Check $f$ is invertible mod $q$ and mod $X^n + 1$
+  \State Solve NTRU equation: find $F, G$ such that $fG - gF = q$
+\Until{$\norm{\widetilde{\mathbf{B}}_{\mathrm{sec}}}$ is below threshold}
+\State $h \gets g \cdot f^{-1} \bmod q$
+\State Precompute Falcon tree $\mathcal{T}$ from $(f, g, F, G)$ \Comment{FFT of Gram-Schmidt data}
+\State \Return $\mathsf{pk} = h$, $\mathsf{sk} = \mathcal{T}$
+\end{algorithmic}
+\end{algorithm}
+
+The NTRU equation $fG - gF = q$ is solved using the tower-of-fields approach: one works recursively in $\Z[X]/(X^{n/2}+1)$, then $\Z[X]/(X^{n/4}+1)$, and so on, solving a $2 \times 2$ system at each level.  This yields $F, G$ with entries of size $\bigO(q)$, which are then reduced using lattice reduction in small dimension.
+
+\subsection{Signing: The Falcon Tree}
+\label{subsec:falcon-sign}
+
+To sign a message $\mu$, the signer hashes it to a point $\mathbf{c} = H(\mu) \in \Z_q^n$ and must find a short lattice vector $\mathbf{v}$ close to $(\mathbf{c}, \mathbf{0})$ in $\lat_h$.  Equivalently, find short $(s_1, s_2) \in R^2$ such that $s_1 + s_2 h \equiv \mathbf{c} \pmod{q}$.  The signature is the short polynomial $s_2$ (from which $s_1$ can be recovered during verification).
+
+The sampling uses the \emph{Falcon tree}\index{Falcon!tree}, a precomputed data structure that encodes the Gram-Schmidt decomposition of the NTRU basis in FFT form:
+
+\begin{algorithm}[t]
+\caption{Falcon $\Sign$ (simplified)}
+\label{alg:falcon-sign}
+\begin{algorithmic}[1]
+\Require Message $\mu$, Falcon tree $\mathcal{T}$, public key $h$
+\Ensure Signature $s_2$
+\State $\mathbf{c} \gets H(\mu) \bmod q$ \Comment{Hash to point}
+\State $\mathbf{t} \gets (\mathbf{c}, \mathbf{0}) \cdot \mathbf{B}_{\mathrm{sec}}^{-1}$ \Comment{Babai target in basis coords}
+\State $\mathbf{z} \gets \mathsf{ffSampling}(\mathbf{t}, \mathcal{T})$ \Comment{Tree-based discrete Gaussian}
+\State $\mathbf{v} \gets \mathbf{z} \cdot \mathbf{B}_{\mathrm{sec}}$ \Comment{Short lattice vector}
+\State $s_2 \gets \mathbf{v}[n{:}2n]$ \Comment{Second component}
+\If{$\norm{(s_1, s_2)} > B$}
+  \State \textbf{restart} \Comment{Rare: norm exceeded bound}
+\EndIf
+\State Compress and output $s_2$
+\end{algorithmic}
+\end{algorithm}
+
+The key subroutine $\mathsf{ffSampling}$ exploits the recursive structure of the ring $R = \Z[X]/(X^n+1)$.  Since $X^n + 1 = (X^{n/2} + \zeta)(X^{n/2} - \zeta)$ over a suitable extension, the Gram-Schmidt decomposition splits into two half-sized subproblems.  Applied recursively, this yields a binary tree of depth $\log_2 n$, with a one-dimensional Gaussian sample at each leaf.  The total cost is $\bigO(n \log n)$ operations---the same complexity as an FFT.
+
+\subsection{Verification}
+\label{subsec:falcon-verify}
+
+\begin{algorithm}[t]
+\caption{Falcon $\Verify$}
+\label{alg:falcon-verify}
+\begin{algorithmic}[1]
+\Require Public key $h$, message $\mu$, signature $s_2$
+\Ensure Accept or reject
+\State $\mathbf{c} \gets H(\mu) \bmod q$
+\State $s_1 \gets \mathbf{c} - s_2 \cdot h \bmod q$
+\State \Return $\norm{(s_1, s_2)}^2 \leq B^2$
+\end{algorithmic}
+\end{algorithm}
+
+Verification is extremely efficient: one polynomial multiplication, one subtraction, and a norm check.  No tree structure or Gaussian sampling is needed.
+
+\subsection{Parameters and Security}
+\label{subsec:falcon-params}
+
+Falcon defines two parameter sets:
+
+\begin{table}[t]
+\caption{Falcon parameter sets~\cite{Falcon2020}}
+\label{tab:falcon-params}
+\begin{tabular}{p{2.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{2cm}}
+\hline\noalign{\smallskip}
+\textbf{Param.\ set} & $n$ & $q$ & \textbf{PK (B)} & \textbf{Sig (B)} & \textbf{Security} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Falcon-512  & 512  & 12\,289 & 897   & 666   & NIST Level I \\
+Falcon-1024 & 1024 & 12\,289 & 1\,793 & 1\,280 & NIST Level V \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The signature sizes are the smallest among all NIST post-quantum signature candidates, roughly $2.5\times$--$3.6\times$ smaller than ML-DSA at comparable security levels.
+
+\subsection{The Constant-Time Challenge}
+\label{subsec:falcon-constant-time}
+
+Falcon's primary implementation difficulty is that the $\mathsf{ffSampling}$ algorithm requires high-precision floating-point arithmetic---specifically, IEEE~754 double-precision (53-bit significand) at minimum:
+
+\begin{itemize}
+\item \textbf{Floating-point side channels.}  The duration of floating-point operations can depend on the operand values (subnormals, special values), creating timing side channels that leak information about the secret basis.
+\item \textbf{Platform dependence.}  Different CPUs may implement IEEE~754 with different rounding behaviours in edge cases, potentially causing interoperability failures or security vulnerabilities.
+\item \textbf{No FPU on constrained devices.}  Many embedded platforms (e.g., ARM Cortex-M without FPU) cannot run Falcon efficiently, as software floating-point emulation is orders of magnitude slower.
+\item \textbf{Memory access patterns.}  The tree traversal during $\mathsf{ffSampling}$ may produce secret-dependent memory access patterns, opening cache-timing attack vectors.
+\end{itemize}
+
+These challenges are not merely theoretical: multiple academic works have demonstrated timing attacks against Falcon implementations.  NIST's standardisation of Falcon (as FN-DSA) includes explicit guidance that implementers must ensure constant-time behaviour of all floating-point operations---a requirement that few development teams can confidently meet.
+
+
+%% ================================================================
 \section{ML-DSA vs Falcon: A Comparative Analysis}
 \label{sec:sig-comparison}
 
-% TODO: New section
-% - Table: key sizes, signature sizes, speed (sign/verify)
-% - Security assumptions: Module-LWE+SIS vs NTRU
-% - Implementation complexity: Dilithium is simpler
-% - Side-channel resistance: Dilithium is easier to protect
-% - When to use which
+The two NIST lattice-based signature standards represent fundamentally different design philosophies.  Table~\ref{tab:sig-comparison} summarises the key differences.
 
-%% Exercises
+\begin{table}[t]
+\caption{ML-DSA vs Falcon: comparative overview.  Sizes for NIST Level~I (ML-DSA-44 vs Falcon-512).  Benchmark speeds on Intel Core i7 (AVX2).}
+\label{tab:sig-comparison}
+\begin{tabular}{p{3.8cm}p{4cm}p{4cm}}
+\hline\noalign{\smallskip}
+\textbf{Criterion} & \textbf{ML-DSA-44} & \textbf{Falcon-512} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Public key size        & 1\,312 B             & 897 B \\
+Signature size         & 2\,420 B             & 666 B \\
+Secret key size        & 2\,560 B             & $\sim$1\,281 B (tree: $\sim$40 KB) \\
+Sign (ops/s)           & $\sim$3\,700         & $\sim$5\,000 \\
+Verify (ops/s)         & $\sim$9\,100         & $\sim$28\,000 \\
+PK + Sig combined      & 3\,732 B             & 1\,563 B \\
+\noalign{\smallskip}\hline
+Hard problem           & Module-LWE + SIS     & NTRU \\
+Paradigm               & Fiat-Shamir w/ aborts & GPV hash-and-sign \\
+Arithmetic             & Integer ($\Z_q$)     & Floating-point (IEEE 754) \\
+Constant-time          & Straightforward      & Extremely difficult \\
+Embedded suitability   & Good (no FPU needed) & Poor (requires FPU) \\
+Side-channel resistance & Easier to protect   & Requires expert care \\
+Implementation complexity & Moderate           & High \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\subsection{When to Use Which}
+\label{subsec:when-to-use}
+
+\textbf{ML-DSA is the default recommendation} for nearly all applications.  Its implementation simplicity, natural constant-time behaviour (all operations are modular integer arithmetic), and broad platform support make it the safer engineering choice.  NIST designates ML-DSA as the primary standard for digital signatures.
+
+\textbf{Falcon is preferred when signature size dominates.}  In applications where thousands or millions of signatures are stored or transmitted---blockchain ledgers, certificate transparency logs, bandwidth-constrained satellite links---the $2.5\times$--$3.6\times$ size reduction over ML-DSA may justify the implementation complexity.  However, any deployment of Falcon should be backed by expert cryptographic engineering and security audits.
+
+\begin{svgraybox}
+\textbf{The diversity argument.}  Beyond performance, having two standardised schemes based on different lattice problems (Module-LWE/SIS vs NTRU) provides cryptographic diversity.  If a breakthrough algorithm were discovered against one class of lattice problems, the other scheme could serve as a fallback.  This is a key reason NIST standardised both.
+\end{svgraybox}
+
+\subsection{The Broader Landscape}
+\label{subsec:broader-landscape}
+
+It is worth noting that NIST has also standardised SLH-DSA (SPHINCS+), a hash-based signature scheme that requires no lattice assumptions at all (Chap.~\ref{ch:hash-signatures}).  For applications requiring the strongest possible security assumptions---relying only on the collision resistance of hash functions---SLH-DSA provides an alternative, at the cost of significantly larger signatures ($\sim$7--49~KB).
+
+The three standards together cover the full spectrum of post-quantum signature needs: ML-DSA for general use, Falcon (FN-DSA) for size-critical applications, and SLH-DSA as a conservative fallback.
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch08-leakage}
-Explain why a na\"ive lattice signature scheme that outputs $\mathbf{z} = \mathbf{s} \cdot c + \mathbf{y}$ (where $\mathbf{s}$ is the secret, $c$ the challenge, and $\mathbf{y}$ a random mask) leaks information about $\mathbf{s}$ after multiple signatures. How does rejection sampling solve this?
+Explain why a na\"ive lattice signature scheme that outputs $\mathbf{z} = \mathbf{s} \cdot c + \mathbf{y}$ (where $\mathbf{s}$ is the secret, $c$ the challenge, and $\mathbf{y}$ a random mask) leaks information about $\mathbf{s}$ after multiple signatures.  How does rejection sampling solve this?
 \end{prob}
 
 \begin{prob}
 \label{prob:ch08-dilithium}
-In ML-DSA, the signer rejects and restarts if $\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$. Explain the role of this check in security. What happens to the signing time as the bound $\gamma_1$ decreases?
+In ML-DSA, the signer rejects and restarts if $\norm{\mathbf{z}}_\infty \geq \gamma_1 - \beta$.  Explain the role of this check in security.  What happens to the signing time as the bound $\gamma_1$ decreases?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch08-fs-transform}
+Consider a three-move identification protocol with commitment space of size $N$.
+\begin{enumerate}
+\item[(a)] Explain why the Fiat-Shamir transform requires $N$ to be super-polynomial for security.  What attack succeeds if $N$ is small?
+\item[(b)] In the QROM, an adversary can evaluate $H$ on superpositions.  Explain intuitively why the classical ``forking lemma'' proof technique fails in this setting.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch08-rejection-rate}
+In the Fiat-Shamir-with-aborts framework, the expected number of restarts is approximately $M = \exp(12\beta/\sigma + 1/(2\sigma^2))$.
+\begin{enumerate}
+\item[(a)] For ML-DSA-44, the parameters give $\beta = 78$ (the product $\tau \cdot \eta$) and $\gamma_1 = 2^{17}$.  Estimate the rejection probability per attempt and the expected number of signing attempts.
+\item[(b)] Suppose an implementer ``optimises'' the scheme by removing the rejection step entirely.  Describe a concrete attack that recovers the secret key from $\bigO(n)$ signatures.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch08-ntru-basis}
+Let $n = 4$, $q = 17$, and consider the ring $R = \Z[X]/(X^4+1)$.  Let $f = 1 + X$ and $g = 1 - X^2$.
+\begin{enumerate}
+\item[(a)] Verify that $f$ is invertible modulo $q$ by finding $f^{-1} \in R_q$.
+\item[(b)] Compute the public key $h = g \cdot f^{-1} \bmod q$.
+\item[(c)] Write out the $8 \times 8$ basis matrix for the NTRU lattice $\lat_h$ (Eq.~\eqref{eq:ntru-basis}).
+\item[(d)] Verify that the vector $(f, g) \in \Z^{2n}$ (interpreted coefficient-wise) belongs to $\lat_h$.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch08-gpv-sigma}
+\textbf{Research-level.}  In the GPV framework, the Gaussian parameter $\sigma$ must satisfy $\sigma \geq \norm{\widetilde{\mathbf{B}}} \cdot \omega(\sqrt{\log n})$.  Explain why using $\sigma$ below this threshold breaks security (not just correctness).  Specifically, show that if $\sigma < \norm{\widetilde{\mathbf{b}}_i}$ for some~$i$, the signature distribution leaks information about the $i$-th Gram-Schmidt vector.
 \end{prob}

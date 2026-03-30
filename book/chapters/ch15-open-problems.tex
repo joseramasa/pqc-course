@@ -1,86 +1,369 @@
 \chapter{Open Problems and Research Directions}
 \label{ch:open-problems}
 
-\abstract*{Post-quantum cryptography is a field in rapid motion. This final chapter identifies concrete open problems and research directions, with particular attention to opportunities where a physics background provides a decisive advantage. From quantum cryptanalysis of lattice problems to hardware optimization and fundamental complexity questions, the field needs researchers who understand both quantum mechanics and cryptographic security.}
+\abstract*{Post-quantum cryptography is a field in rapid motion.  This final chapter surveys the principal open problems and research directions that will shape the discipline over the coming decades.  We examine quantum cryptanalysis of lattice problems, physical side-channel research on PQC implementations, hardware optimization for constrained devices, the engineering challenge of cryptographic agility, contingency planning for new mathematical breaks, and long-term visions for the quantum internet era.  The chapter concludes with a numbered catalogue of concrete open problems suitable for doctoral research.}
+
+\abstract{Post-quantum cryptography is a field in rapid motion.  This final chapter surveys the principal open problems and research directions that will shape the discipline over the coming decades.  We examine quantum cryptanalysis of lattice problems, physical side-channel research on PQC implementations, hardware optimization for constrained devices, the engineering challenge of cryptographic agility, contingency planning for new mathematical breaks, and long-term visions for the quantum internet era.  The chapter concludes with a numbered catalogue of concrete open problems suitable for doctoral research.}
 
 % =============================================================
 % SOURCE: notes.tex §6.1, §6.3 (lines 7877–9409)
-% REUSE: ~50%. Add concrete numbered open problems,
+% REUSE: ~50%. Added concrete numbered open problems,
 %        recent developments 2024-2025.
 % =============================================================
+
 
 \section{Quantum Cryptanalysis}
 \label{sec:quantum-cryptanalysis}
 
-% TODO: Adapt from notes.tex §6.1.1
-% - Quantum algorithms for lattice problems: current state
-% - Quantum speedups for lattice sieving and enumeration
-% - Quantum walks on lattice graphs
-% - The holy grail: is there a polynomial-time quantum algorithm for SVP?
+The security of lattice-based cryptography rests on the assumption that problems such as \svp{} and \lwe{} remain hard for quantum computers.  While Shor's algorithm~\cite{Shor1997} devastates factoring and discrete logarithms with an exponential speedup, no comparable quantum algorithm is known for lattice problems.  Understanding whether such an algorithm exists is arguably the most important open question in the field.
 
+\subsection{The Quantum Algorithm Toolkit}
+\label{subsec:quantum-toolkit}
+
+The known quantum algorithms relevant to cryptanalysis fall into a small number of families\index{quantum algorithms!toolkit}:
+\begin{enumerate}
+\item \textbf{Hidden subgroup algorithms} (Shor): exponential speedup for abelian hidden subgroup problems.  Lattice problems are related to \emph{non-abelian} hidden subgroup problems, for which no efficient quantum algorithm is known~\cite{Regev2009}.
+\item \textbf{Grover search}: a generic $\sqrt{N}$ speedup for unstructured search.  Applied to lattice sieving, Grover's algorithm reduces the exponent from $2^{0.292n}$ to approximately $2^{0.265n}$~\cite{Laarhoven2015}.
+\item \textbf{Quantum walks}: polynomial speedups for graph-based search, applicable to certain enumeration subroutines.
+\item \textbf{Quantum sampling}: algorithms such as HHL that solve linear systems exponentially fast under favourable conditions.
+\end{enumerate}
+
+\begin{svgraybox}
+\textbf{The gap.}
+There is a conspicuous absence in this list: no quantum algorithm exploits the algebraic structure of lattice problems in the way Shor exploits the group structure of $\Z_N^*$.  Closing---or proving the impossibility of closing---this gap is the central challenge of quantum cryptanalysis\index{quantum cryptanalysis}.
+\end{svgraybox}
+
+\subsection{Quantum Speedups for Sieving and Enumeration}
+\label{subsec:quantum-sieving}
+
+Classical lattice sieving algorithms find short vectors by generating exponentially many lattice vectors and combining those that are close together.  The best classical sieving algorithms run in time $2^{0.292n + o(n)}$.  Applying Grover search to the nearest-neighbour subroutine yields a quantum sieving complexity of approximately $2^{0.265n + o(n)}$, at the cost of exponential quantum memory~\cite{Laarhoven2015}.
+
+\begin{definition}[Quantum Sieving Complexity]
+\label{def:quantum-sieving}
+\index{sieving!quantum}
+Let $T_{\mathrm{class}}(n) = 2^{c_1 n + o(n)}$ be the classical sieving time and $T_{\mathrm{quant}}(n) = 2^{c_2 n + o(n)}$ the quantum sieving time.  Current best known values are $c_1 \approx 0.292$ and $c_2 \approx 0.265$.  The \emph{quantum sieving advantage} is the ratio $c_1 / c_2 \approx 1.10$.
+\end{definition}
+
+A 10\% reduction in the exponent is significant but far from the exponential collapse that Shor inflicts on RSA.  For enumeration-based algorithms, quantum walks on the enumeration tree can provide a modest polynomial speedup, but the overall complexity remains $2^{\Theta(n)}$.
+
+\subsection{Quantum Walks on Lattice Graphs}
+\label{subsec:quantum-walks}
+
+Quantum walk algorithms\index{quantum walks} offer an alternative approach.  By defining a graph whose vertices correspond to lattice vectors and whose edges connect ``close'' pairs, a quantum walk can search for short vectors.  The difficulty is that the graph has $2^{\Theta(n)}$ vertices, and quantum walks provide at best a quadratic speedup over classical random walks on this graph.
+
+Recent work has explored whether structured quantum walks---exploiting the periodicity of the lattice---can do better.  An analogy from condensed-matter physics is suggestive: Bloch's theorem shows that the periodicity of a crystal lattice constrains the electron wavefunctions to Bloch waves.  If a similar structural constraint could be imposed on a quantum walk over the lattice graph, it might yield a super-quadratic speedup.  No concrete algorithm of this type is known.
+
+\subsection{The SVP Holy Grail}
+\label{subsec:svp-holy-grail}
+
+\begin{svgraybox}
+\textbf{The SVP question.}
+Is there a polynomial-time quantum algorithm for \svp{}\index{SVP!quantum complexity}?  A positive answer would break all lattice-based cryptography.  A negative answer---a proof that \svp{} is hard even for quantum computers---would place lattice-based cryptography on the firmest possible theoretical footing.  Neither result appears within reach.
+\end{svgraybox}
+
+Several intermediate results constrain what is possible.  The best known quantum lower bound for exact \svp{} is trivial ($\Omega(n)$, the cost of reading the input).  On the upper-bound side, there is no known quantum algorithm that beats $2^{0.265n}$ asymptotically.  Gidney and Eker\aa~\cite{GidneyEkera2021} have provided sharp quantum resource estimates for Shor's algorithm against RSA and elliptic curves, but comparable resource analyses for quantum lattice attacks remain incomplete---a significant gap in the literature.
+
+
+%% ================================================================
 \section{Physical Side-Channel Research}
 \label{sec:physical-research}
 
-% TODO: Adapt from notes.tex §6.1.2
-% - EM analysis of PQC implementations
-% - Deep learning for side-channel attacks
-% - Countermeasure design: physics-informed approaches
-% - Quantum side channels: a new frontier
+Cryptographic implementations leak information through physical channels: power consumption, electromagnetic (EM) radiation, timing, and cache behaviour.  Post-quantum algorithms introduce new side-channel surfaces that are not yet fully understood\index{side-channel analysis!PQC}.
 
+\subsection{Electromagnetic Analysis of PQC}
+\label{subsec:em-analysis}
+
+The NTT butterfly operations at the heart of \mlwe{}-based schemes such as ML-KEM produce characteristic EM signatures.  Each butterfly involves a modular multiplication whose operand values influence switching activity on the data bus.  Near-field EM probes can resolve individual butterfly stages, potentially recovering polynomial coefficients that encode the secret key.
+
+\begin{example}[EM Leakage in NTT]
+\label{ex:em-ntt}
+\index{NTT!side-channel leakage}
+Consider an NTT of length $n = 256$ over $\Zq$ with $q = 3329$ (the ML-KEM parameter set).  The NTT consists of $\log_2 n = 8$ stages, each performing $n/2 = 128$ butterfly operations.  An EM probe positioned over the arithmetic unit of an unprotected microcontroller can distinguish twiddle-factor multiplications involving small coefficients (low Hamming weight) from those involving large coefficients, leaking partial information about the secret polynomial after as few as 1\,000 traces.
+\end{example}
+
+\subsection{Deep Learning for Side-Channel Attacks}
+\label{subsec:deep-learning-sca}
+
+Classical side-channel attacks require the analyst to identify exploitable leakage points manually.  Deep learning\index{deep learning!side-channel attacks} models---convolutional and recurrent neural networks---can learn leakage models directly from raw power or EM traces, bypassing the need for expert feature engineering.  For PQC implementations, this is particularly relevant because:
+\begin{itemize}
+\item The leakage model for polynomial arithmetic is more complex than for classical modular exponentiation.
+\item Masking countermeasures that are effective against classical template attacks may be insufficient against neural-network-based profiling.
+\item The large key and ciphertext sizes of PQC schemes produce longer traces with more potential leakage points.
+\end{itemize}
+
+\subsection{Physics-Informed Countermeasures}
+\label{subsec:physics-countermeasures}
+
+Effective countermeasures require understanding the physical leakage mechanism, not merely the algorithmic one.  Examples of physics-informed approaches include:
+\begin{enumerate}
+\item \textbf{Dual-rail logic}\index{dual-rail logic}: balancing switching activity at the transistor level so that every operation dissipates the same energy regardless of operand values.
+\item \textbf{EM shielding}: designing package-level Faraday cages calibrated to the frequencies at which NTT operations emit.
+\item \textbf{Noise injection}: adding controlled random switching activity whose spectrum masks the signal of interest.  The noise budget must be set by modelling the channel capacity of the EM side channel.
+\end{enumerate}
+
+\subsection{Quantum Side Channels}
+\label{subsec:quantum-side-channels}
+
+As quantum computers begin to execute cryptographic algorithms, they introduce a new class of side channels\index{side-channel analysis!quantum}:
+\begin{itemize}
+\item \textbf{Qubit crosstalk:} in superconducting processors, the resonant frequency of a qubit shifts depending on the state of its neighbours, potentially leaking information about the computation.
+\item \textbf{Photon statistics in QKD:} detector timing jitter and after-pulsing probabilities depend on photon energy, creating a side channel in quantum key distribution systems.
+\item \textbf{Cryogenic thermal signatures:} heat dissipation in dilution refrigerators varies with the number and type of gate operations, providing a coarse-grained side channel on quantum algorithm execution.
+\end{itemize}
+
+These quantum side channels are largely unexplored from a cryptanalytic perspective and represent a fertile research direction at the intersection of quantum hardware engineering and cryptographic security.
+
+
+%% ================================================================
 \section{Hardware Optimization}
 \label{sec:hardware}
 
-% TODO: Adapt from notes.tex §6.1.3
-% - FPGA and ASIC implementations of NTT
-% - Gaussian sampling hardware
-% - Energy-efficient PQC for IoT
-% - Photonic computing for lattice operations
+Deploying PQC on resource-constrained devices---smart cards, IoT sensors, embedded controllers---requires hardware implementations that meet strict area, power, and latency budgets\index{hardware!PQC optimization}.
 
+\subsection{FPGA and ASIC Implementations of NTT}
+\label{subsec:ntt-hardware}
+
+The Number Theoretic Transform\index{NTT!hardware} dominates the computational cost of \mlwe{}-based schemes.  On a general-purpose CPU, an NTT of length $n = 256$ with $q = 3329$ requires approximately $n \log_2 n = 2048$ butterfly operations, each involving a modular multiplication and addition.  A dedicated hardware butterfly unit can execute one butterfly per clock cycle, completing the full NTT in $\log_2 n = 8$ cycles when $n/2 = 128$ butterfly units operate in parallel.
+
+\begin{table}[t]
+\caption{NTT implementation tradeoffs for ML-KEM ($n=256$, $q=3329$)}
+\label{tab:ntt-hw}
+\begin{tabular}{p{3cm}p{2.5cm}p{2.5cm}p{2.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Architecture} & \textbf{Area (kGE)} & \textbf{Latency ($\mu$s)} & \textbf{Energy (nJ)} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Software (ARM Cortex-M4) & --- & $\sim$100 & $\sim$10\,000 \\
+1 butterfly unit & $\sim$5 & $\sim$10 & $\sim$50 \\
+4 butterfly units & $\sim$15 & $\sim$3 & $\sim$20 \\
+128 butterfly units & $\sim$400 & $\sim$0.1 & $\sim$10 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The design space involves a classic area--latency tradeoff.  For IoT applications, the single-butterfly design is often preferred; for high-throughput servers, fully parallel implementations are justified.
+
+\subsection{Gaussian Sampling Hardware}
+\label{subsec:gaussian-hw}
+
+Schemes based on Gaussian noise (including earlier NTRU variants and certain signature schemes) require sampling from a discrete Gaussian distribution\index{Gaussian sampling!hardware}.  Hardware implementations must balance:
+\begin{itemize}
+\item \textbf{Statistical quality:} the output distribution must be indistinguishable from ideal to prevent statistical side-channel attacks.
+\item \textbf{Constant-time execution:} rejection sampling introduces data-dependent timing; hardware implementations must mask this variation.
+\item \textbf{Entropy consumption:} each sample requires fresh random bits; the TRNG must keep pace with the sampling rate.
+\end{itemize}
+
+Cumulative Distribution Table (CDT) sampling and the Knuth--Yao algorithm are the two dominant hardware approaches.  CDT sampling uses a precomputed table and a single comparison per sample, achieving constant time at the cost of table storage.  The Knuth--Yao algorithm is more memory-efficient but requires a variable number of random bits per sample.
+
+\subsection{Energy-Efficient PQC for IoT}
+\label{subsec:iot-energy}
+
+For battery-powered IoT devices, the energy cost of a single key encapsulation may determine whether PQC is feasible at all\index{IoT!PQC energy}.  ML-KEM-512, the lightest NIST-standardised parameter set, requires approximately 150\,000 arithmetic operations for encapsulation.  On an ARM Cortex-M0+ at 1.8\,V and 16\,MHz, this translates to roughly 10\,$\mu$J---orders of magnitude more than an ECDH key exchange.  Reducing this energy cost through algorithmic, architectural, and circuit-level optimisation is an active research area with direct practical impact.
+
+
+%% ================================================================
 \section{Cryptographic Agility}
 \label{sec:crypto-agility}
 
-% TODO: Adapt from notes.tex §6.3.1
-% - Design principles for algorithm-agnostic systems
-% - Protocol negotiation and version management
-% - The cost of agility vs the cost of replacement
-% - Lessons from the SHA-1 and MD5 transitions
+History teaches that every cryptographic algorithm eventually falls\index{cryptographic agility}.  The ability to replace algorithms quickly and safely---\emph{cryptographic agility}---is therefore not a luxury but a survival requirement.
 
+\subsection{Algorithm-Agnostic Design}
+\label{subsec:agnostic-design}
+
+\begin{definition}[Cryptographic Agility]
+\label{def:crypto-agility}
+A system exhibits \emph{cryptographic agility}\index{cryptographic agility!definition} if:
+\begin{enumerate}
+\item Algorithms are identified by negotiable object identifiers (OIDs), not hard-coded implementations.
+\item Multiple algorithms can coexist in the same deployment.
+\item Algorithm transitions require configuration changes, not code changes.
+\item Monitoring infrastructure tracks which algorithms are in active use.
+\end{enumerate}
+\end{definition}
+
+Achieving agility requires abstracting the cryptographic layer behind a stable interface.  The provider pattern---where algorithm implementations are loaded dynamically based on policy---is the standard architectural approach.  However, agility introduces its own risks: a larger algorithm menu expands the attack surface (downgrade attacks) and increases testing burden.
+
+\subsection{Protocol Negotiation}
+\label{subsec:protocol-negotiation}
+
+TLS~1.3\index{TLS!agility} demonstrates effective protocol-level agility: the client advertises supported groups and signature algorithms, and the server selects the strongest mutually supported option.  Extending this mechanism to include PQC algorithms---as done in hybrid key exchange drafts---is straightforward in principle.  The challenges are operational:
+\begin{itemize}
+\item Larger key shares increase the ClientHello size, sometimes exceeding a single TCP segment and triggering fragmentation.
+\item Certificate chains containing PQC signatures are significantly larger, straining bandwidth-limited links.
+\item Negotiation must handle the case where a previously trusted algorithm is abruptly deprecated.
+\end{itemize}
+
+\subsection{Lessons from SHA-1 and MD5}
+\label{subsec:sha1-lessons}
+
+The deprecation of MD5\index{MD5!deprecation} and SHA-1\index{SHA-1!deprecation} provides instructive precedents.  MD5 collision attacks were first demonstrated in 2004, yet MD5-signed certificates persisted in the Web PKI until at least 2012.  SHA-1 collisions were demonstrated in 2017 (the SHAttered attack); major browsers did not fully remove SHA-1 certificate support until 2019---two years after the break and twelve years after the first theoretical weaknesses.
+
+\begin{svgraybox}
+\textbf{Lesson.}
+The time between a cryptographic break and the completion of migration is measured in years to decades, not days.  Systems that lack agility transform an algorithmic weakness into a systemic crisis.  The PQC transition is our opportunity to build agility into infrastructure \emph{before} it is needed.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Preparing for New Breaks}
 \label{sec:preparing-breaks}
 
-% TODO: Adapt from notes.tex §6.3.2
-% - What if Module-LWE is broken?
-% - Defense in depth: diversification of assumptions
-% - Monitoring the cryptanalytic landscape
-% - The role of crypto competitions and challenges
+The NIST PQC standards are based primarily on the hardness of lattice problems (\mlwe{}, \rlwe{}, Module-NTRU).  What happens if these foundations crack?
 
+\subsection{What if Module-LWE Breaks?}
+\label{subsec:mlwe-break}
+
+A polynomial-time algorithm for \mlwe{}\index{Module-LWE!break scenario} would invalidate ML-KEM and ML-DSA simultaneously, disabling both key encapsulation and digital signatures.  The impact would be comparable to a polynomial-time factoring algorithm in the pre-quantum era---but broader, because NIST has concentrated its standards on a single hardness assumption.
+
+Fallback options under active standardisation or study include:
+\begin{itemize}
+\item \textbf{Code-based cryptography:} Classic McEliece (NIST round~4) rests on the hardness of decoding random linear codes, studied for over 45 years.  Key sizes are large (hundreds of kilobytes) but ciphertext sizes are competitive.
+\item \textbf{Hash-based signatures:} SPHINCS$^+$ (standardised as SLH-DSA) requires only the security of a hash function---a minimal assumption.  Signature sizes are large ($\sim$8--50\,KB) but the scheme is a robust fallback.
+\item \textbf{Multivariate-quadratic schemes:} These have a chequered history of breaks, but research continues on hardened variants.
+\end{itemize}
+
+\subsection{Defence in Depth}
+\label{subsec:defence-depth}
+
+\begin{definition}[Cryptographic Defence in Depth]
+\label{def:defence-depth}
+\index{defence in depth}
+A system employs \emph{cryptographic defence in depth} if it combines multiple independent hardness assumptions such that an adversary must break \emph{all} of them to compromise the system.  The standard realisation is \emph{hybrid} key exchange: the shared secret is the hash of a classical ECDH key and a PQC KEM key, so the system is secure as long as \emph{either} assumption holds.
+\end{definition}
+
+Hybrid modes are now supported in TLS (e.g., X25519+ML-KEM-768) and are recommended by multiple national agencies during the transition period.  The cost is modest: approximately double the computation and bandwidth of a single key exchange.
+
+\subsection{Monitoring Cryptanalysis}
+\label{subsec:monitoring}
+
+Early warning of approaching breaks requires systematic monitoring\index{cryptanalysis!monitoring}:
+\begin{enumerate}
+\item \textbf{Lattice dimension records:} track the largest dimension in which \svp{} or \cvp{} has been solved exactly, and the approximation factors achieved in challenge lattices.
+\item \textbf{Algorithmic improvements:} a reduction in the sieving exponent $c$ (currently $c \approx 0.292$ classically, $c \approx 0.265$ quantumly) would directly affect security estimates.
+\item \textbf{Quantum hardware milestones:} logical qubit counts, error rates, and demonstrated algorithm execution times.
+\item \textbf{New mathematical connections:} unexpected reductions between problems---such as a reduction from \mlwe{} to a problem known to be easy---would be a red flag.
+\end{enumerate}
+
+
+%% ================================================================
 \section{The 50-Year Horizon}
 \label{sec:horizon}
 
-% TODO: Adapt from notes.tex §6.3.3
-% - Quantum internet and its cryptographic implications
-% - Post-quantum + quantum: the full security stack
-% - Information-theoretic vs computational security in the long term
-% - New computational models: quantum advantage beyond Shor
+Cryptographic infrastructure protects data whose sensitivity may span decades: medical records, state secrets, financial archives.  Planning on a 50-year horizon forces us to reason about technologies and mathematical discoveries that do not yet exist\index{50-year horizon}.
 
+\subsection{The Quantum Internet}
+\label{subsec:quantum-internet}
+
+A mature quantum internet---connecting quantum processors via entanglement distribution---would enable quantum key distribution (QKD) over arbitrary distances, offering information-theoretic key exchange\index{quantum internet}.  However, QKD alone does not replace public-key cryptography: it requires an authenticated classical channel (which itself needs PQC signatures), does not provide digital signatures, and its throughput is orders of magnitude below that of computational schemes.  The realistic future is a \emph{layered} security stack in which PQC provides the bulk computational cryptography and QKD hardens the highest-sensitivity links.
+
+\subsection{Post-Quantum Plus Quantum: The Full Stack}
+\label{subsec:full-stack}
+
+The long-term security architecture will integrate multiple layers\index{security!full stack}:
+\begin{enumerate}
+\item \textbf{Physical layer:} QKD and quantum random number generation provide information-theoretic primitives.
+\item \textbf{Computational layer:} PQC algorithms handle authentication, general-purpose encryption, and signatures.
+\item \textbf{Protocol layer:} agile protocols negotiate the best available combination of physical and computational security.
+\item \textbf{Policy layer:} automated monitoring and migration tools manage algorithm lifecycles.
+\end{enumerate}
+
+No single layer is sufficient.  QKD cannot authenticate; PQC relies on computational assumptions that may eventually fail; protocols without agility become liabilities.  Defence in depth across layers is the only sustainable strategy~\cite{Peikert2016}.
+
+\subsection{Information-Theoretic vs.\ Computational Security}
+\label{subsec:it-vs-comp}
+
+In the long term, should we aim for information-theoretic security (where no amount of computation can break the system) or accept computational security (where breaking the system requires more computation than an adversary can muster)?
+
+\begin{table}[t]
+\caption{Information-theoretic vs.\ computational security for long-term planning}
+\label{tab:it-vs-comp}
+\begin{tabular}{p{3cm}p{4.5cm}p{4.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Criterion} & \textbf{Information-theoretic} & \textbf{Computational} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Key management & Requires pre-shared or QKD keys & Public-key infrastructure \\
+Bandwidth cost & One-time pad: $|K| \geq |M|$ & Compact ciphertexts \\
+Assumption & None (physics only) & Hardness of a math problem \\
+Scalability & Poor (point-to-point) & Excellent (public-key) \\
+Longevity & Permanent & Until assumption fails \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The practical answer is hybrid: information-theoretic security for the most sensitive, low-volume channels; computational security for the vast majority of communications.  The PQC transition is about securing the computational layer against quantum adversaries, while the parallel development of quantum networks strengthens the physical layer.
+
+
+%% ================================================================
 \section{Concrete Open Problems}
 \label{sec:open-problem-list}
 
-% TODO: New section — numbered list for reference by PhD students
-% Example format:
-% \begin{enumerate}
-%   \item \textbf{Quantum SVP:} Is there a polynomial-time quantum algorithm ...
-%   \item \textbf{Tight reductions:} Can the security loss in ... be eliminated?
-%   \item ...
-% \end{enumerate}
+The following problems are open as of early 2026\index{open problems}.  Each combines a precise statement with a brief discussion of why the problem matters, what approaches have been tried, and where a new perspective might succeed.
 
+\begin{enumerate}
+
+\item \textbf{Quantum complexity of SVP.}
+Determine the quantum query complexity of exact \svp{} in $n$ dimensions.  Is $2^{\Theta(n)}$ optimal, or does a sub-exponential quantum algorithm exist?  The best known quantum upper bound is $2^{0.265n + o(n)}$ from quantum sieving; no super-linear lower bound is known.  Even proving a $2^{\omega(\sqrt{n})}$ quantum lower bound would be a major advance~\cite{Regev2009}.
+
+\item \textbf{Tight reductions for Module-LWE.}
+The security proof of ML-KEM reduces \mlwe{} to worst-case lattice problems, but the reduction incurs a polynomial loss in the security parameter~\cite{Peikert2016}.  Can this loss be eliminated?  Tight reductions would allow smaller parameters and thus more efficient schemes, directly impacting every deployment.
+
+\item \textbf{Quantum resource estimates for lattice attacks.}
+Provide end-to-end quantum resource estimates---logical qubits, T-gate count, circuit depth, wall-clock time under realistic error correction---for the best known quantum attacks on ML-KEM-768 and ML-KEM-1024.  Gidney and Eker\aa~\cite{GidneyEkera2021} performed this analysis for RSA-2048 and elliptic curves; the lattice case is missing.
+
+\item \textbf{Side-channel security of NTT implementations.}
+Characterise the information-theoretic leakage of masked NTT implementations.  Specifically: for an NTT masked at order $d$, what is the minimum number of EM traces required to recover a secret coefficient, as a function of $d$ and the signal-to-noise ratio?  Current bounds are empirical, not theoretical.
+
+\item \textbf{Constant-time Gaussian sampling with minimal entropy.}
+Design a constant-time discrete Gaussian sampler that is provably secure against timing side channels and consumes fewer than $2\lceil\log_2(\sigma)\rceil + 3$ random bits per sample, where $\sigma$ is the standard deviation.  The current best constructions consume significantly more.
+
+\item \textbf{Sub-linear-area NTT for constrained devices.}
+Design an NTT hardware architecture for ML-KEM that fits within 3\,kGE (gate equivalents) while completing a full NTT in fewer than 5\,000 clock cycles.  Achieving this would make PQC viable on the smallest smart-card ICs.
+
+\item \textbf{Formal verification of PQC implementations.}
+Develop a formally verified (machine-checked) implementation of ML-KEM in a language suitable for embedded deployment (e.g., C or Rust).  The implementation must be verified for both functional correctness (agreement with the specification) and constant-time execution (absence of secret-dependent branching and memory access).
+
+\item \textbf{Hybrid protocol overhead bounds.}
+Determine the minimum additional latency and bandwidth overhead of hybrid PQC/classical key exchange in TLS~1.3 as a function of network round-trip time and MTU.  Current empirical measurements vary widely; a clean analytical model validated against measurement would be valuable.
+
+\item \textbf{Worst-case to average-case reductions for code-based problems.}
+The Ajtai-style worst-case to average-case connection that gives lattice-based cryptography its strong theoretical foundation~\cite{MicciancioGoldwasser2002} has no known analogue for code-based problems (syndrome decoding of random linear codes).  Establishing such a connection---or proving it impossible---would clarify the comparative theoretical footing of the two families.
+
+\item \textbf{Post-quantum oblivious transfer.}
+Construct an efficient post-quantum oblivious transfer (OT) protocol with communication complexity sub-linear in the security parameter.  OT is a foundational primitive for secure multi-party computation; current PQC-based OT constructions are significantly less efficient than their classical counterparts.
+
+\item \textbf{Quantum side-channel taxonomy.}
+Develop a systematic taxonomy of side channels in superconducting and photonic quantum processors, including qubit crosstalk, readout crosstalk, and thermal signatures.  For each channel, determine the information leakage rate (bits per operation) and propose countermeasures.  No comprehensive framework exists.
+
+\item \textbf{Automated cryptographic migration.}
+Design and evaluate a system that can automatically detect the use of deprecated cryptographic algorithms in a large code base ($> 10^6$ lines), propose replacements compatible with the existing API contracts, and verify that the replacement preserves functional behaviour.  Current migration efforts are overwhelmingly manual.
+
+\end{enumerate}
+
+
+%% ================================================================
 %% Exercises
+%% ================================================================
+
+\begin{prob}
+\label{prob:ch15-quantum-resource}
+Gidney and Eker\aa~\cite{GidneyEkera2021} estimate that factoring a 2048-bit RSA modulus requires approximately 20 million noisy qubits over 8 hours.  Suppose a quantum sieving algorithm for \svp{} in dimension $n$ requires $2^{0.265n}$ quantum operations, each implemented as a circuit of depth $D = \poly(n)$.  Under the surface-code error correction model with a physical error rate of $10^{-3}$, estimate the number of physical qubits and wall-clock time required to attack ML-KEM-768 (which targets 192-bit security, corresponding to $n \approx 700$ in the lattice dimension).  Compare with the Gidney--Eker\aa{} RSA estimate and discuss which system is more vulnerable in the medium term.
+\end{prob}
+
 \begin{prob}
 \label{prob:ch15-agility}
-Design a cryptographic agility framework for a web service currently using TLS~1.3 with X25519 and Ed25519. Your framework must allow swapping to any NIST-standardized PQC algorithm within 48 hours of a break announcement. Identify the components that need abstraction and the operational procedures required.
+Design a cryptographic agility framework for a web service currently using TLS~1.3 with X25519 and Ed25519.  Your framework must allow swapping to any NIST-standardised PQC algorithm within 48~hours of a break announcement.  Identify the components that need abstraction (TLS library, certificate infrastructure, key storage, monitoring) and the operational procedures required (key rotation, certificate reissuance, client compatibility testing).  Discuss the tradeoff between agility and the risk of downgrade attacks.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch15-hybrid-overhead}
+Consider a TLS~1.3 handshake using hybrid key exchange (X25519 + ML-KEM-768).  The combined key share is approximately $1{,}184 + 32 = 1{,}216$ bytes (ML-KEM-768 public key plus X25519 public key).  Assuming a network MTU of $1{,}500$ bytes:
+\begin{enumerate}
+\item[(a)] Determine whether the ClientHello (including the hybrid key share, supported groups, signature algorithms, and typical extensions) fits within a single TCP segment.  If not, estimate the additional round-trip latency from TCP fragmentation.
+\item[(b)] Repeat the analysis for ML-KEM-1024 (public key $\approx 1{,}568$ bytes).
+\item[(c)] Discuss strategies (e.g., sending the PQC key share in a HelloRetryRequest, or using TCP Fast Open) to mitigate the overhead.
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
 \label{prob:ch15-research}
-Choose one of the open problems listed in Section~\ref{sec:open-problem-list}. Write a 2-page research proposal outlining: (a)~the problem's significance, (b)~your proposed approach, (c)~what tools or techniques from physics you would bring to bear, and (d)~what a successful outcome would look like.
+Choose one of the open problems listed in Sect.~\ref{sec:open-problem-list}.  Write a 2-page research proposal outlining: (a)~the problem's significance, (b)~your proposed approach, (c)~what tools or techniques from physics you would bring to bear, and (d)~what a successful outcome would look like.  Include a brief literature review (at least five references) and a realistic 12-month timeline.
 \end{prob}

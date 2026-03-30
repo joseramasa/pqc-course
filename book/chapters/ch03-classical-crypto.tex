@@ -1,76 +1,509 @@
 \chapter{Classical Cryptographic Systems}
 \label{ch:classical-crypto}
 
-\abstract*{Before understanding what quantum computers break, we must understand what exists to be broken. This chapter develops the mathematical foundations of symmetric and asymmetric cryptography, from AES to elliptic curves, and traces their deployment through the TLS protocol that protects virtually all internet communications.}
+\abstract*{Before understanding what quantum computers threaten, one must understand what exists to be broken. This chapter develops the mathematical foundations of symmetric and asymmetric cryptography---from AES and SHA-3 through RSA, Diffie--Hellman, and elliptic curves---and traces their deployment through the TLS~1.3 protocol that protects virtually all internet communications. The chapter concludes by isolating the three computational hardness assumptions on which the entire edifice rests, setting the stage for the quantum attacks of Chapter~\ref{ch:quantum-threat}.}
+
+\abstract{Before understanding what quantum computers threaten, one must understand what exists to be broken. This chapter develops the mathematical foundations of symmetric and asymmetric cryptography---from AES and SHA-3 through RSA, Diffie--Hellman, and elliptic curves---and traces their deployment through the TLS~1.3 protocol that protects virtually all internet communications. The chapter concludes by isolating the three computational hardness assumptions on which the entire edifice rests, setting the stage for the quantum attacks of Chapter~\ref{ch:quantum-threat}.}
 
 % =============================================================
-% SOURCE: notes.tex §2 (lines 225–1869)
-% REUSE: ~80%. Remove \begin{frame} artifacts, add formal
-%        security definitions, tighten TLS case study.
+% Adapted from notes.tex §2 (lines 225–1869).
+% Reuse ~80%. Removed \begin{frame} artifacts, added formal
+% security definitions, tightened TLS case study.
 % =============================================================
+
 
 \section{Symmetric Cryptography}
 \label{sec:symmetric}
 
-% TODO: Adapt from notes.tex §2.1.1
-% - Block ciphers: AES construction, security margin
-% - Modes of operation: focus on GCM (used in TLS)
-% - Hash functions: SHA-2, SHA-3, security properties
-% - MACs and authenticated encryption
+Modern cryptography\index{cryptography!symmetric} rests on three equally critical pillars: \emph{confidentiality} (only authorised parties read the data), \emph{integrity} (any tampering is detectable), and \emph{authentication} (the identity of the sender is verifiable).  Symmetric cryptography addresses the first two using a single shared secret key.
 
+\subsection{Block Ciphers and AES}
+\label{subsec:block-ciphers}
+
+\begin{definition}[Block Cipher]
+\label{def:block-cipher}
+A \emph{block cipher}\index{block cipher}\index{AES} is a pair of deterministic algorithms $(\Enc, \Dec)$ operating on fixed-length blocks, with a key $k \in \{0,1\}^\kappa$:
+\[
+\Enc_k : \{0,1\}^n \to \{0,1\}^n, \qquad \Dec_k : \{0,1\}^n \to \{0,1\}^n, \qquad \Dec_k(\Enc_k(m)) = m.
+\]
+For every fixed key~$k$, the map $\Enc_k$ is a permutation on $\{0,1\}^n$.
+\end{definition}
+
+The \emph{Advanced Encryption Standard} (AES)\index{AES} operates on 128-bit blocks with key sizes $\kappa \in \{128, 192, 256\}$.  Its internal structure consists of $N_r$ rounds (10, 12, or~14 depending on key size), each applying four transformations: \texttt{SubBytes} (non-linear S-box substitution), \texttt{ShiftRows} (byte permutation), \texttt{MixColumns} (linear diffusion over $\mathrm{GF}(2^8)$), and \texttt{AddRoundKey} (XOR with round key).  After 20 years of intensive cryptanalysis, no attack against full AES is faster than brute-force key search.
+
+\subsection{Authenticated Encryption: AES-GCM}
+\label{subsec:aes-gcm}
+
+A block cipher alone provides confidentiality for a single block.  A \emph{mode of operation}\index{mode of operation} extends it to arbitrary-length messages.  The most important mode in practice is \emph{Galois/Counter Mode} (GCM)\index{GCM}, which simultaneously provides confidentiality and integrity---a property called \emph{authenticated encryption with associated data}\index{AEAD} (AEAD).
+
+\begin{definition}[AEAD Scheme]
+\label{def:aead}
+An \emph{authenticated encryption} scheme provides $\Enc_k(N, A, M) \to (C, T)$ and $\Dec_k(N, A, C, T) \to M \text{ or } \bot$, where $N$ is a nonce, $A$ is associated data authenticated but not encrypted, $M$ is the plaintext, $C$ is the ciphertext, and $T$ is an authentication tag.  Decryption returns~$\bot$ if any bit of $(A, C)$ has been modified.
+\end{definition}
+
+AES-GCM encrypts in counter mode (CTR) and computes the tag $T$ using a universal hash function GHASH over~$\mathrm{GF}(2^{128})$.  It dominates internet traffic: the cipher suite \texttt{TLS\_AES\_256\_GCM\_SHA384} is the most widely deployed in TLS~1.3.
+
+\subsection{Hash Functions: SHA-2 and SHA-3}
+\label{subsec:hash-functions}
+
+\begin{definition}[Cryptographic Hash Function]
+\label{def:hash-function}
+A \emph{cryptographic hash function}\index{hash function} $H:\{0,1\}^* \to \{0,1\}^n$ satisfies three properties:
+\begin{enumerate}
+\item \textbf{Preimage resistance:}\index{preimage resistance} given $y$, it is infeasible to find $x$ with $H(x) = y$.
+\item \textbf{Second preimage resistance:} given $x$, it is infeasible to find $x' \neq x$ with $H(x') = H(x)$.
+\item \textbf{Collision resistance:}\index{collision resistance} it is infeasible to find any pair $(x, x')$ with $x \neq x'$ and $H(x) = H(x')$.
+\end{enumerate}
+\end{definition}
+
+The \textbf{SHA-2}\index{SHA-2} family (SHA-256, SHA-384, SHA-512) uses a Merkle--Damg\r{a}rd construction with Davies--Meyer compression.  \textbf{SHA-3}\index{SHA-3} (Keccak) uses a sponge construction\index{sponge construction} over a 1600-bit permutation, offering a completely independent design lineage.  Both families are considered secure; SHA-3 provides a hedge against a future structural break in Merkle--Damg\r{a}rd.
+
+\subsection{Message Authentication Codes}
+\label{subsec:macs}
+
+\begin{definition}[MAC]
+\label{def:mac}
+A \emph{message authentication code}\index{MAC} is a triple $(\Gen, \mathsf{Tag}, \Verify)$ where $\mathsf{Tag}_k(m)$ produces a tag and $\Verify_k(m, t)$ outputs accept or reject.  Security requires that no efficient adversary, even one who can obtain tags on chosen messages, can produce a valid tag on a new message (\emph{existential unforgeability}\index{existential unforgeability}).
+\end{definition}
+
+HMAC\index{HMAC}, defined as $\text{HMAC}_k(m) = H\bigl((k \oplus \text{opad}) \| H((k \oplus \text{ipad}) \| m)\bigr)$, is the standard keyed-hash MAC.  It appears prominently in TLS~1.3 key derivation (HKDF)\index{HKDF}.
+
+\begin{svgraybox}
+\textbf{Quantum impact on symmetric primitives.}  Grover's algorithm\index{Grover's algorithm} gives a quadratic speedup for brute-force key search, reducing the effective security of AES-128 from $2^{128}$ to $2^{64}$ operations.  The standard mitigation is to double the key length: AES-256 retains 128-bit security against quantum adversaries.  Hash functions similarly require doubled output lengths.  Symmetric cryptography survives the quantum transition largely intact.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Public-Key Cryptography}
 \label{sec:public-key}
 
-% TODO: Adapt from notes.tex §2.1.2 (The Two-Key Revolution)
-% - The key distribution problem and Diffie-Hellman's insight
-% - RSA: construction, correctness, security assumption (factoring)
-% - Diffie-Hellman key exchange: DLP, CDH, DDH assumptions
-% - Elliptic curve cryptography: group law, ECDLP, efficiency gains
-% - Cite: Diffie-Hellman 1976, RSA 1978, Koblitz 1987, Miller 1985
+\subsection{The Key Distribution Problem}
+\label{subsec:key-distribution}
 
+Before 1976, all cryptography was symmetric, leading to a fundamental paradox: to communicate securely, two parties first had to exchange a secret key over a channel that was already secure\index{key distribution problem}.  At scale, this is impractical.
+
+\begin{example}[The Key Distribution Nightmare]
+\label{ex:key-distribution}
+If $n$ parties each wish to communicate securely with every other, they require $\binom{n}{2}$ distinct shared keys.  For $n = 1{,}000$ this means $499{,}500$ keys, each needing secure physical distribution.  Adding a single new party requires $1{,}000$ additional key exchanges.
+\end{example}
+
+Historical solutions---diplomatic pouches, pre-distributed code books, key distribution centres---were expensive, unscalable, and fragile.  The emerging internet of the 1970s demanded something fundamentally different.
+
+\subsection{One-Way Trapdoor Functions}
+\label{subsec:trapdoor}
+
+\begin{definition}[One-Way Trapdoor Function]
+\label{def:trapdoor}
+\index{one-way trapdoor function}
+A function $f: X \to Y$ is a \emph{one-way trapdoor function} if:
+\begin{enumerate}
+\item \textbf{Easy to compute:} given $x$, computing $f(x)$ is efficient.
+\item \textbf{Hard to invert:} given $y = f(x)$, finding $x$ is computationally infeasible.
+\item \textbf{Trapdoor:} there exists secret information $t$ that makes inversion efficient.
+\end{enumerate}
+\end{definition}
+
+In 1976, Diffie and Hellman\index{Diffie--Hellman} proposed separating the key into a public component (for encryption or verification) and a private component (for decryption or signing)~\cite{DiffieHellman1976}.  This idea---\emph{public-key cryptography}\index{public-key cryptography}---resolved the key distribution problem and made the internet possible.
+
+\subsection{RSA}
+\label{subsec:rsa}
+
+The first concrete realisation of public-key encryption was due to Rivest, Shamir, and Adleman~\cite{RSA1978}\index{RSA}.
+
+\begin{definition}[RSA Key Generation]
+\label{def:rsa-keygen}
+\begin{enumerate}
+\item Choose two large primes $p, q$ (each $\approx 1024$ bits for RSA-2048).
+\item Compute $n = pq$ and $\phi(n) = (p-1)(q-1)$.
+\item Choose $e$ with $\gcd(e, \phi(n)) = 1$; the standard choice is $e = 65537$.
+\item Compute $d \equiv e^{-1} \pmod{\phi(n)}$.
+\item Public key: $(n, e)$.  Private key: $d$.
+\end{enumerate}
+\end{definition}
+
+Encryption and decryption are modular exponentiations:
+\begin{equation}
+\label{eq:rsa}
+\Enc(m) = m^e \bmod n, \qquad \Dec(c) = c^d \bmod n.
+\end{equation}
+
+\begin{theorem}[RSA Correctness]
+\label{thm:rsa-correct}
+For any $m \in \Z_n^*$, decryption recovers the plaintext:
+\begin{equation}
+(m^e)^d = m^{ed} = m^{1 + k\phi(n)} = m \cdot (m^{\phi(n)})^k \equiv m \pmod{n},
+\end{equation}
+where the last step follows from Euler's theorem\index{Euler's theorem}: $m^{\phi(n)} \equiv 1 \pmod{n}$ whenever $\gcd(m, n) = 1$.
+\end{theorem}
+
+Textbook RSA as described above is \emph{insecure} in practice: it is deterministic (identical plaintexts yield identical ciphertexts) and malleable (given $c = m^e$, an adversary can compute $(2m)^e = 2^e \cdot c$).  Real deployments use \emph{Optimal Asymmetric Encryption Padding} (OAEP)\index{OAEP}, which randomises the input and achieves chosen-ciphertext security in the random oracle model.
+
+\subsection{Diffie--Hellman Key Exchange}
+\label{subsec:dh}
+
+The Diffie--Hellman (DH) protocol\index{Diffie--Hellman!key exchange} allows two parties to establish a shared secret over a public channel~\cite{DiffieHellman1976}.
+
+\begin{definition}[Diffie--Hellman Protocol]
+\label{def:dh}
+Let $p$ be a large prime and $g$ a generator of the multiplicative group $\Z_p^*$.
+\begin{enumerate}
+\item Alice chooses a secret $a \getsr \{2, \ldots, p-2\}$ and sends $A = g^a \bmod p$.
+\item Bob chooses a secret $b \getsr \{2, \ldots, p-2\}$ and sends $B = g^b \bmod p$.
+\item Both compute the shared secret $K = g^{ab} \bmod p$: Alice computes $B^a$ and Bob computes $A^b$.
+\end{enumerate}
+\end{definition}
+
+An eavesdropper observes $(g, p, g^a \bmod p, g^b \bmod p)$ but must compute $g^{ab} \bmod p$---the \emph{Computational Diffie--Hellman} (CDH) problem\index{CDH problem}, which is believed to be as hard as the discrete logarithm.  Note that DH provides no authentication: without additional measures, it is vulnerable to man-in-the-middle attacks.
+
+\subsection{Elliptic Curve Cryptography}
+\label{subsec:ecc}
+
+Independently proposed by Koblitz~\cite{Koblitz1987} and Miller~\cite{Miller1985}\index{elliptic curve cryptography}, elliptic curve cryptography (ECC) replaces the multiplicative group $\Z_p^*$ with the group of rational points on an elliptic curve over a finite field.
+
+\begin{definition}[Elliptic Curve over a Finite Field]
+\label{def:elliptic-curve}
+\index{elliptic curve}
+An \emph{elliptic curve} $E$ over $\F_p$ (with $p > 3$) is the set of points $(x, y) \in \F_p \times \F_p$ satisfying the Weierstrass equation
+\begin{equation}
+\label{eq:weierstrass}
+y^2 = x^3 + ax + b, \qquad 4a^3 + 27b^2 \neq 0,
+\end{equation}
+together with a distinguished \emph{point at infinity}~$\mathcal{O}$.  The set $E(\F_p)$ forms an abelian group under a chord-and-tangent addition law, with $\mathcal{O}$ as the identity element.
+\end{definition}
+
+The group law is defined geometrically: to add two distinct points $P$ and $Q$, draw the line through them; it intersects $E$ at a third point $R'$, and we define $P + Q$ as the reflection of $R'$ across the $x$-axis.  Point doubling ($P + P$) uses the tangent line at~$P$.  Translated into field arithmetic over $\F_p$, these operations are efficient.
+
+\emph{Scalar multiplication} $kP = P + P + \cdots + P$ ($k$ times) is computed in $\bigO(\log k)$ group operations via double-and-add, but recovering $k$ from the pair $(P, kP)$ is the \emph{elliptic curve discrete logarithm problem} (ECDLP)\index{ECDLP}.
+
+\begin{table}[t]
+\caption{Equivalent security levels for RSA/DLP and ECC key sizes (in bits)}
+\label{tab:key-sizes}
+\begin{tabular}{p{3cm}p{3cm}p{3cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Security (bits)} & \textbf{RSA modulus} & \textbf{DLP ($\Z_p^*$)} & \textbf{ECC key} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+80  & 1\,024 & 1\,024 & 160 \\
+128 & 3\,072 & 3\,072 & 256 \\
+256 & 15\,360 & 15\,360 & 512 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The dramatic key-size advantage (Table~\ref{tab:key-sizes}) has made ECC the dominant choice for modern protocols: TLS~1.3 mandates ECDHE key exchange (typically over Curve25519 or P-256) and supports ECDSA signatures.
+
+\begin{svgraybox}
+\textbf{The hybrid approach.}  In practice, public-key cryptography is never used to encrypt bulk data directly---it is too slow.  Instead, modern protocols employ a \emph{hybrid} design: an asymmetric algorithm (ECDHE, RSA) establishes a shared symmetric key, and a fast symmetric cipher (AES-GCM) encrypts the actual data.  This division of labour---asymmetric for trust establishment, symmetric for throughput---pervades every protocol discussed in this chapter.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Digital Signatures}
 \label{sec:signatures}
 
-% TODO: Adapt from notes.tex §2.1.2 (signatures portion)
-% - RSA signatures (RSA-PSS)
-% - Schnorr signatures and the Fiat-Shamir heuristic
-% - ECDSA
-% - Security notion: EUF-CMA
+Digital signatures\index{digital signature} are the public-key analogue of MACs: they provide integrity and authentication, but unlike MACs they also provide \emph{non-repudiation}---anyone holding the public key can verify the signature, not just the holder of the shared secret.
 
+\subsection{Syntax and Security}
+\label{subsec:sig-syntax}
+
+\begin{definition}[Digital Signature Scheme]
+\label{def:signature}
+A \emph{signature scheme} is a triple $(\KeyGen, \Sign, \Verify)$:
+\begin{itemize}
+\item $\KeyGen() \to (pk, sk)$: generates a key pair.
+\item $\Sign(sk, m) \to \sigma$: produces a signature on message~$m$.
+\item $\Verify(pk, m, \sigma) \to \{0, 1\}$: outputs~$1$ if and only if $\sigma$ is a valid signature on~$m$ under~$pk$.
+\end{itemize}
+\end{definition}
+
+\begin{definition}[EUF-CMA Security]
+\label{def:euf-cma}
+\index{EUF-CMA}
+A signature scheme is \emph{existentially unforgeable under chosen-message attack} (EUF-CMA) if no efficient adversary, even after obtaining signatures on polynomially many messages of its choice, can produce a valid signature on a new message.
+\end{definition}
+
+EUF-CMA is the standard security notion for signatures in practice; all schemes discussed below target this level of security.
+
+\subsection{RSA Signatures and RSA-PSS}
+\label{subsec:rsa-sig}
+
+The textbook RSA signature on message $m$ is $\sigma = H(m)^d \bmod n$, verified by checking $\sigma^e \equiv H(m) \pmod{n}$.  As with RSA encryption, the textbook version is insecure due to malleability.  The standard secure variant is \emph{RSA-PSS}\index{RSA-PSS} (Probabilistic Signature Scheme), which incorporates randomised padding and is provably EUF-CMA secure in the random oracle model under the RSA assumption.
+
+\subsection{Schnorr Signatures and the Fiat--Shamir Heuristic}
+\label{subsec:schnorr}
+
+Schnorr signatures\index{Schnorr signature} illustrate a paradigm that recurs throughout post-quantum cryptography.
+
+\begin{definition}[Schnorr Signature]
+\label{def:schnorr}
+Let $G = \langle g \rangle$ be a group of prime order~$q$ in which the discrete logarithm is hard.  The signer's key pair is $(pk, sk) = (g^x, x)$.
+\begin{enumerate}
+\item \textbf{Sign:} choose $r \getsr \Z_q$; compute $R = g^r$, $e = H(R \| m)$, and $s = r - ex \bmod q$.  Output $\sigma = (e, s)$.
+\item \textbf{Verify:} compute $R' = g^s \cdot pk^e$ and accept if $H(R' \| m) = e$.
+\end{enumerate}
+\end{definition}
+
+Schnorr signatures are derived from a three-move identification protocol (commit~$R$, challenge~$e$, respond~$s$) via the \emph{Fiat--Shamir heuristic}\index{Fiat--Shamir heuristic}~\cite{FiatShamir1986}: the verifier's random challenge is replaced by the hash $H(R \| m)$.  This transform converts any honest-verifier zero-knowledge proof of knowledge of a discrete logarithm into a non-interactive signature scheme.  The Fiat--Shamir heuristic will appear again in the construction of lattice-based signatures (Chapter~\ref{ch:lattice-signatures}).
+
+\subsection{ECDSA}
+\label{subsec:ecdsa}
+
+\begin{definition}[ECDSA]
+\label{def:ecdsa}
+\index{ECDSA}
+Let $E(\F_p)$ be an elliptic curve with base point $G$ of order~$n$.  The signer's key pair is $(pk, sk) = (Q = dG,\; d)$.
+\begin{enumerate}
+\item \textbf{Sign:} choose ephemeral $k \getsr \{1, \ldots, n-1\}$; compute $(x_1, y_1) = kG$; set $r = x_1 \bmod n$; compute $s = k^{-1}(H(m) + rd) \bmod n$.  Output $\sigma = (r, s)$.
+\item \textbf{Verify:} compute $u_1 = H(m) s^{-1} \bmod n$, $u_2 = r s^{-1} \bmod n$; accept if the $x$-coordinate of $u_1 G + u_2 Q$ equals~$r \bmod n$.
+\end{enumerate}
+\end{definition}
+
+ECDSA is the workhorse signature algorithm in TLS~1.3, code signing, and cryptocurrency (Bitcoin, Ethereum).  A critical implementation requirement is that the ephemeral scalar $k$ must be generated with high-quality randomness: reuse of $k$ across two signatures reveals the private key~$d$ by simple algebra.  This vulnerability caused the 2010 PlayStation~3 private key extraction.
+
+\begin{svgraybox}
+\textbf{Quantum vulnerability of signatures.}  Every signature scheme in this section---RSA-PSS, Schnorr, ECDSA---derives its security from the hardness of factoring or discrete logarithms.  Shor's algorithm breaks all of them.  Forging a signature allows an adversary to impersonate any server, sign malicious software as trusted vendors, or create fraudulent certificates.  Post-quantum signature schemes (Chapters~\ref{ch:lattice-signatures} and~\ref{ch:hash-signatures}) must preserve the EUF-CMA guarantee using quantum-resistant assumptions.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Public Key Infrastructure}
 \label{sec:pki}
 
-% TODO: Adapt from notes.tex §2.1.3 (PKI)
-% - Certificate authorities and chains of trust
-% - X.509 certificates
-% - Certificate transparency
-% - The web of trust vs hierarchical PKI
+Public-key cryptography solves key distribution but introduces a new problem: how does one verify that a given public key genuinely belongs to its claimed owner?  \emph{Public Key Infrastructure}\index{PKI} (PKI) answers this question at internet scale.
 
+\subsection{Certificate Authorities and Chains of Trust}
+\label{subsec:ca}
+
+PKI organises trust hierarchically\index{certificate authority}.  A small number of \emph{root Certificate Authorities} (CAs) are pre-installed in every browser and operating system.  Root CAs sign the certificates of \emph{intermediate CAs}, which in turn sign \emph{end-entity certificates} for individual domains.  This produces a \emph{certificate chain}:
+\[
+\text{Root CA} \;\xrightarrow{\text{signs}}\; \text{Intermediate CA} \;\xrightarrow{\text{signs}}\; \text{End-entity (e.g., github.com)}.
+\]
+Verification proceeds bottom-up: the relying party checks each signature in the chain until reaching a root that it trusts.
+
+\subsection{X.509 Certificates}
+\label{subsec:x509}
+
+\begin{definition}[X.509 Certificate]
+\label{def:x509}
+\index{X.509}
+An X.509 certificate binds a public key to an identity.  Its principal fields are:
+\begin{itemize}
+\item \textbf{Subject:} the identity being certified (e.g., \texttt{CN=github.com}).
+\item \textbf{Issuer:} the CA that vouches for this identity.
+\item \textbf{Public key:} the subject's cryptographic key (RSA, ECDSA, etc.).
+\item \textbf{Validity period:} start and expiry dates.
+\item \textbf{Signature:} the issuer's digital signature over all preceding fields.
+\item \textbf{Extensions:} key usage constraints, subject alternative names, etc.
+\end{itemize}
+\end{definition}
+
+Certificate chain validation verifies, for each certificate $C_i$ in the chain: (i)~the current time falls within the validity period; (ii)~$C_{i+1}$ has signed $C_i$; (iii)~$C_i$ has not been revoked (checked via OCSP or CRL); and (iv)~key-usage extensions permit the intended operation.  The chain terminates at a self-signed root certificate present in the local trust store.
+
+\subsection{Failures and Lessons}
+\label{subsec:pki-failures}
+
+\begin{example}[DigiNotar Collapse, 2011]
+\label{ex:diginotar}
+\index{DigiNotar}
+Iranian attackers compromised the Dutch CA DigiNotar and issued fraudulent certificates for \texttt{*.google.com}, enabling man-in-the-middle surveillance of Iranian citizens.  DigiNotar declared bankruptcy within weeks; the Dutch government, whose sites relied on DigiNotar certificates, faced a crisis.  The incident accelerated the deployment of \emph{Certificate Transparency}\index{Certificate Transparency} logs, which provide a publicly auditable record of all issued certificates.
+\end{example}
+
+PKI currently secures over 200 million active certificates serving more than 4 billion users.  Its entire trust hierarchy depends on digital signatures (RSA or ECDSA).  When a quantum computer can forge these signatures, any adversary can fabricate certificates for arbitrary domains, impersonate certificate authorities, and collapse the chain of trust entirely.
+
+
+%% ================================================================
 \section{The TLS Protocol}
 \label{sec:tls}
 
-% TODO: Adapt from notes.tex §2.1.4 (TLS Case Study)
-% - TLS 1.3 handshake: full walkthrough
-% - Cipher suites and negotiation
-% - Where each cryptographic primitive is used
-% - Why every component is quantum-vulnerable
+Transport Layer Security\index{TLS} (TLS) weaves together every primitive discussed so far---symmetric encryption, hash functions, digital signatures, key exchange, and certificates---into a single protocol that secures virtually all internet communications.  TLS~1.3 (RFC~8446, 2018) is the current standard.
 
+\subsection{The TLS~1.3 Handshake}
+\label{subsec:tls-handshake}
+
+A full TLS~1.3 handshake completes in a single round trip (1-RTT)\index{TLS!1-RTT handshake} and proceeds as follows.
+
+\begin{enumerate}
+\item \textbf{ClientHello (Client $\to$ Server).}  The client sends supported cipher suites, a random nonce, and---crucially---an ECDHE\index{ECDHE} key share (e.g., its X25519 public key).
+
+\item \textbf{ServerHello (Server $\to$ Client).}  The server selects a cipher suite and responds with its own ECDHE key share and random nonce.  At this point, both sides can compute the ECDHE shared secret.
+
+\item \textbf{Key derivation.}  Both sides derive multiple traffic secrets from the shared secret using HKDF\index{HKDF}:
+\begin{align}
+\text{Handshake Secret} &= \text{HKDF-Extract}(\text{ECDHE shared secret}), \label{eq:hkdf1}\\
+\text{Traffic keys} &= \text{HKDF-Expand}(\text{Handshake Secret},\;\text{transcript hash}). \label{eq:hkdf2}
+\end{align}
+From this point, all subsequent handshake messages are encrypted.
+
+\item \textbf{Certificate (Server $\to$ Client, encrypted).}  The server sends its certificate chain.  Unlike TLS~1.2, the certificate is transmitted under encryption, preventing passive observers from identifying the server.
+
+\item \textbf{CertificateVerify (Server $\to$ Client, encrypted).}  The server signs the handshake transcript with its private key, proving possession of the key certified in the previous step.  The signature covers all negotiated parameters, preventing downgrade and replay attacks.
+
+\item \textbf{Finished messages (both directions, encrypted).}  Each side sends an HMAC over the complete handshake transcript, providing key confirmation.
+
+\item \textbf{Application data.}  Bulk data is encrypted with AES-256-GCM (or ChaCha20-Poly1305) using the derived application traffic keys.
+\end{enumerate}
+
+\subsection{Cipher Suites}
+\label{subsec:cipher-suites}
+
+TLS~1.3 dramatically simplified cipher suite negotiation.  Only five AEAD cipher suites are defined; the most common is:
+
+\begin{center}
+\texttt{TLS\_AES\_256\_GCM\_SHA384}
+\end{center}
+
+\noindent which specifies AES-256-GCM for encryption and SHA-384 for the HKDF-based key schedule.  The key exchange algorithm (e.g., X25519 or P-256) and signature algorithm (e.g., ECDSA or RSA-PSS) are negotiated separately through extensions.
+
+\subsection{Where Each Primitive Is Used}
+\label{subsec:tls-primitives}
+
+Table~\ref{tab:tls-primitives} summarises the role of each cryptographic primitive in a TLS~1.3 session and its vulnerability to quantum attack.
+
+\begin{table}[t]
+\caption{Cryptographic primitives in a TLS~1.3 handshake and their quantum vulnerability}
+\label{tab:tls-primitives}
+\begin{tabular}{p{3.5cm}p{3.5cm}p{2cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Primitive} & \textbf{Role in TLS~1.3} & \textbf{Type} & \textbf{Quantum threat} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+ECDHE (X25519) & Key exchange & Asymmetric & Shor (broken) \\
+ECDSA / RSA-PSS & Certificate signatures & Asymmetric & Shor (broken) \\
+ECDSA / RSA-PSS & CertificateVerify & Asymmetric & Shor (broken) \\
+AES-256-GCM & Bulk encryption & Symmetric & Grover (mitigated) \\
+SHA-384 / HMAC & Key derivation, Finished & Symmetric & Grover (mitigated) \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The critical observation is that every asymmetric operation---key exchange, certificate chain verification, and handshake authentication---falls to Shor's algorithm.  The symmetric components survive with increased key lengths, but without functioning public-key cryptography, the symmetric keys cannot be established securely in the first place.
+
+\begin{svgraybox}
+\textbf{The post-quantum migration challenge.}
+Replacing TLS's asymmetric components with post-quantum alternatives is not merely a cryptographic exercise---it is a coordination problem of enormous scale.  Every browser, server, operating system, and IoT device must be updated.  Post-quantum key encapsulation mechanisms (e.g., ML-KEM, Chapter~\ref{ch:lwe-encryption}) produce larger public keys and ciphertexts, increasing handshake sizes from~$\sim$4\,KB to~$\sim$15\,KB.  At the scale of 300~billion daily HTTPS connections, these increases have significant bandwidth implications.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{The Computational Hardness Foundation}
 \label{sec:hardness}
 
-% TODO: Adapt from notes.tex §2.2
-% - Factoring and the RSA assumption
-% - Discrete logarithm and CDH/DDH
-% - The elliptic curve discrete logarithm problem
-% - Why these problems are believed hard (classically)
+The entire public-key infrastructure described above---RSA, Diffie--Hellman, ECDSA, TLS, PKI---rests on exactly three computational hardness assumptions\index{computational hardness}.  This mathematical monoculture is both the field's greatest success and its most critical vulnerability.
 
-%% Exercises
+\subsection{The Integer Factorisation Problem}
+\label{subsec:ifp}
+
+\begin{definition}[Integer Factorisation Problem (IFP)]
+\label{def:ifp}
+\index{integer factorisation problem}
+Given a composite integer $n = pq$, where $p$ and $q$ are large primes, find the factors $p$ and $q$.
+\end{definition}
+
+The asymmetry is dramatic: multiplication $n = pq$ runs in $\bigO((\log n)^2)$ time, while the best classical factoring algorithm---the \emph{General Number Field Sieve}\index{General Number Field Sieve} (GNFS)---runs in sub-exponential time:
+\begin{equation}
+\label{eq:gnfs}
+T_{\mathrm{GNFS}}(n) = \exp\!\left(c\,(\log n)^{1/3}\,(\log\log n)^{2/3}\right), \qquad c \approx 1.923.
+\end{equation}
+For RSA-2048, this amounts to roughly $2^{112}$ operations---well beyond reach.
+
+The security of RSA relies on a slightly stronger assumption: not merely that factoring~$n$ is hard, but that computing $e$-th roots modulo $n$ (the \emph{RSA problem}\index{RSA problem}) is hard.  It is known that factoring reduces to the RSA problem, but the converse is open.
+
+\subsection{The Discrete Logarithm Problem}
+\label{subsec:dlp}
+
+\begin{definition}[Discrete Logarithm Problem (DLP)]
+\label{def:dlp}
+\index{discrete logarithm problem}
+Given a cyclic group $G = \langle g \rangle$ of order~$q$ and an element $h \in G$, find the integer $x \in \{0, \ldots, q-1\}$ such that $g^x = h$.
+\end{definition}
+
+In the multiplicative group $\Z_p^*$, forward exponentiation ($g^x \bmod p$) costs $\bigO(\log x)$ multiplications, while the best classical discrete-log algorithm (index calculus) is sub-exponential.  For groups of prime order embedded in $\Z_p^*$, the DLP underpins the Diffie--Hellman protocol and DSA.
+
+Two related assumptions refine the DLP for protocol-level security:
+
+\begin{definition}[CDH and DDH Assumptions]
+\label{def:cdh-ddh}
+\index{CDH assumption}\index{DDH assumption}
+Let $G = \langle g \rangle$ be a cyclic group of prime order~$q$.
+\begin{itemize}
+\item \textbf{Computational Diffie--Hellman (CDH):}  Given $(g, g^a, g^b)$ for random $a, b \getsr \Z_q$, it is infeasible to compute $g^{ab}$.
+\item \textbf{Decisional Diffie--Hellman (DDH):}  The distributions $(g^a, g^b, g^{ab})$ and $(g^a, g^b, g^c)$ are computationally indistinguishable for random $a, b, c \getsr \Z_q$.
+\end{itemize}
+\end{definition}
+
+We have the implication chain: DLP~$\Rightarrow$~CDH~$\Rightarrow$~DDH (i.e., DDH is the weakest assumption).  The security of Diffie--Hellman key exchange relies on CDH; ElGamal encryption relies on DDH.
+
+\subsection{The Elliptic Curve Discrete Logarithm Problem}
+\label{subsec:ecdlp-hardness}
+
+\begin{definition}[Elliptic Curve Discrete Logarithm Problem (ECDLP)]
+\label{def:ecdlp}
+\index{ECDLP}
+Given an elliptic curve $E$ over $\F_p$, a base point $G \in E(\F_p)$ of order~$n$, and a point $P = kG$, find the integer $k$.
+\end{definition}
+
+The best classical algorithm for ECDLP is Pollard's rho method\index{Pollard's rho}, which runs in $\bigO(\sqrt{n})$ time---fully exponential in the key length.  There is no analogue of index calculus for generic elliptic curves, which is why 256-bit ECC achieves 128-bit security whereas 3072-bit RSA is needed for the same level (Table~\ref{tab:key-sizes}).  This efficiency advantage has made ECC the default for internet-scale cryptography.
+
+\subsection{The Monoculture Risk}
+\label{subsec:monoculture}
+
+All three problems---IFP, DLP, ECDLP---share a deep structural property: they reduce to instances of the \emph{hidden subgroup problem}\index{hidden subgroup problem} (HSP) over abelian groups.  Shor's algorithm\index{Shor's algorithm} solves the HSP in polynomial time on a quantum computer~\cite{Shor1997}, which means:
+
+\begin{theorem}[Quantum Collapse of Classical Assumptions]
+\label{thm:quantum-collapse}
+A sufficiently large quantum computer running Shor's algorithm solves:
+\begin{enumerate}
+\item IFP (factoring an $n$-bit integer) in $\bigO(n^3)$ quantum gates.
+\item DLP in $\Z_p^*$ in $\bigO((\log p)^3)$ quantum gates.
+\item ECDLP over $E(\F_p)$ in $\bigO((\log p)^3)$ quantum gates.
+\end{enumerate}
+\end{theorem}
+
+The mathematical monoculture means that a single algorithmic advance---Shor's algorithm---simultaneously demolishes factoring, discrete logarithms, and elliptic curve discrete logarithms.  Every protocol examined in this chapter collapses: RSA encryption and signatures, Diffie--Hellman key exchange, ECDSA, the certificate chains of PKI, and the asymmetric core of TLS.
+
+\begin{svgraybox}
+\textbf{Why ``bigger keys'' cannot help.}
+Against classical attacks, doubling the RSA modulus roughly squares the attack cost; this scaling has kept RSA viable for decades.  Against Shor's algorithm, the attack cost grows only polynomially with key size.  No feasible key length can bridge an exponential-to-polynomial collapse.  The only path forward is to replace the underlying mathematical problems with ones that resist quantum attack---the subject of the remainder of this book.
+\end{svgraybox}
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch03-rsa}
-Construct an RSA key pair with small primes $p = 61$ and $q = 53$. Encrypt and decrypt the message $m = 42$ to verify correctness. Then explain why this key pair would be trivially broken.
+Construct an RSA key pair with the small primes $p = 61$ and $q = 53$.
+\begin{enumerate}
+\item[(a)] Compute $n$, $\phi(n)$, and choose a suitable public exponent $e$.  Find $d$.
+\item[(b)] Encrypt and decrypt the message $m = 42$ to verify correctness.
+\item[(c)] Explain why this key pair would be trivially broken and estimate the security of RSA-2048 using~\eqref{eq:gnfs}.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch03-dh}
+Alice and Bob execute Diffie--Hellman with $p = 23$ and $g = 5$.  Alice chooses $a = 6$ and Bob chooses $b = 15$.
+\begin{enumerate}
+\item[(a)] Compute the public values $A$ and $B$, and verify that both parties derive the same shared secret~$K$.
+\item[(b)] An eavesdropper Eve observes $(p, g, A, B)$.  For this toy example, find $K$ by brute force.  Explain why this approach is infeasible for 2048-bit primes.
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
 \label{prob:ch03-tls}
-Enumerate every cryptographic operation in a TLS~1.3 handshake using the cipher suite \texttt{TLS\_AES\_256\_GCM\_SHA384} with X25519 key exchange. For each operation, state whether it is vulnerable to Shor's algorithm, Grover's algorithm, or neither.
+Enumerate every cryptographic operation in a TLS~1.3 handshake using the cipher suite \texttt{TLS\_AES\_256\_GCM\_SHA384} with X25519 key exchange and ECDSA certificates.  For each operation, state whether it is vulnerable to Shor's algorithm, Grover's algorithm, or neither, and justify your answer.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch03-ecdsa-nonce}
+In ECDSA (Definition~\ref{def:ecdsa}), suppose two messages $m_1 \neq m_2$ are signed using the \emph{same} ephemeral key~$k$.  Show that an adversary who observes the two signatures $\sigma_1 = (r, s_1)$ and $\sigma_2 = (r, s_2)$ can recover the long-term private key~$d$.  Derive the formula explicitly and explain the practical consequences.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch03-fiat-shamir}
+Consider the Schnorr identification protocol (the interactive version of Definition~\ref{def:schnorr}).
+\begin{enumerate}
+\item[(a)] Describe the three-move interaction (commitment, challenge, response) and argue that the protocol is honest-verifier zero-knowledge.
+\item[(b)] Explain how the Fiat--Shamir heuristic~\cite{FiatShamir1986} transforms this interactive protocol into a non-interactive signature scheme.
+\item[(c)] Why does Fiat--Shamir require a collision-resistant hash function?  What happens if the hash function is weak?
+\end{enumerate}
 \end{prob}

@@ -1,69 +1,604 @@
 \chapter{Mathematical Preliminaries}
 \label{ch:math-prelim}
 
-\abstract*{This chapter establishes the algebraic, number-theoretic, and complexity-theoretic foundations required throughout the book. Readers comfortable with abstract algebra and computational complexity may skim this chapter and return to it as a reference; others should work through it carefully, as the security of every post-quantum scheme rests on these mathematical structures.}
+\abstract*{This chapter establishes the algebraic, probabilistic, and complexity-theoretic foundations required throughout the book. We develop groups, rings, and fields with emphasis on the structures central to post-quantum cryptography---$\Zq$, polynomial rings $\Zq[x]/(f(x))$, and finite fields $\F_q$---then cover modular arithmetic, the Chinese Remainder Theorem, discrete probability, computational complexity including quantum classes, and the formal security definitions (IND-CPA, IND-CCA2, EUF-CMA) that govern modern cryptographic design. Readers comfortable with abstract algebra and complexity theory may skim and return as needed; others should work through the chapter carefully.}
+
+\abstract{This chapter establishes the algebraic, probabilistic, and complexity-theoretic foundations required throughout the book. We develop groups, rings, and fields with emphasis on the structures central to post-quantum cryptography---$\Zq$, polynomial rings $\Zq[x]/(f(x))$, and finite fields $\F_q$---then cover modular arithmetic, the Chinese Remainder Theorem, discrete probability, computational complexity including quantum classes, and the formal security definitions (IND-CPA, IND-CCA2, EUF-CMA) that govern modern cryptographic design. Readers comfortable with abstract algebra and complexity theory may skim and return as needed; others should work through the chapter carefully.}
 
 % =============================================================
 % SOURCE: notes.tex Appendix A (lines 9811–10021)
-% REUSE: ~30%. Currently very brief. Major expansion needed.
+% REUSE: ~30%. Major expansion with new material throughout.
 % =============================================================
 
+
+%% ================================================================
 \section{Groups, Rings, and Fields}
 \label{sec:algebra}
 
-% TODO: Expand from notes.tex §A.2
-% - Groups: definition, order, generators, cyclic groups, Lagrange's theorem
-% - Rings: Z_q, polynomial rings Z_q[x], quotient rings Z_q[x]/(f(x))
-% - Fields: finite fields F_q, extension fields
-% - Focus on structures used in PQC: Z_q, R_q = Z_q[x]/(x^n+1)
-% - Cite: any standard algebra textbook (e.g., Dummit & Foote)
+Post-quantum cryptographic schemes operate over algebraic structures that are considerably richer than the integers modulo a prime used in classical Diffie--Hellman or RSA.  We develop the relevant definitions from scratch, emphasising the structures that will reappear throughout the book.
 
+\subsection{Groups}
+\label{subsec:groups}
+
+\begin{definition}[Group]
+\label{def:group}
+\index{group}
+A \emph{group} $(G, \cdot)$ is a set $G$ together with a binary operation $\cdot : G \times G \to G$ satisfying:
+\begin{enumerate}
+\item \textbf{Associativity:} $(a \cdot b) \cdot c = a \cdot (b \cdot c)$ for all $a,b,c \in G$.
+\item \textbf{Identity:} There exists $e \in G$ such that $e \cdot a = a \cdot e = a$ for all $a \in G$.
+\item \textbf{Inverses:} For each $a \in G$, there exists $a^{-1} \in G$ with $a \cdot a^{-1} = a^{-1} \cdot a = e$.
+\end{enumerate}
+If additionally $a \cdot b = b \cdot a$ for all $a,b \in G$, the group is \emph{abelian}\index{group!abelian}.  The \emph{order}\index{group!order} of $G$, denoted $|G|$, is the cardinality of~$G$.
+\end{definition}
+
+\begin{example}[Additive Groups]
+\label{ex:additive-groups}
+The integers $(\Z, +)$ form an infinite abelian group.  For any positive integer $q$, the set $\Zq = \{0, 1, \ldots, q-1\}$ with addition modulo~$q$ forms a finite abelian group of order~$q$.  These additive groups are the default setting for lattice-based cryptography.
+\end{example}
+
+\begin{definition}[Cyclic Group]
+\label{def:cyclic-group}
+\index{group!cyclic}
+A group $G$ is \emph{cyclic} if there exists a \emph{generator}\index{generator} $g \in G$ such that every element of~$G$ can be written as $g^k$ for some integer~$k$.  We write $G = \langle g \rangle$.  Every cyclic group of order~$n$ is isomorphic to $(\Z_n, +)$.
+\end{definition}
+
+\begin{theorem}[Lagrange's Theorem]
+\label{thm:lagrange}
+\index{Lagrange's theorem}
+If $H$ is a subgroup of a finite group $G$, then $|H|$ divides $|G|$.  In particular, the order of every element divides~$|G|$.
+\end{theorem}
+
+\begin{proof}
+The cosets $aH = \{ah : h \in H\}$ for $a \in G$ partition $G$ into subsets of equal size $|H|$.  The number of distinct cosets, called the \emph{index} $[G:H]$, satisfies $|G| = [G:H] \cdot |H|$.
+\end{proof}
+
+Lagrange's theorem has an immediate cryptographic consequence: in $\Zq^*$ (the multiplicative group of units modulo~$q$), every element $a$ satisfies $a^{|{\Zq^*}|} \equiv 1 \pmod{q}$.  This leads directly to Euler's theorem in Sect.~\ref{sec:modular}.
+
+
+\subsection{Rings}
+\label{subsec:rings}
+
+\begin{definition}[Ring]
+\label{def:ring}
+\index{ring}
+A \emph{ring} $(R, +, \cdot)$ is a set $R$ with two binary operations such that:
+\begin{enumerate}
+\item $(R, +)$ is an abelian group (with identity~$0$).
+\item Multiplication is associative and distributes over addition.
+\item There exists a multiplicative identity~$1 \in R$ (we consider only unital rings).
+\end{enumerate}
+A ring is \emph{commutative}\index{ring!commutative} if $a \cdot b = b \cdot a$ for all $a, b \in R$.
+\end{definition}
+
+\begin{example}[The Ring $\Zq$]
+\label{ex:Zq-ring}
+\index{Zq@$\Zq$}
+The set $\Zq = \Z/q\Z$ with addition and multiplication modulo~$q$ is a commutative ring.  An element $a \in \Zq$ has a multiplicative inverse if and only if $\gcd(a, q) = 1$.  The set of invertible elements $\Zq^* = \{a \in \Zq : \gcd(a,q) = 1\}$ forms a group under multiplication of order $\varphi(q)$ (Euler's totient function\index{Euler's totient function}).
+\end{example}
+
+Polynomial rings are central to efficient lattice-based cryptography.  We introduce them in stages.
+
+\begin{definition}[Polynomial Ring]
+\label{def:poly-ring}
+\index{polynomial ring}
+The \emph{polynomial ring} $\Zq[x]$ consists of all polynomials in the variable~$x$ with coefficients in~$\Zq$.  Addition and multiplication follow the usual rules, with coefficient arithmetic performed modulo~$q$.
+\end{definition}
+
+\begin{definition}[Quotient Polynomial Ring]
+\label{def:quotient-poly-ring}
+\index{quotient ring}\index{polynomial ring!quotient}
+Given a polynomial $f(x) \in \Zq[x]$ of degree~$n$, the \emph{quotient ring} $\Zq[x]/(f(x))$ consists of polynomials of degree less than~$n$, with multiplication defined by polynomial multiplication followed by reduction modulo $f(x)$.  Formally, two polynomials $a(x), b(x) \in \Zq[x]$ are identified if $f(x)$ divides $a(x) - b(x)$.
+\end{definition}
+
+The most important quotient ring in post-quantum cryptography is $\Rq = \Zq[x]/(x^n + 1)$, where $n$ is a power of two.  Elements of $\Rq$ are polynomials $a(x) = a_0 + a_1 x + \cdots + a_{n-1}x^{n-1}$ with $a_i \in \Zq$.  The reduction by $x^n + 1$ imposes $x^n \equiv -1$, so multiplication produces a \emph{negacyclic convolution}\index{negacyclic convolution}.
+
+\begin{example}[Multiplication in $\Rq$]
+\label{ex:rq-mult}
+Let $\Rq = \Z_7[x]/(x^4 + 1)$.  Consider $a(x) = 2 + 3x + x^2$ and $b(x) = 1 + 4x + 2x^3$.  Their product in $\Z_7[x]$ is
+\[
+a(x) \cdot b(x) = 2 + 11x + 8x^2 + 13x^3 + 6x^4 + 2x^5.
+\]
+Reducing modulo $x^4 + 1$ using $x^4 \equiv -1$ and $x^5 \equiv -x$ gives
+\[
+(2 - 6) + (11 - 2)x + 8x^2 + 13x^3 = -4 + 9x + 8x^2 + 13x^3 \equiv 3 + 2x + x^2 + 6x^3 \pmod{7}.
+\]
+\end{example}
+
+\begin{svgraybox}
+\textbf{Why $x^n + 1$?}\enspace The polynomial $x^n + 1$ (with $n$ a power of two) is the $2n$-th cyclotomic polynomial\index{cyclotomic polynomial}.  It is irreducible over~$\Z$ (so $\Rq$ has useful algebraic properties), and the negacyclic structure enables fast multiplication via the Number Theoretic Transform (Sect.~\ref{sec:modular}).  The schemes ML-KEM and ML-DSA (Chaps.~\ref{ch:lwe-encryption}--\ref{ch:lattice-signatures}) use $n = 256$ and $q = 3329$.
+\end{svgraybox}
+
+
+\subsection{Fields}
+\label{subsec:fields}
+
+\begin{definition}[Field]
+\label{def:field}
+\index{field}
+A \emph{field} $(F, +, \cdot)$ is a commutative ring in which every non-zero element has a multiplicative inverse.  Equivalently, $(F\setminus\{0\}, \cdot)$ is an abelian group.
+\end{definition}
+
+\begin{theorem}[Finite Fields]
+\label{thm:finite-fields}
+\index{finite field}\index{field!finite}
+For every prime power $p^k$, there exists a unique (up to isomorphism) finite field of order $p^k$, denoted $\F_{p^k}$.  When $k = 1$, we have $\F_p \cong \Z_p$.  When $k > 1$, the field $\F_{p^k}$ is constructed as $\F_p[x]/(g(x))$ for an irreducible polynomial $g(x) \in \F_p[x]$ of degree~$k$.
+\end{theorem}
+
+\begin{example}[The Field $\F_4$]
+\label{ex:f4}
+The polynomial $g(x) = x^2 + x + 1$ is irreducible over $\F_2$.  The field $\F_4 = \F_2[x]/(x^2 + x + 1)$ has elements $\{0, 1, \alpha, \alpha + 1\}$ where $\alpha^2 = \alpha + 1$.  Code-based cryptography (Chap.~\ref{ch:code-based}) often operates over such binary extension fields.
+\end{example}
+
+An important distinction: $\Zq$ is a field if and only if $q$ is prime.  When $q$ is composite, $\Zq$ contains zero divisors (elements $a \neq 0$ such that $ab = 0$ for some $b \neq 0$).  Similarly, the quotient ring $\Zq[x]/(f(x))$ is a field only when $f(x)$ is irreducible over~$\Zq$.  The ring $\Rq$ used in lattice-based cryptography is typically \emph{not} a field---for most choices of~$q$, the polynomial $x^n + 1$ splits modulo~$q$---but this is by design: the splitting enables the NTT.
+
+
+%% ================================================================
 \section{Modular Arithmetic and the Chinese Remainder Theorem}
 \label{sec:modular}
 
-% TODO: Expand from notes.tex §A.2
-% - Modular exponentiation, Euler's theorem, Fermat's little theorem
-% - CRT: statement, proof, algorithmic application
-% - Number Theoretic Transform (NTT) — preview for lattice chapters
+\subsection{Modular Arithmetic}
+\label{subsec:mod-arith}
 
+We represent elements of $\Zq$ either in the \emph{standard} range $\{0, 1, \ldots, q-1\}$ or the \emph{centred} range $\{-\lfloor q/2 \rfloor, \ldots, \lfloor (q-1)/2 \rfloor\}$\index{centred representative}.  The centred representation is essential in lattice-based cryptography, where we measure the ``size'' of elements.
+
+\begin{definition}[Modular Reduction]
+\label{def:mod-reduction}
+\index{modular reduction}
+For $a \in \Z$ and $q > 0$, define $a \bmod q = a - \lfloor a/q \rfloor \cdot q \in \{0, 1, \ldots, q-1\}$.  The centred reduction $[a]_q$ maps $a$ to the unique representative in $(-q/2, q/2]$.
+\end{definition}
+
+The extended Euclidean algorithm\index{extended Euclidean algorithm} computes $\gcd(a, q)$ together with B\'ezout coefficients $s, t$ satisfying $sa + tq = \gcd(a,q)$.  When $\gcd(a,q) = 1$, the coefficient~$s$ reduced modulo~$q$ is the multiplicative inverse $a^{-1} \bmod q$.
+
+\begin{theorem}[Euler's Theorem]
+\label{thm:euler}
+\index{Euler's theorem}
+If $\gcd(a, q) = 1$, then $a^{\varphi(q)} \equiv 1 \pmod{q}$, where $\varphi(q) = |\Zq^*|$ is Euler's totient function.
+\end{theorem}
+
+\begin{proof}
+The map $x \mapsto ax$ is a bijection on $\Zq^*$.  Multiplying all elements of $\Zq^*$, we get $\prod_{x \in \Zq^*} (ax) = a^{\varphi(q)} \prod_{x \in \Zq^*} x \equiv \prod_{x \in \Zq^*} x \pmod{q}$.  Cancelling gives $a^{\varphi(q)} \equiv 1$.
+\end{proof}
+
+When $q = p$ is prime, $\varphi(p) = p - 1$ and we recover \emph{Fermat's little theorem}\index{Fermat's little theorem}: $a^{p-1} \equiv 1 \pmod{p}$ for all $a \not\equiv 0$.
+
+
+\subsection{The Chinese Remainder Theorem}
+\label{subsec:crt}
+
+\begin{theorem}[Chinese Remainder Theorem (CRT)]
+\label{thm:crt}
+\index{Chinese Remainder Theorem}
+Let $q_1, q_2, \ldots, q_k$ be pairwise coprime positive integers, and let $Q = \prod_{i=1}^k q_i$.  The map
+\begin{equation}
+\label{eq:crt-iso}
+\phi : \Z_Q \longrightarrow \Z_{q_1} \times \Z_{q_2} \times \cdots \times \Z_{q_k}, \qquad a \longmapsto (a \bmod q_1, \; a \bmod q_2, \; \ldots, \; a \bmod q_k)
+\end{equation}
+is a ring isomorphism.  In particular, the system $x \equiv a_i \pmod{q_i}$ for $i = 1, \ldots, k$ has a unique solution modulo~$Q$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The map $\phi$ is a ring homomorphism by the compatibility of modular reduction with addition and multiplication.  Both $\Z_Q$ and the product ring have cardinality~$Q$, so it suffices to show injectivity.  If $\phi(a) = \phi(b)$, then $q_i \mid (a - b)$ for all~$i$.  Since the $q_i$ are pairwise coprime, $Q \mid (a - b)$, hence $a \equiv b \pmod{Q}$.
+\end{proof}
+
+The explicit reconstruction formula is:
+\begin{equation}
+\label{eq:crt-explicit}
+x \;=\; \sum_{i=1}^{k} a_i \, Q_i \, (Q_i^{-1} \bmod q_i) \bmod Q, \qquad Q_i = Q / q_i.
+\end{equation}
+
+\begin{example}[CRT Computation]
+\label{ex:crt}
+Solve $x \equiv 2 \pmod{3}$, $x \equiv 3 \pmod{5}$, $x \equiv 1 \pmod{7}$.  Here $Q = 105$, $Q_1 = 35$, $Q_2 = 21$, $Q_3 = 15$.  We compute $35^{-1} \equiv 2 \pmod{3}$, $21^{-1} \equiv 1 \pmod{5}$, $15^{-1} \equiv 1 \pmod{7}$.  Then $x = 2 \cdot 35 \cdot 2 + 3 \cdot 21 \cdot 1 + 1 \cdot 15 \cdot 1 = 140 + 63 + 15 = 218 \equiv 8 \pmod{105}$.
+\end{example}
+
+
+\subsection{The Number Theoretic Transform}
+\label{subsec:ntt-preview}
+
+The CRT isomorphism extends from integers to polynomials.  When $q$ is prime and $q \equiv 1 \pmod{2n}$, the polynomial $x^n + 1$ splits completely modulo~$q$ as
+\begin{equation}
+\label{eq:xn-split}
+x^n + 1 \;\equiv\; \prod_{i=0}^{n-1}(x - \omega^{2i+1}) \pmod{q},
+\end{equation}
+where $\omega$ is a primitive $2n$-th root of unity modulo~$q$\index{root of unity}.  The CRT then gives a ring isomorphism
+\begin{equation}
+\label{eq:ntt-iso}
+\Rq = \Zq[x]/(x^n + 1) \;\cong\; \Zq \times \Zq \times \cdots \times \Zq \quad (n \text{ copies}).
+\end{equation}
+This is the \emph{Number Theoretic Transform}\index{Number Theoretic Transform}\index{NTT|see{Number Theoretic Transform}} (NTT).  Under the NTT, polynomial multiplication reduces to $n$ independent multiplications in~$\Zq$, yielding an $\bigO(n \log n)$ algorithm instead of the na\"ive $\bigO(n^2)$.
+
+\begin{svgraybox}
+\textbf{NTT in practice.}\enspace ML-KEM uses $n = 256$ and $q = 3329$.  Since $3329 = 13 \cdot 256 + 1$, we have $q \equiv 1 \pmod{512}$, so $x^{256} + 1$ splits completely modulo~$3329$.  A primitive $512$-th root of unity is $\omega = 17$.  The NTT converts each polynomial to its ``evaluation'' representation in $\Zq^{256}$; multiplication becomes pointwise, and inverse NTT recovers the coefficient form.  This is the analogue of the FFT for finite fields, and it dominates the implementation cost of lattice-based schemes.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Probability and Statistical Distance}
 \label{sec:probability}
 
-% TODO: New section
-% - Discrete probability distributions
-% - Statistical distance and its properties
-% - The leftover hash lemma (statement)
-% - Discrete Gaussian distributions: definition, tail bounds
-% - Smoothing parameter of a lattice (preview)
+Cryptographic security is inherently probabilistic: keys are chosen at random, adversaries are randomised algorithms, and security is defined in terms of the inability to distinguish distributions.  We establish the probabilistic tools needed throughout the book.
 
+\subsection{Discrete Probability}
+\label{subsec:discrete-prob}
+
+We write $x \getsr S$ to denote sampling $x$ uniformly at random from a finite set~$S$.  More generally, $x \gets D$ denotes sampling from a distribution~$D$.  The \emph{support}\index{support} of a distribution~$D$ over a set~$S$ is $\operatorname{supp}(D) = \{x \in S : D(x) > 0\}$.
+
+\begin{definition}[Statistical Distance]
+\label{def:stat-dist}
+\index{statistical distance}
+The \emph{statistical distance} (or \emph{total variation distance}) between two distributions $D_1$ and $D_2$ over a countable set~$S$ is
+\begin{equation}
+\label{eq:stat-dist}
+\Delta(D_1, D_2) \;=\; \frac{1}{2} \sum_{x \in S} \abs{D_1(x) - D_2(x)} \;=\; \max_{T \subseteq S} \abs{\Pr_{x \gets D_1}[x \in T] - \Pr_{x \gets D_2}[x \in T]}.
+\end{equation}
+\end{definition}
+
+The second equality shows that statistical distance captures the maximum advantage any (even unbounded) distinguisher can achieve.  If $\Delta(D_1, D_2) \leq \varepsilon$, then replacing $D_1$ by $D_2$ in any experiment changes the outcome probability by at most~$\varepsilon$.  This makes statistical distance the canonical measure for ``closeness'' of distributions in cryptographic proofs.
+
+\begin{definition}[Negligible Function]
+\label{def:negl}
+\index{negligible function}
+A function $f : \N \to \R_{\geq 0}$ is \emph{negligible}\index{negligible function} if for every positive polynomial $p(\cdot)$, there exists $n_0$ such that $f(n) < 1/p(n)$ for all $n \geq n_0$.  We write $f(n) = \negl(n)$.  Intuitively, a negligible quantity vanishes faster than any inverse polynomial.
+\end{definition}
+
+Key properties of statistical distance:
+\begin{enumerate}
+\item \textbf{Metric:} $\Delta$ satisfies $\Delta(D_1, D_2) \geq 0$, symmetry, and the triangle inequality.
+\item \textbf{Data-processing inequality:} For any (possibly randomised) function~$f$, $\Delta(f(D_1), f(D_2)) \leq \Delta(D_1, D_2)$.
+\item \textbf{Hybrid argument:} $\Delta(D_1, D_k) \leq \sum_{i=1}^{k-1} \Delta(D_i, D_{i+1})$.
+\end{enumerate}
+
+
+\subsection{The Leftover Hash Lemma}
+\label{subsec:lhl}
+
+The leftover hash lemma\index{leftover hash lemma} (LHL) is a fundamental tool for showing that certain distributions are close to uniform.  It appears in the security proofs of LWE-based encryption (Chap.~\ref{ch:lwe-encryption}).
+
+\begin{definition}[Universal Hash Family]
+\label{def:universal-hash}
+\index{universal hash family}
+A family $\mathcal{H} = \{h : X \to Y\}$ is \emph{$2$-universal} if for all distinct $x_1, x_2 \in X$,
+\[
+\Pr_{h \getsr \mathcal{H}}[h(x_1) = h(x_2)] \;\leq\; \frac{1}{|Y|}.
+\]
+\end{definition}
+
+\begin{theorem}[Leftover Hash Lemma~\cite{LPR2010}]
+\label{thm:lhl}
+\index{leftover hash lemma}
+Let $\mathcal{H}$ be a $2$-universal family from $X$ to $Y$, and let $D$ be a distribution on $X$ with min-entropy $H_\infty(D) \geq \log|Y| + 2\log(1/\varepsilon)$.  Then
+\begin{equation}
+\label{eq:lhl}
+\Delta\bigl((h, h(x)), \; (h, u)\bigr) \;\leq\; \varepsilon,
+\end{equation}
+where $h \getsr \mathcal{H}$, $x \gets D$, and $u \getsr Y$.
+\end{theorem}
+
+Informally: if the source has enough entropy relative to the output size, then the hash output is statistically close to uniform---even given the hash function itself.  In the LWE setting, the matrix~$\mathbf{A}$ plays the role of the hash function and the secret~$\mathbf{s}$ plays the role of the high-entropy source.
+
+
+\subsection{Discrete Gaussian Distributions}
+\label{subsec:discrete-gaussian}
+
+Discrete Gaussian distributions\index{discrete Gaussian distribution} are the single most important distribution family in lattice-based cryptography.  They appear in the definition of LWE, in the Gaussian sampling needed for security reductions, and in the signing algorithms for lattice-based signatures.
+
+\begin{definition}[Gaussian Function]
+\label{def:gaussian-func}
+For $s > 0$ and $\mathbf{c} \in \R^n$, the \emph{Gaussian function} centred at~$\mathbf{c}$ with parameter~$s$ is
+\begin{equation}
+\label{eq:gaussian-func}
+\rho_{s,\mathbf{c}}(\mathbf{x}) \;=\; \exp\!\left(-\pi \frac{\norm{\mathbf{x} - \mathbf{c}}^2}{s^2}\right).
+\end{equation}
+When $\mathbf{c} = \mathbf{0}$, we write simply $\rho_s$.
+\end{definition}
+
+\begin{definition}[Discrete Gaussian Distribution]
+\label{def:discrete-gaussian}
+\index{discrete Gaussian distribution}
+The \emph{discrete Gaussian distribution} over $\Z^n$ with parameter~$s > 0$ and centre $\mathbf{c}$ is
+\begin{equation}
+\label{eq:discrete-gaussian}
+D_{\Z^n, s, \mathbf{c}}(\mathbf{x}) \;=\; \frac{\rho_{s,\mathbf{c}}(\mathbf{x})}{\sum_{\mathbf{y} \in \Z^n} \rho_{s,\mathbf{c}}(\mathbf{y})}, \qquad \mathbf{x} \in \Z^n.
+\end{equation}
+More generally, for a lattice $\lat$, the discrete Gaussian $D_{\lat, s, \mathbf{c}}$ restricts the support to $\lat$.
+\end{definition}
+
+\begin{theorem}[Tail Bound for Discrete Gaussians]
+\label{thm:gaussian-tail}
+\index{discrete Gaussian distribution!tail bound}
+For $x \gets D_{\Z, s}$ (the one-dimensional discrete Gaussian centred at zero),
+\begin{equation}
+\label{eq:gaussian-tail}
+\Pr\bigl[|x| > t \cdot s\bigr] \;\leq\; 2\exp(-\pi t^2)
+\end{equation}
+for all $t > 0$.  In particular, $|x| \leq s\sqrt{\ln(2n/\delta)/\pi}$ with probability at least $1 - \delta$ for each coordinate of a sample from $D_{\Z^n, s}$.
+\end{theorem}
+
+This tail bound is essential for setting parameters: the ``noise'' terms in LWE-based schemes must remain small enough that decryption succeeds, so we need $s$ large enough for security but small enough that the tail probability of a decryption failure is negligible.
+
+\begin{definition}[Smoothing Parameter]
+\label{def:smoothing}
+\index{smoothing parameter}
+The \emph{smoothing parameter}\index{smoothing parameter} $\eta_\varepsilon(\lat)$ of a lattice $\lat$ (for $\varepsilon > 0$) is the smallest $s > 0$ such that
+\begin{equation}
+\label{eq:smoothing}
+\rho_{1/s}(\lat^* \setminus \{\mathbf{0}\}) \;\leq\; \varepsilon,
+\end{equation}
+where $\lat^*$ is the dual lattice.
+\end{definition}
+
+Intuitively, $\eta_\varepsilon(\lat)$ is the Gaussian width above which the discrete Gaussian $D_{\lat,s}$ ``smooths out'' the lattice structure: samples look statistically close to a continuous Gaussian.  The smoothing parameter appears in the worst-case to average-case reductions of Chap.~\ref{ch:lattice-theory} and in Gaussian sampling algorithms for lattice-based signatures (Chap.~\ref{ch:lattice-signatures}).  The key property is:
+
+\begin{theorem}[Smoothing Property~\cite{MicciancioRegev2007}]
+\label{thm:smoothing}
+For $s \geq \eta_\varepsilon(\lat)$ and any $\mathbf{c} \in \R^n$,
+\begin{equation}
+\label{eq:smoothing-property}
+D_{\lat, s, \mathbf{c}} \bmod \mathcal{P}(\lat) \;\approx_\varepsilon\; U(\mathcal{P}(\lat)),
+\end{equation}
+where $\mathcal{P}(\lat)$ is the fundamental parallelepiped and $U$ denotes the uniform distribution.
+\end{theorem}
+
+
+%% ================================================================
 \section{Computational Complexity}
 \label{sec:complexity}
 
-% TODO: Expand from notes.tex §A.3
-% - Turing machines (brief), P, NP, coNP
-% - Reductions: Karp, Cook, Turing
-% - Average-case vs worst-case complexity
-% - The role of reductions in cryptographic security proofs
-% - Quantum complexity: BQP, relationship to P and NP
-% - Cite: Arora-Barak, Goldreich
+Cryptographic security rests on the assumption that certain problems are computationally intractable.  We introduce the complexity-theoretic framework that makes this precise, with special attention to the quantum complexity classes relevant to post-quantum cryptography.
 
+\subsection{Complexity Classes}
+\label{subsec:complexity-classes}
+
+We assume familiarity with Turing machines at the level of a first course in theoretical computer science and state the key classes directly.
+
+\begin{definition}[Basic Complexity Classes]
+\label{def:complexity-classes}
+\index{complexity class}
+\begin{itemize}
+\item \textbf{P}\index{P (complexity class)}: The class of decision problems solvable by a deterministic Turing machine in time $\poly(n)$, where $n$ is the input size.
+\item \textbf{NP}\index{NP (complexity class)}: The class of decision problems for which a ``yes'' answer has a certificate (witness) verifiable in $\poly(n)$ time.
+\item \textbf{coNP}\index{coNP}: The class of problems whose complement is in NP.  A problem in $\mathrm{NP} \cap \mathrm{coNP}$ has short certificates for both ``yes'' and ``no'' answers and is therefore unlikely to be NP-complete.
+\item \textbf{BPP}\index{BPP}: The class of problems solvable by a probabilistic Turing machine in $\poly(n)$ time with error probability at most~$1/3$ (amplifiable to~$\negl(n)$ by repetition).
+\item \textbf{BQP}\index{BQP}: The class of problems solvable by a quantum computer in $\poly(n)$ time with bounded error.  This is the quantum analogue of BPP.
+\end{itemize}
+\end{definition}
+
+The known inclusions are:
+\begin{equation}
+\label{eq:complexity-inclusions}
+\mathrm{P} \subseteq \mathrm{BPP} \subseteq \mathrm{BQP} \subseteq \mathrm{PSPACE}, \qquad \mathrm{P} \subseteq \mathrm{NP} \subseteq \mathrm{PSPACE}.
+\end{equation}
+Whether $\mathrm{P} = \mathrm{NP}$ and whether $\mathrm{NP} \subseteq \mathrm{BQP}$ are major open questions.  For cryptography, the central concern is the relationship between NP and BQP: if $\mathrm{NP} \not\subseteq \mathrm{BQP}$, then NP-hard problems remain intractable even for quantum adversaries.
+
+
+\subsection{Reductions}
+\label{subsec:reductions}
+
+\begin{definition}[Karp Reduction]
+\label{def:karp-reduction}
+\index{Karp reduction}\index{reduction!Karp}
+A \emph{Karp (many-one) reduction} from problem~$A$ to problem~$B$, written $A \leq_p B$, is a polynomial-time computable function $f$ such that for every instance~$x$:
+\begin{equation}
+x \in A \;\iff\; f(x) \in B.
+\end{equation}
+If $A \leq_p B$ and $A$ is hard, then $B$ is at least as hard as $A$.
+\end{definition}
+
+A more general notion is the \emph{Turing reduction}\index{reduction!Turing} (or \emph{Cook reduction}), where the algorithm for~$A$ may make polynomially many adaptive queries to an oracle for~$B$.  Cryptographic security reductions are typically Turing reductions: the reduction algorithm is given oracle access to an adversary and uses its output to solve the underlying hard problem.
+
+\begin{definition}[NP-Hardness]
+\label{def:np-hard}
+\index{NP-hard}
+A problem~$B$ is \emph{NP-hard} if every problem in NP reduces to $B$.  If additionally $B \in \mathrm{NP}$, then $B$ is \emph{NP-complete}\index{NP-complete}.
+\end{definition}
+
+
+\subsection{Average-Case vs.\ Worst-Case Complexity}
+\label{subsec:avg-worst}
+
+Classical complexity theory studies \emph{worst-case} hardness: a problem is in P if \emph{every} instance can be solved efficiently.  Cryptography requires something different---\emph{average-case} hardness: random instances must be hard.
+
+\begin{definition}[Average-Case Hardness]
+\label{def:avg-case}
+\index{average-case hardness}
+A problem~$\Pi$ with input distribution~$D$ is \emph{average-case hard} if no polynomial-time algorithm solves a non-negligible fraction of instances drawn from~$D$.
+\end{definition}
+
+In general, worst-case hardness does not imply average-case hardness: a problem may have a few extremely hard instances but be easy on average.  For classical cryptographic assumptions (factoring, discrete logarithm), we \emph{assume} average-case hardness without proof.  The breakthrough of lattice-based cryptography is that for problems such as LWE and SIS, worst-case hardness \emph{provably implies} average-case hardness via reductions~\cite{Ajtai1996, Regev2009}.  This worst-case to average-case connection is developed in Chap.~\ref{ch:lattice-theory}.
+
+
+\subsection{Quantum Complexity and Cryptography}
+\label{subsec:quantum-complexity}
+
+Shor's algorithm\index{Shor's algorithm}~\cite{Shor1997} places integer factorisation and the discrete logarithm problem in BQP, breaking RSA, Diffie--Hellman, and elliptic curve cryptography.  The essential question for post-quantum cryptography is: which hard problems survive in BQP?
+
+\begin{table}[t]
+\caption{Classical vs.\ quantum complexity of cryptographically relevant problems}
+\label{tab:quantum-complexity}
+\begin{tabular}{p{4cm}p{3.5cm}p{3.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Problem} & \textbf{Classical} & \textbf{Quantum} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Integer factorisation & Sub-exponential (NFS) & $\poly(n)$ (Shor) \\
+Discrete logarithm & Sub-exponential & $\poly(n)$ (Shor) \\
+Approx-\svp{} ($\gamma = \poly(n)$) & $\poly(n)$ (LLL) & $\poly(n)$ \\
+Approx-\svp{} ($\gamma = O(1)$) & $2^{\Theta(n)}$ & $2^{\Theta(n)}$ \\
+\lwe{} (decision) & $2^{\Theta(n)}$ & $2^{\Theta(n)}$ \\
+Syndrome decoding & $2^{\Theta(n)}$ & $2^{\Theta(n)}$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The bottom four rows of Table~\ref{tab:quantum-complexity} are the problems on which post-quantum cryptographic schemes are built.  Their resistance to quantum attack is the entire premise of this book.
+
+
+%% ================================================================
 \section{Security Definitions and Reductions}
 \label{sec:security-defs}
 
-% TODO: New section (critical for the book's rigor)
-% - Semantic security / IND-CPA
-% - Chosen-ciphertext security / IND-CCA2
-% - Existential unforgeability / EUF-CMA
-% - Security reductions: structure, tightness, loss
-% - The random oracle model and its quantum variant (QROM)
+We now formalise what it means for a cryptographic scheme to be ``secure.''  The definitions in this section apply to both classical and post-quantum schemes; the difference lies only in the class of adversaries considered.
 
-%% Exercises
+\subsection{Security Games and Advantages}
+\label{subsec:security-games}
+
+Cryptographic security is defined via \emph{games}\index{security game} played between a \emph{challenger}\index{challenger} (who runs the scheme honestly) and an \emph{adversary}\index{adversary} $\mathcal{A}$ (who tries to break it).  The adversary's \emph{advantage}\index{advantage} is the probability that it ``wins'' the game minus the trivial success probability (typically~$1/2$ for a distinguishing game, or~$0$ for a search game).
+
+\begin{definition}[Asymptotic Security]
+\label{def:asymptotic-security}
+A scheme is \emph{secure} (under a given definition) if for every probabilistic polynomial-time (PPT) adversary $\mathcal{A}$, the advantage $\mathrm{Adv}(\mathcal{A})$ is negligible in the security parameter~$\lambda$:
+\[
+\mathrm{Adv}(\mathcal{A}) \;\leq\; \negl(\lambda).
+\]
+\end{definition}
+
+
+\subsection{Security of Encryption: IND-CPA and IND-CCA2}
+\label{subsec:ind-cpa-cca}
+
+\begin{definition}[IND-CPA Security]
+\label{def:ind-cpa}
+\index{IND-CPA}\index{security!IND-CPA}
+A public-key encryption scheme $(\KeyGen, \Enc, \Dec)$ is \emph{IND-CPA secure} (indistinguishable under chosen-plaintext attack) if for every PPT adversary $\mathcal{A}$, the following advantage is negligible:
+\begin{equation}
+\label{eq:ind-cpa}
+\mathrm{Adv}^{\mathrm{ind\text{-}cpa}}_{\mathcal{A}}(\lambda) \;=\; \left| \Pr\!\left[\mathcal{A} \text{ wins } \mathrm{IND\text{-}CPA\ game}\right] - \frac{1}{2} \right|.
+\end{equation}
+The game proceeds as follows:
+\begin{enumerate}
+\item The challenger generates $(\mathit{pk}, \mathit{sk}) \gets \KeyGen(1^\lambda)$ and gives $\mathit{pk}$ to $\mathcal{A}$.
+\item $\mathcal{A}$ submits two equal-length messages $m_0, m_1$.
+\item The challenger chooses $b \getsr \{0,1\}$ and sends $c^* = \Enc(\mathit{pk}, m_b)$ to $\mathcal{A}$.
+\item $\mathcal{A}$ outputs a guess $b'$.  It wins if $b' = b$.
+\end{enumerate}
+\end{definition}
+
+IND-CPA captures the minimal requirement: an eavesdropper who sees only public keys and ciphertexts cannot determine which of two messages was encrypted.  Since $\mathcal{A}$ holds the public key, it can encrypt any message it wishes---hence ``chosen plaintext.''
+
+\begin{definition}[IND-CCA2 Security]
+\label{def:ind-cca2}
+\index{IND-CCA2}\index{security!IND-CCA2}
+A scheme is \emph{IND-CCA2 secure} (indistinguishable under adaptive chosen-ciphertext attack) if it remains IND-CPA secure even when the adversary has access to a decryption oracle $\Dec(\mathit{sk}, \cdot)$ throughout the game, with the restriction that it may not query the challenge ciphertext~$c^*$.
+\end{definition}
+
+IND-CCA2 is the standard security target for deployed encryption.  It models an adversary who can submit ciphertexts for decryption (e.g., by observing error messages or timing behaviour) and still cannot extract information about the challenge plaintext.  The Fujisaki--Okamoto transform~\cite{FujisakiOkamoto1999}, used in ML-KEM, upgrades an IND-CPA scheme to IND-CCA2 security.
+
+\begin{svgraybox}
+\textbf{CPA vs.\ CCA2 in practice.}\enspace An IND-CPA-secure scheme may be completely broken under CCA2 attack.  For example, textbook LWE encryption (Chap.~\ref{ch:lwe-encryption}) is IND-CPA secure but malleable: an adversary can modify a ciphertext in a predictable way.  The Fujisaki--Okamoto transform eliminates this malleability by binding the encryption randomness to a hash of the message, so any modification is detectable.
+\end{svgraybox}
+
+
+\subsection{Security of Signatures: EUF-CMA}
+\label{subsec:euf-cma}
+
+\begin{definition}[EUF-CMA Security]
+\label{def:euf-cma}
+\index{EUF-CMA}\index{security!EUF-CMA}
+A signature scheme $(\KeyGen, \Sign, \Verify)$ is \emph{EUF-CMA secure} (existentially unforgeable under chosen-message attack) if for every PPT adversary~$\mathcal{A}$, the following advantage is negligible:
+\begin{equation}
+\label{eq:euf-cma}
+\mathrm{Adv}^{\mathrm{euf\text{-}cma}}_{\mathcal{A}}(\lambda) \;=\; \Pr\!\left[\mathcal{A} \text{ outputs valid forgery}\right].
+\end{equation}
+The game:
+\begin{enumerate}
+\item The challenger generates $(\mathit{pk}, \mathit{sk}) \gets \KeyGen(1^\lambda)$ and gives $\mathit{pk}$ to $\mathcal{A}$.
+\item $\mathcal{A}$ adaptively queries a signing oracle $\Sign(\mathit{sk}, \cdot)$ on messages $m_1, \ldots, m_Q$ of its choice.
+\item $\mathcal{A}$ outputs a pair $(m^*, \sigma^*)$.  It wins if $\Verify(\mathit{pk}, m^*, \sigma^*) = 1$ and $m^* \notin \{m_1, \ldots, m_Q\}$.
+\end{enumerate}
+\end{definition}
+
+EUF-CMA is the standard security target for digital signatures.  The adversary may see signatures on any messages it chooses but must produce a valid signature on a \emph{new} message.
+
+
+\subsection{Security Reductions}
+\label{subsec:security-reductions}
+
+A \emph{security reduction}\index{security reduction} is a proof technique that relates the security of a cryptographic scheme to the hardness of an underlying computational problem.
+
+\begin{definition}[Security Reduction Structure]
+\label{def:reduction-structure}
+A reduction from the hardness of problem $\Pi$ to the security of scheme $\Sigma$ is a PPT algorithm~$\mathcal{R}$ (the \emph{reducer}) that, given oracle access to any adversary $\mathcal{A}$ breaking $\Sigma$ with advantage $\varepsilon$, solves $\Pi$ with advantage at least $\varepsilon' = \varepsilon / L$, where $L$ is the \emph{security loss}\index{security loss}\index{security reduction!loss}.
+\end{definition}
+
+The structure of a security proof is therefore:
+\begin{enumerate}
+\item \textbf{Assume} an adversary $\mathcal{A}$ breaks the scheme with non-negligible advantage.
+\item \textbf{Construct} a reduction $\mathcal{R}^\mathcal{A}$ that uses $\mathcal{A}$ as a subroutine.
+\item \textbf{Show} that $\mathcal{R}^\mathcal{A}$ solves the underlying hard problem, contradicting the hardness assumption.
+\end{enumerate}
+The loss factor $L$ determines the \emph{tightness}\index{security reduction!tightness} of the reduction.  A \emph{tight} reduction has $L = \poly(\lambda)$; a \emph{loose} reduction may have $L$ that depends on the number of queries.  Tight reductions are preferred because they translate concrete hardness assumptions directly into concrete security guarantees without inflating parameters.
+
+
+\subsection{The Random Oracle Model and QROM}
+\label{subsec:rom-qrom}
+
+\begin{definition}[Random Oracle Model (ROM)]
+\label{def:rom}
+\index{random oracle model}\index{ROM|see{random oracle model}}
+In the \emph{random oracle model}, hash functions are modelled as truly random functions $H : \{0,1\}^* \to \{0,1\}^k$, accessible only via oracle queries.  All parties---including the adversary---interact with the same oracle.
+\end{definition}
+
+The ROM\index{random oracle model} enables clean, modular security proofs: the reduction can ``program'' the random oracle (choose its outputs on specific inputs) and observe the adversary's queries.  Real-world implementations instantiate the oracle with a concrete hash function (e.g., SHA-3).  While a proof in the ROM does not automatically imply security with a concrete hash function, it provides strong heuristic evidence and is the standard model for practical scheme design.
+
+\begin{definition}[Quantum Random Oracle Model (QROM)]
+\label{def:qrom}
+\index{QROM}\index{quantum random oracle model}
+In the \emph{quantum random oracle model}, the adversary may query the hash function in \emph{quantum superposition}: given a quantum state $\sum_x \alpha_x \ket{x}\ket{0}$, the oracle returns $\sum_x \alpha_x \ket{x}\ket{H(x)}$.
+\end{definition}
+
+The QROM\index{QROM} is essential for post-quantum security proofs.  Several proof techniques from the classical ROM fail in the QROM:
+\begin{itemize}
+\item \textbf{Query observation:} In the ROM, the reduction can record the adversary's queries.  In the QROM, quantum queries cannot be observed without disturbing the quantum state.
+\item \textbf{Oracle programming:} Lazy sampling (choosing random oracle outputs on-the-fly) requires care, since a quantum adversary may query many inputs simultaneously.
+\item \textbf{Rewinding:} Classical proofs often rewind the adversary.  Quantum rewinding is possible but requires the more delicate \emph{Watrous rewinding lemma}\index{Watrous rewinding lemma}.
+\end{itemize}
+
+The Fujisaki--Okamoto transform and the Fiat--Shamir transform~\cite{FiatShamir1986}---both used in NIST PQC standards---have been proven secure in the QROM, but with additional technical conditions compared to their ROM proofs.  We revisit these in Chaps.~\ref{ch:lwe-encryption} and~\ref{ch:lattice-signatures}.
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch02-ring}
-Let $R_q = \Z_q[x]/(x^n + 1)$ with $q = 17$ and $n = 4$. Compute the product of $a(x) = 3x^3 + x + 2$ and $b(x) = 2x^2 + x + 1$ in $R_q$.
+Let $\Rq = \Zq[x]/(x^n + 1)$ with $q = 17$ and $n = 4$.  Compute the product of $a(x) = 3x^3 + x + 2$ and $b(x) = 2x^2 + x + 1$ in $\Rq$.  Verify your answer by checking that the result has degree less than~$4$ and all coefficients lie in $\{0, 1, \ldots, 16\}$.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch02-crt}
+Use the Chinese Remainder Theorem to solve:
+\[
+x \equiv 3 \pmod{5}, \qquad x \equiv 4 \pmod{7}, \qquad x \equiv 2 \pmod{11}.
+\]
+Verify your answer by checking all three congruences.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch02-ntt}
+Let $q = 17$ and $n = 4$.  Verify that $\omega = 2$ is a primitive $8$th root of unity modulo~$17$ (i.e., $2^8 \equiv 1 \pmod{17}$ and $2^4 \not\equiv 1 \pmod{17}$).  List the roots of $x^4 + 1$ modulo~$17$.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch02-stat-dist}
+Let $D_1$ be the uniform distribution on $\{0, 1, 2, 3, 4\}$ and let $D_2$ assign probabilities $(0.3, 0.2, 0.2, 0.2, 0.1)$.  Compute $\Delta(D_1, D_2)$.  If a security proof replaces $D_1$ by $D_2$ in one step, by how much does the adversary's advantage change?
 \end{prob}
 
 \begin{prob}
 \label{prob:ch02-reduction}
-Explain why a polynomial-time reduction from Problem~A to Problem~B, combined with a known lower bound for Problem~A, provides evidence for the hardness of Problem~B. Illustrate with a concrete example from classical cryptography.
+Explain why a polynomial-time reduction from Problem~$A$ to Problem~$B$, combined with a known lower bound for Problem~$A$, provides evidence for the hardness of Problem~$B$.  Now suppose the reduction is \emph{loose} with security loss $L = 2^{40}$.  If Problem~$A$ has $128$-bit hardness, what concrete security can we claim for a scheme based on Problem~$B$?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch02-ind-cpa}
+Consider an encryption scheme where $\Enc(\mathit{pk}, m) = (r, m \oplus H(r))$ for $r \getsr \{0,1\}^k$ and $H$ is a random oracle.
+\begin{enumerate}
+\item[(a)] Prove that this scheme is IND-CPA secure in the random oracle model.
+\item[(b)] Is this scheme IND-CCA2 secure?  If not, describe a concrete attack.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch02-qrom}
+\textbf{Conceptual.}\enspace Explain why a security proof in the classical ROM may fail in the QROM.  Give a concrete example of a proof technique that relies on recording the adversary's hash queries, and explain what goes wrong when the adversary can make quantum superposition queries.
 \end{prob}

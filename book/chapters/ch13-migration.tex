@@ -1,81 +1,468 @@
 \chapter{Migration Strategies}
 \label{ch:migration}
 
-\abstract*{The post-quantum transition is not merely an algorithm swap---it requires rethinking protocols, infrastructure, and organizational processes. This chapter provides a practical framework for migrating to post-quantum cryptography, covering hybrid deployment modes, protocol updates, and real-world case studies from TLS, code signing, and blockchain.}
+\abstract*{The post-quantum transition is not merely an algorithm swap---it requires rethinking protocols, infrastructure, and organizational processes. This chapter provides a practical framework for migrating to post-quantum cryptography, covering hybrid deployment modes, protocol updates for TLS and code signing, blockchain-specific challenges, organizational roadmaps aligned with CNSA~2.0 and European guidance, and the timeline pressures captured by Mosca's inequality.}
+
+\abstract{The post-quantum transition is not merely an algorithm swap---it requires rethinking protocols, infrastructure, and organizational processes. This chapter provides a practical framework for migrating to post-quantum cryptography, covering hybrid deployment modes, protocol updates for TLS and code signing, blockchain-specific challenges, organizational roadmaps aligned with CNSA~2.0 and European guidance, and the timeline pressures captured by Mosca's inequality.}
 
 % =============================================================
 % SOURCE: notes.tex §5.2–5.3 (lines 6944–7876)
-% REUSE: ~50%. Add CNSA 2.0, EU guidance, hybrid TLS diagrams.
+% REUSE: ~50%. Added CNSA 2.0, EU guidance, formal hybrid KEM
+% analysis, X.509 encoding, Mosca inequality.
 % =============================================================
+
 
 \section{Hybrid Modes}
 \label{sec:hybrid-modes}
 
-% TODO: Adapt from notes.tex §5.2.1
-% - Composite KEMs: concatenated shared secrets
-% - Composite signatures: dual signing
-% - X.509 hybrid certificates: encoding strategies
-% - Security analysis: IND-CCA2 of hybrid KEMs
-% - Cite: Bindel et al. 2019, Stebila et al.
+The safest path to post-quantum security runs through \emph{hybrid cryptography}\index{hybrid cryptography}: combining a classical and a post-quantum algorithm so that the overall construction remains secure as long as \emph{either} component is secure.  This is not overcaution---it is learning from history.  The Dual~EC~DRBG episode (2006--2013) demonstrated that even standardized algorithms can conceal fatal weaknesses.  Hybrid modes protect against classical breaks of the new PQC primitive, implementation flaws in immature code, quantum timeline uncertainty, and future changes to standards.
 
+\subsection{Composite KEMs}
+\label{subsec:composite-kems}
+
+A \emph{composite KEM}\index{KEM!composite} runs two key encapsulation mechanisms in parallel and combines their shared secrets through a key derivation function.
+
+\begin{definition}[Composite KEM]
+\label{def:composite-kem}
+Let $\mathsf{KEM}_1 = (\KeyGen_1, \Encaps_1, \Decaps_1)$ and $\mathsf{KEM}_2 = (\KeyGen_2, \Encaps_2, \Decaps_2)$ be two KEMs.  The \emph{composite KEM} $\mathsf{KEM}_H$ operates as follows:
+\begin{enumerate}
+\item $\KeyGen_H$: Run $(pk_1, sk_1) \gets \KeyGen_1$ and $(pk_2, sk_2) \gets \KeyGen_2$.  Return $pk_H = (pk_1, pk_2)$, $sk_H = (sk_1, sk_2)$.
+\item $\Encaps_H(pk_H)$: Compute $(c_1, K_1) \gets \Encaps_1(pk_1)$ and $(c_2, K_2) \gets \Encaps_2(pk_2)$.  Return $c_H = (c_1, c_2)$ and $K_H = \mathrm{KDF}(K_1 \| K_2)$.
+\item $\Decaps_H(sk_H, c_H)$: Recover $K_1 \gets \Decaps_1(sk_1, c_1)$ and $K_2 \gets \Decaps_2(sk_2, c_2)$.  Return $K_H = \mathrm{KDF}(K_1 \| K_2)$.
+\end{enumerate}
+\end{definition}
+
+The critical observation is that the $\mathrm{KDF}$ (e.g., HKDF-SHA256) is modelled as a random oracle: even if one shared secret is completely known to the adversary, the output remains pseudorandom as long as the other secret has sufficient entropy.
+
+\begin{theorem}[IND-CCA2 Security of Composite KEMs]
+\label{thm:hybrid-kem-security}
+\index{IND-CCA2!composite KEM}
+Let $\mathsf{KEM}_1$ be $(t_1, \epsilon_1)$-IND-CCA2 secure and $\mathsf{KEM}_2$ be $(t_2, \epsilon_2)$-IND-CCA2 secure.  In the random-oracle model for $\mathrm{KDF}$, the composite $\mathsf{KEM}_H$ is $(t, \epsilon)$-IND-CCA2 secure with $t = \min(t_1, t_2)$ and $\epsilon \leq \epsilon_1 + \epsilon_2$.  In particular, $\mathsf{KEM}_H$ is IND-CCA2 secure if \emph{either} component is.
+\end{theorem}
+
+\begin{svgraybox}
+\textbf{Proof sketch.}  Assume an adversary $\mathcal{A}$ breaks $\mathsf{KEM}_H$ with advantage~$\epsilon$.  We construct a hybrid argument over two games: Game~0 replaces $K_1$ with a uniformly random key (reduction to $\mathsf{KEM}_1$), and Game~1 then replaces $K_2$ (reduction to $\mathsf{KEM}_2$).  In the random-oracle model, $\mathrm{KDF}(K_1 \| K_2)$ is indistinguishable from random whenever at least one input is random, so $\epsilon \leq \epsilon_1 + \epsilon_2$.  See Bindel et~al.~\cite{Bindel2019} for the full proof.
+\end{svgraybox}
+
+
+\subsection{Dual Signatures}
+\label{subsec:dual-signatures}
+
+For digital signatures, the hybrid approach produces two independent signatures and requires both to verify:
+
+\begin{definition}[Composite Signature]
+\label{def:composite-sig}
+\index{signature!composite}
+Given signature schemes $\Sigma_1 = (\KeyGen_1, \Sign_1, \Verify_1)$ and $\Sigma_2 = (\KeyGen_2, \Sign_2, \Verify_2)$, the composite scheme signs as $\sigma_H = (\Sign_1(sk_1, m),\; \Sign_2(sk_2, m))$ and accepts if and only if \emph{both} components verify.
+\end{definition}
+
+This ``AND'' composition guarantees existential unforgeability (EUF-CMA) if either component scheme is EUF-CMA secure.  The price is paid in signature and public-key size: for an RSA-2048 + ML-DSA-65 combination, the composite signature is $256 + 3{,}309 = 3{,}565$~bytes, with a composite public key of $294 + 1{,}952 = 2{,}246$~bytes.
+
+
+\subsection{X.509 Hybrid Certificates}
+\label{subsec:x509-hybrid}
+
+Deploying hybrid signatures within the X.509 public-key infrastructure\index{X.509!hybrid certificates} requires encoding two public keys and two signatures into a single certificate.  Three strategies have been proposed:
+
+\begin{enumerate}
+\item \textbf{Dual-key certificate:} A single certificate carries both public keys and is signed with both CA keys.  The IETF draft \texttt{draft-ounsworth-pq-composite-sigs} defines composite OIDs for this approach.
+\item \textbf{Catalyst certificate:} The classical certificate includes the PQC public key and signature in a non-critical X.509v3 extension.  Legacy clients ignore the extension; PQC-aware clients verify both.
+\item \textbf{Paired certificates:} Two separate certificates---one classical, one PQC---are bound by a shared serial number.  The server sends both; the client verifies whichever it supports.
+\end{enumerate}
+
+The catalyst approach offers the best backward compatibility: existing TLS stacks parse the certificate without modification, while updated clients gain quantum resistance.  The cost is roughly $5$--$6$~KB of additional data per certificate (dominated by the ML-DSA public key and CA signature).
+
+
+\subsection{Performance Impact}
+\label{subsec:hybrid-performance}
+
+\begin{table}[t]
+\caption{Hybrid KEM overhead: X25519 + ML-KEM-768}
+\label{tab:hybrid-overhead}
+\begin{tabular}{p{3.5cm}p{2cm}p{2cm}p{2cm}p{2cm}}
+\hline\noalign{\smallskip}
+\textbf{Operation} & \textbf{X25519} & \textbf{ML-KEM-768} & \textbf{Hybrid} & \textbf{Factor} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Key generation & 45\,\textmu s & 35\,\textmu s & 80\,\textmu s & 1.8$\times$ \\
+Encapsulation   & 45\,\textmu s & 44\,\textmu s & 89\,\textmu s & 2.0$\times$ \\
+Decapsulation   & 45\,\textmu s & 40\,\textmu s & 85\,\textmu s & 1.9$\times$ \\
+Ciphertext size  & 32\,B & 1{,}088\,B & 1{,}120\,B & 35$\times$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The computational overhead of hybrid KEMs is modest ($< 2\times$), because ML-KEM operations are fast.  The dominant cost is \emph{bandwidth}: the combined ciphertext and public-key material adds roughly 2\,KB per handshake, which matters on constrained links but is negligible on broadband.
+
+
+%% ================================================================
 \section{TLS Migration}
 \label{sec:tls-migration}
 
-% TODO: Adapt from notes.tex §5.3.1
-% - TLS 1.3 with post-quantum key exchange
-% - Chrome/Cloudflare experiments (2019-present)
-% - X25519Kyber768: the first deployed hybrid KEM
-% - Certificate chain sizes and handshake fragmentation
-% - Performance measurements: latency overhead in practice
-% - Cite: RFC 9180 (HPKE), Langley et al., Kwiatkowski et al.
+TLS~1.3 protects billions of HTTPS connections daily and is the highest-priority migration target.  Its clean key-exchange design---a single round-trip with ephemeral Diffie--Hellman---makes post-quantum integration relatively straightforward compared with older protocols.
 
+\subsection{TLS 1.3 with Post-Quantum Key Exchange}
+\label{subsec:tls13-pq}
+
+TLS~1.3 negotiates key exchange via \emph{named groups}\index{TLS~1.3!named groups} advertised in the \texttt{supported\_groups} extension.  Adding a post-quantum or hybrid KEM requires:
+\begin{enumerate}
+\item Assigning a new named-group code point (e.g., \texttt{0x6399} for X25519Kyber768\index{X25519Kyber768}).
+\item Extending buffer sizes: the \texttt{ClientHello} key-share grows from 32~bytes (X25519) to $\approx$\,1{,}216~bytes; the \texttt{ServerHello} encapsulation adds $\approx$\,1{,}088~bytes.
+\item Combining the shared secrets via the TLS~1.3 key schedule: $\mathit{SS}_{\mathrm{hybrid}} = \mathrm{HKDF\text{-}Extract}(K_{\mathrm{X25519}} \| K_{\mathrm{ML\text{-}KEM}})$.
+\end{enumerate}
+
+Crucially, the handshake \emph{message count} does not change---the post-quantum material is embedded in the existing \texttt{key\_share} extension---so the protocol retains its 1-RTT structure.
+
+\subsection{Chrome and Cloudflare Experiments}
+\label{subsec:chrome-cloudflare}
+
+\begin{example}[CECPQ2 and Beyond]
+\label{ex:cecpq2}
+\index{CECPQ2}
+Google and Cloudflare have conducted the largest post-quantum TLS experiments to date:
+\begin{itemize}
+\item \textbf{2019:} CECPQ2 deployed hybrid ECDH + NTRU-HRSS in Chrome, covering $\sim$30\% of TLS connections to Google servers.  Median latency increase: 1\,ms.  User complaints: zero.
+\item \textbf{2022:} Cloudflare switched to hybrid X25519 + Kyber-768, making PQC available across 20+ million websites.
+\item \textbf{2023--2024:} Chrome enabled X25519Kyber768 by default.  By late 2024, over 10\% of all global HTTPS traffic used a post-quantum key exchange.
+\end{itemize}
+These experiments demonstrated that Internet-scale hybrid deployment is feasible with negligible user-facing impact.
+\end{example}
+
+\subsection{X25519Kyber768}
+\label{subsec:x25519kyber768}
+
+X25519Kyber768 (also known as \texttt{X25519MLKEM768} after the FIPS~203~\cite{FIPS203} renaming) is the first hybrid KEM deployed at scale.  It concatenates the 32-byte X25519 shared secret with the 32-byte ML-KEM-768 shared secret and feeds the 64-byte result into the TLS~1.3 HKDF key schedule.  The combined ciphertext is $32 + 1{,}088 = 1{,}120$~bytes---well within a single TCP segment, avoiding handshake fragmentation in most network conditions.
+
+
+\subsection{Certificate Chain Sizes and Latency}
+\label{subsec:cert-chain-sizes}
+
+While key exchange adds $\sim$2\,KB, the larger concern is \emph{certificate chains}\index{certificate chain!PQC overhead}.  A three-certificate chain with ML-DSA-65 signatures grows from $\sim$3\,KB (RSA-2048) to $\sim$17\,KB, a 5.5$\times$ increase.
+
+\begin{table}[t]
+\caption{TLS handshake size and latency overhead}
+\label{tab:tls-overhead}
+\begin{tabular}{p{4cm}p{2.5cm}p{2.5cm}p{2.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Component} & \textbf{Classical} & \textbf{PQC/Hybrid} & \textbf{Increase} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Key exchange & 96\,B & 2{,}336\,B & 24$\times$ \\
+Certificate chain (3 certs) & 3{,}150\,B & 17{,}235\,B & 5.5$\times$ \\
+Total handshake & $\sim$3.5\,KB & $\sim$20\,KB & 5.7$\times$ \\
+Median latency & baseline & +1.3\,ms & --- \\
+95th-pct latency & baseline & +21\,ms & --- \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+On desktop broadband, the extra latency is invisible.  On mobile networks with high round-trip times, the 95th-percentile overhead can reach 20--90\,ms, primarily due to TCP-level fragmentation and retransmission when the handshake exceeds the initial congestion window.  Session resumption via TLS~1.3 PSK mode avoids this cost entirely and becomes \emph{more important} in a post-quantum world.
+
+\begin{svgraybox}
+\textbf{The middlebox problem.}  Corporate firewalls and deep-packet-inspection appliances often impose hard limits on TLS record sizes (commonly 8\,KB or 16\,KB).  PQC certificate chains that exceed these limits are silently dropped, causing mysterious connection failures.  Early deployers report 2--6~weeks of debugging before identifying the root cause.  The fix is to fragment certificates across multiple TLS records or to use certificate compression (RFC~8879).
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Code Signing and Software Supply Chain}
 \label{sec:code-signing}
 
-% TODO: Adapt from notes.tex §5.3.2
-% - Firmware updates: long-lived verification keys
-% - Package managers and repository signing
-% - The signature size challenge: ML-DSA vs SLH-DSA tradeoffs
-% - Stateful hash-based signatures for CA root keys
+Code signing\index{code signing} presents challenges distinct from TLS: signatures are verified \emph{years} after creation, backward compatibility with legacy verifiers is critical, and signature size directly affects software distribution costs.
 
+\subsection{Firmware Updates}
+\label{subsec:firmware}
+
+Embedded devices---IoT sensors, medical implants, industrial controllers---verify firmware signatures using public keys burned into hardware at manufacture.  These keys may need to remain valid for 10--20~years, making them high-priority targets for ``harvest now, decrypt later'' attacks on confidentiality and, more critically, for future signature-forgery attacks on integrity.  A quantum adversary who can forge a firmware signature can push malicious updates to every device in the fleet.
+
+Stateful hash-based signature schemes (LMS\index{LMS}, XMSS\index{XMSS}), standardized in NIST~SP~800-208, are attractive for firmware signing because their security rests purely on hash-function properties and they produce compact signatures ($\sim$2.5\,KB for LMS with $H=20$).  The main operational burden is state management: each private key must track which one-time keys have been used, and reuse is catastrophic.  For CA root keys that sign infrequently, this burden is manageable.
+
+\subsection{Package Managers and Repository Signing}
+\label{subsec:package-managers}
+
+Software supply chains (npm, PyPI, apt, Homebrew) sign repository metadata and individual packages.  A single compromised signing key can inject malicious code into millions of systems.  Migration considerations include:
+\begin{itemize}
+\item \textbf{Dual signatures:} Repositories can distribute both classical and PQC signatures in parallel.  Clients verify whichever their toolchain supports.
+\item \textbf{Transparency logs:} Systems like Sigstore already decouple signatures from distribution, easing algorithm transitions.
+\item \textbf{Threshold signing:} Multi-party signing ceremonies (common for root keys) must be updated to use PQC-compatible threshold protocols.
+\end{itemize}
+
+\subsection{The Signature Size Challenge}
+\label{subsec:sig-size-challenge}
+
+\begin{table}[t]
+\caption{Signature sizes for code-signing candidates}
+\label{tab:codesign-sizes}
+\begin{tabular}{p{3.5cm}p{2.5cm}p{2.5cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Scheme} & \textbf{Signature} & \textbf{Public key} & \textbf{Security basis} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+RSA-2048 & 256\,B & 294\,B & Factoring \\
+ECDSA-P256 & 64\,B & 64\,B & ECDLP \\
+ML-DSA-65 & 3{,}309\,B & 1{,}952\,B & Module-LWE \\
+SLH-DSA-128s & 7{,}856\,B & 32\,B & Hash functions \\
+LMS ($H{=}20$) & 2{,}508\,B & 56\,B & Hash functions \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+For a typical software update containing 1{,}000--10{,}000 signed files, switching from RSA-2048 to ML-DSA-65 increases total signature overhead from $\sim$250\,KB to $\sim$3.3\,MB per update.  SLH-DSA offers the advantage of minimal public-key size and conservative, hash-only security assumptions, but its signatures are 2--3$\times$ larger than ML-DSA.  The practical choice depends on whether the deployment is bandwidth-constrained (favour ML-DSA) or demands maximal cryptographic conservatism (favour SLH-DSA or LMS for root keys).
+
+
+%% ================================================================
 \section{Blockchain and Cryptocurrencies}
 \label{sec:blockchain}
 
-% TODO: Adapt from notes.tex §5.3.3
-% - ECDSA vulnerability in Bitcoin/Ethereum
-% - Migration challenges: backward compatibility, address formats
-% - Hash-based approaches for blockchain signatures
-% - Timeline pressure: frozen funds risk
+Blockchain systems face a ``perfect storm'' of post-quantum migration challenges: immutable transaction histories, size-sensitive economics, decentralized governance, and catastrophic failure modes.
 
+\subsection{ECDSA Vulnerability}
+\label{subsec:ecdsa-vulnerability}
+
+Bitcoin, Ethereum, and most cryptocurrencies derive address security from ECDSA over the \texttt{secp256k1} curve.  Shor's algorithm\index{Shor's algorithm!ECDSA} recovers private keys from public keys in polynomial time.  In Bitcoin, the public key is exposed whenever coins are \emph{spent} from a pay-to-public-key-hash (P2PKH) address.  An adversary with a cryptographically relevant quantum computer (CRQC) could:
+\begin{enumerate}
+\item Monitor the mempool for pending transactions that reveal a public key.
+\item Extract the private key before the transaction is confirmed.
+\item Submit a competing transaction redirecting the funds.
+\end{enumerate}
+
+More dangerously, coins held in addresses where the public key was previously exposed (estimated at over 4~million BTC, roughly 20\% of all supply) are vulnerable even without monitoring the mempool.
+
+\subsection{Migration Challenges}
+\label{subsec:blockchain-migration}
+
+\begin{enumerate}
+\item \textbf{Immutability:} The blockchain's defining property becomes a liability.  Historical ECDSA signatures cannot be replaced; they can only be supplemented with new PQC protections going forward.
+\item \textbf{Transaction size:} Replacing ECDSA ($\sim$72\,B per signature) with ML-DSA-44 ($\sim$2{,}420\,B) inflates a simple Bitcoin transaction from $\sim$250\,B to $\sim$3{,}500\,B, a 14$\times$ increase.  Block capacity drops from $\sim$4{,}000 to $\sim$285~transactions, fees rise proportionally, and full-node storage grows from $\sim$50\,GB/year to $\sim$700\,GB/year.
+\item \textbf{Consensus:} Any signature-scheme change requires a hard fork or, at minimum, a soft fork with broad community agreement---a process that can take years in decentralized governance.
+\item \textbf{Address migration:} Users must actively move funds to quantum-safe addresses.  Funds in dormant wallets---including those belonging to lost keys---remain permanently vulnerable.
+\end{enumerate}
+
+\subsection{Frozen Funds Risk}
+\label{subsec:frozen-funds}
+
+\index{frozen funds risk}
+Coins whose owners cannot or will not migrate before a CRQC arrives face outright theft.  Several proposals attempt to mitigate this:
+\begin{itemize}
+\item \textbf{Commit-reveal:} Users commit a hash of a PQC public key now and reveal it when spending, preventing quantum extraction from the mempool.  This protects future transactions but not already-exposed keys.
+\item \textbf{Quantum-safe sidechains:} A parallel chain using PQC signatures accepts bridged assets from the main chain, allowing gradual migration.
+\item \textbf{Deadline-based freezing:} After a community-agreed date, transactions from non-migrated addresses are rejected.  This protects the network but permanently locks affected funds---a politically explosive measure.
+\end{itemize}
+
+\begin{example}[Ethereum's Account Abstraction Path]
+\label{ex:ethereum-pqc}
+Ethereum's account-abstraction roadmap (EIP-4337 and successors) decouples signature verification from the protocol layer, allowing smart-contract wallets to adopt PQC signature schemes without a hard fork.  The planned sequence is: enable smart-contract wallets (2024--2025), support hybrid signatures (2025--2027), incentivize migration via gas discounts (2027--2029), and disable raw ECDSA for new transactions (2030+).  This is the most credible blockchain migration plan to date, but it still requires years of coordinated effort.
+\end{example}
+
+
+%% ================================================================
 \section{Organizational Roadmap}
 \label{sec:roadmap}
 
-% TODO: Expand from notes.tex §5.2.3
-% - Phase 1: Cryptographic inventory — know what you have
-% - Phase 2: Risk assessment — classify by data sensitivity and lifespan
-% - Phase 3: Prioritize — start with highest-risk, longest-lived data
-% - Phase 4: Test — hybrid deployments in non-critical systems
-% - Phase 5: Deploy — phased rollout with monitoring
-% - Phase 6: Verify — continuous compliance and agility
-% - CNSA 2.0 timeline (NSA): mandatory dates by use case
-% - EU/ANSSI/BSI guidance: European perspective
-% - Cite: NIST SP 1800-38 (migration guidelines)
+Technical solutions are necessary but insufficient.  Organizations must execute a structured migration program that touches procurement, engineering, compliance, and operations.  The following six-phase roadmap distills guidance from NIST~SP~1800-38, the NSA's CNSA~2.0 advisory, and European agency recommendations.
 
+\subsection{Phase 1: Cryptographic Inventory}
+\label{subsec:phase-inventory}
+
+\index{cryptographic inventory}
+The first step is discovering every use of public-key cryptography across the organization: TLS certificates, code-signing keys, VPN configurations, SSH keys, API tokens, hardware security modules, embedded-device firmware, and third-party dependencies.  Automated scanning tools (e.g., Venafi, Keyfactor, or open-source \texttt{cbom} generators) provide a starting point, but manual review is essential---a typical medium enterprise discovers that 40--50\% of its cryptographic assets were unknown to the security team.
+
+\subsection{Phase 2: Risk Assessment}
+\label{subsec:phase-risk}
+
+Each asset is classified by two dimensions: \emph{data sensitivity lifetime} (how long must the data remain confidential or its signatures remain trusted?) and \emph{migration difficulty} (how hard is it to change the algorithm?).
+
+\begin{table}[t]
+\caption{Risk classification matrix}
+\label{tab:risk-matrix}
+\begin{tabular}{p{3.5cm}p{2.5cm}p{2.5cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Data category} & \textbf{Lifetime} & \textbf{Risk level} & \textbf{Action} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Government / military & 25--50 years & Critical & Immediate \\
+Healthcare records & 50--100 years & Critical & Immediate \\
+Financial records & 7--10 years & High & By 2027 \\
+Trade secrets / IP & 10--20 years & High & By 2027 \\
+Personal data (GDPR) & Lifetime & Medium & By 2029 \\
+Ephemeral session keys & Hours & Low & By 2031 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\subsection{Phase 3: Prioritize}
+\label{subsec:phase-prioritize}
+
+Start with the highest-risk, longest-lived data.  In practice, this means:
+\begin{enumerate}
+\item VPN tunnels and TLS sessions protecting classified or regulated data.
+\item Root CA and code-signing keys (long-lived, high-impact if compromised).
+\item Data-at-rest encryption keys for archives with multi-decade retention.
+\item Customer-facing web services (high visibility, well-understood migration path).
+\end{enumerate}
+
+\subsection{Phase 4: Test}
+\label{subsec:phase-test}
+
+Deploy hybrid modes in non-production environments first.  Key testing dimensions include functional correctness, latency and throughput under load, interoperability with legacy clients and middleboxes, failure-mode behavior (graceful fallback vs.\ hard failure), and key/certificate lifecycle operations (renewal, revocation, rotation).
+
+\subsection{Phase 5: Deploy}
+\label{subsec:phase-deploy}
+
+Phased rollout with monitoring:
+\begin{enumerate}
+\item \textbf{Canary (1\% traffic):} Detect gross incompatibilities.
+\item \textbf{Early adopters (10\%):} Validate performance under realistic load.
+\item \textbf{Majority (50\%):} Confirm at scale; monitor tail latencies.
+\item \textbf{Full (100\%):} Complete migration; maintain classical fallback.
+\end{enumerate}
+
+\subsection{Phase 6: Verify and Maintain}
+\label{subsec:phase-verify}
+
+Migration is not a one-time event.  Continuous compliance requires monitoring for algorithm drift (new services reverting to classical-only), automated alerting when certificates or keys use deprecated algorithms, periodic reassessment as cryptanalysis advances, and \emph{crypto-agility}\index{crypto-agility}: the architectural ability to swap algorithms without redesigning protocols.
+
+\subsection{CNSA 2.0 Timeline}
+\label{subsec:cnsa20}
+
+\index{CNSA 2.0}
+The NSA's Commercial National Security Algorithm Suite~2.0 sets mandatory deadlines for U.S.\ national-security systems:
+
+\begin{table}[t]
+\caption{CNSA 2.0 transition deadlines (NSA, 2022)}
+\label{tab:cnsa20}
+\begin{tabular}{p{4.5cm}p{3.5cm}p{3.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Use case} & \textbf{Algorithm} & \textbf{Deadline} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Software / firmware signing & CNSA~2.0 exclusive & 2025 \\
+Web servers / cloud services & CNSA~2.0 preferred & 2025 \\
+Traditional networking (VPN, routers) & CNSA~2.0 preferred & 2026 \\
+Operating systems & CNSA~2.0 support & 2027 \\
+Custom / embedded applications & CNSA~2.0 exclusive & 2030 \\
+Legacy infrastructure & CNSA~2.0 exclusive & 2033 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\subsection{European Guidance}
+\label{subsec:eu-guidance}
+
+European agencies provide complementary recommendations:
+\begin{itemize}
+\item \textbf{ANSSI (France):} Recommends hybrid modes as mandatory during the transition period and requires PQC for new systems handling classified data from 2025 onward.  ANSSI explicitly endorses FrodoKEM alongside ML-KEM as a conservative alternative for high-security applications.
+\item \textbf{BSI (Germany):} Recommends beginning migration planning immediately, with hybrid deployments by 2025 and full PQC by 2030.  BSI requires a ``defence in depth'' approach combining lattice-based and hash-based schemes.
+\item \textbf{ENISA (EU):} Published a post-quantum roadmap in 2022 urging member states to conduct cryptographic inventories by 2025 and complete critical-infrastructure migration by 2030.
+\end{itemize}
+
+
+%% ================================================================
 \section{Timeline and Urgency}
 \label{sec:timeline}
 
-% TODO: Adapt from notes.tex §5.2.2
-% - The Mosca inequality: migration time + data sensitivity > quantum arrival
-% - Sector-specific deadlines
-% - Cost of delay vs cost of early migration
+\subsection{Mosca's Inequality}
+\label{subsec:mosca}
 
-%% Exercises
+\index{Mosca's inequality}
+Michele Mosca formalized the urgency of post-quantum migration with a simple but powerful inequality:
+
+\begin{definition}[Mosca's Inequality]
+\label{def:mosca}
+Let:
+\begin{itemize}
+\item $x$ = the number of years the data must remain secure,
+\item $y$ = the number of years needed to migrate the system to PQC,
+\item $z$ = the number of years until a CRQC exists.
+\end{itemize}
+If $x + y > z$, then the data is \emph{already at risk today}, because an adversary can harvest ciphertext now and decrypt it once a CRQC is available before the confidentiality requirement expires.
+\end{definition}
+
+\begin{example}[Applying Mosca's Inequality]
+\label{ex:mosca-hospital}
+A hospital system stores patient records that must remain confidential for 50~years ($x = 50$).  Their IT department estimates that a full cryptographic migration will take 5~years ($y = 5$).  Assuming a CRQC arrives by 2035 ($z = 2035 - 2026 = 9$), we have $x + y = 55 \gg 9 = z$.  The inequality has been violated for decades: any patient record encrypted before 2026 with a classical algorithm is exposed to a harvest-now-decrypt-later attack.
+\end{example}
+
+The uncomfortable implication: for any data with a multi-decade confidentiality requirement, migration should have started years ago.
+
+\subsection{Sector-Specific Deadlines}
+\label{subsec:sector-deadlines}
+
+Different sectors face different values of $x$, $y$, and~$z$:
+
+\begin{table}[t]
+\caption{Sector-specific Mosca analysis (assuming CRQC by 2035)}
+\label{tab:sector-mosca}
+\begin{tabular}{p{3cm}p{1.5cm}p{1.5cm}p{1.5cm}p{3.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Sector} & $x$ (yr) & $y$ (yr) & $x+y$ & \textbf{Must start by} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Intelligence & 50 & 8 & 58 & Already overdue \\
+Healthcare & 50 & 5 & 55 & Already overdue \\
+Finance & 10 & 4 & 14 & 2026 \\
+Telecoms & 5 & 3 & 8 & 2027 \\
+Retail / web & 2 & 2 & 4 & 2031 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\subsection{Cost of Delay}
+\label{subsec:cost-delay}
+
+Delaying migration incurs compounding costs:
+\begin{enumerate}
+\item \textbf{Harvest-now exposure grows daily.}  Every additional day of classical-only encryption adds one more day of ciphertext to the adversary's stockpile.
+\item \textbf{Technical debt accumulates.}  New systems deployed today without PQC support become tomorrow's ``legacy infrastructure''---the most expensive category to migrate.
+\item \textbf{Talent scarcity.}  PQC expertise is limited.  Organizations that wait will compete for the same engineers during a compressed timeline, driving up costs.
+\item \textbf{Regulatory risk.}  Once mandates like CNSA~2.0 take effect, non-compliant systems face operational restrictions or loss of certification.
+\end{enumerate}
+
+\begin{svgraybox}
+\textbf{Lessons from previous cryptographic migrations.}
+The AES transition (2001--2010) succeeded because it offered a drop-in replacement with better performance.  The IPv6 transition (1998--present, still incomplete) stalled because it required infrastructure changes with no immediate benefit.  PQC migration resembles IPv6 more than AES: the threat is not yet tangible, the changes are invasive, and the performance trade-offs are unfavorable.  Without deliberate urgency, a 20-year transition is a realistic worst case.
+\end{svgraybox}
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch13-mosca}
-Apply Mosca's inequality to the following scenario: a hospital system stores patient records that must remain confidential for 50 years. Their IT department estimates that a full cryptographic migration will take 5 years. By what date must they begin the migration, assuming a cryptographically relevant quantum computer arrives in 2035?
+Apply Mosca's inequality to the following scenario: a hospital system stores patient records that must remain confidential for 50~years.  Their IT department estimates that a full cryptographic migration will take 5~years.  Assuming a cryptographically relevant quantum computer arrives in 2035:
+\begin{enumerate}
+\item[(a)] By what year must the migration begin?
+\item[(b)] Repeat the analysis for a retail company whose transaction data must remain confidential for only 2~years, with a migration time of 18~months.
+\item[(c)] In which case is the urgency greater, and why?
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
-\label{prob:ch13-hybrid}
-Design a hybrid KEM that combines X25519 and ML-KEM-768. Specify how the shared secrets are combined (concatenation + KDF), and argue that your construction is IND-CCA2 secure if either component is secure.
+\label{prob:ch13-hybrid-kem}
+Design a hybrid KEM that combines X25519 and ML-KEM-768.  Specify how the shared secrets are combined (concatenation followed by a KDF), and argue---using the structure of Theorem~\ref{thm:hybrid-kem-security}---that your construction is IND-CCA2 secure if either component KEM is secure.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch13-cert-chain}
+A TLS server presents a certificate chain of depth~3 (end-entity, intermediate CA, root CA).  Compute the total chain size in bytes for each of the following configurations:
+\begin{enumerate}
+\item[(a)] All certificates use RSA-2048 (public key: 294\,B, signature: 256\,B, overhead: 200\,B per cert).
+\item[(b)] All certificates use ML-DSA-65 (public key: 1{,}952\,B, signature: 3{,}309\,B, overhead: 200\,B per cert).
+\item[(c)] A hybrid catalyst certificate (RSA public key + ML-DSA public key and signature in an extension).
+\end{enumerate}
+Discuss which configuration exceeds a typical TCP initial congestion window of 14{,}600~bytes and what mitigations are available.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch13-blockchain}
+Bitcoin transactions currently average 250~bytes with an ECDSA signature of 72~bytes.  Suppose ECDSA is replaced by ML-DSA-44 (signature: 2{,}420\,B; public key: 1{,}312\,B).
+\begin{enumerate}
+\item[(a)] Compute the new average transaction size.
+\item[(b)] If the block size limit remains 4\,MB, estimate the new maximum number of transactions per block.
+\item[(c)] Discuss two alternative approaches that could mitigate the throughput reduction.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch13-roadmap}
+An enterprise operates 3{,}000 TLS endpoints, 200 code-signing certificates, and 50 VPN gateways.  Using the six-phase roadmap of Sect.~\ref{sec:roadmap}:
+\begin{enumerate}
+\item[(a)] Identify which assets should be migrated first and justify your prioritization using Mosca's inequality.
+\item[(b)] Propose a 4-year timeline with milestones for each phase.
+\item[(c)] Explain why crypto-agility (Phase~6) is essential even after migration is ``complete.''
+\end{enumerate}
 \end{prob}

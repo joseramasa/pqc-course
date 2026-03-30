@@ -1,90 +1,648 @@
 \chapter{Code-Based Cryptography}
 \label{ch:code-based}
 
-\abstract*{Code-based cryptography, rooted in the theory of error-correcting codes, offers the longest track record of any post-quantum approach: the McEliece cryptosystem has resisted cryptanalysis since 1978. This chapter develops the algebraic coding theory needed to understand Classic McEliece (a NIST candidate) and the structured-code schemes HQC and BIKE, connecting throughout to the quantum error correction and information theory familiar to physicists.}
+\abstract*{Code-based cryptography, rooted in the theory of error-correcting codes, offers the longest track record of any post-quantum approach: the McEliece cryptosystem has resisted cryptanalysis since 1978. This chapter develops the algebraic coding theory needed to understand Classic McEliece (a NIST finalist) and the structured-code schemes HQC and BIKE, connecting throughout to quantum error correction and information theory familiar to physicists.}
+
+\abstract{Code-based cryptography, rooted in the theory of error-correcting codes, offers the longest track record of any post-quantum approach: the McEliece cryptosystem has resisted cryptanalysis since 1978. This chapter develops the algebraic coding theory needed to understand Classic McEliece (a NIST finalist) and the structured-code schemes HQC and BIKE, connecting throughout to quantum error correction and information theory familiar to physicists.}
 
 % =============================================================
-% SOURCE: notes.tex §3.4.2 (lines 3655–3944)
-% REUSE: ~20%. Currently one subsection. Mostly new chapter.
+% Adapted from notes.tex §3.4.2 (lines 3655–3944).
+% New material: §9.2 (Goppa), §9.3 (ISD), §9.5 (HQC), §9.6 (BIKE), §9.7 (comparison).
 % =============================================================
+
 
 \section{Error-Correcting Codes}
 \label{sec:ecc-basics}
 
-% TODO: New section
-% - Linear codes: generator and parity-check matrices
-% - Minimum distance, error detection, error correction
-% - Decoding: syndrome decoding, bounded distance decoding
-% - The physics connection: Hamming distance as energy, Shannon capacity
+Error-correcting codes were invented to protect data from noise in communication channels.  The cryptographic insight is that \emph{decoding a random linear code is NP-complete}---the same mathematical structure that enables reliable communication also enables public-key encryption, provided the decoder's structural advantage is kept secret~\cite{McEliece1978}.
 
+\subsection{Linear Codes}
+\label{subsec:linear-codes}
+
+\begin{definition}[Linear Code]
+\label{def:linear-code}
+\index{linear code}
+An $[n, k]$ \emph{linear code} $\mathcal{C}$ over $\F_2$ is a $k$-dimensional subspace of $\F_2^n$.  The parameter $n$ is the \emph{block length}\index{linear code!block length}, $k$ is the \emph{dimension}\index{linear code!dimension}, and $R = k/n$ is the \emph{rate}\index{linear code!rate}.
+\end{definition}
+
+A linear code admits two equivalent matrix descriptions:
+
+\begin{definition}[Generator and Parity-Check Matrices]
+\label{def:generator-parity}
+\index{generator matrix}\index{parity-check matrix}
+\begin{itemize}
+\item A \emph{generator matrix} $G \in \F_2^{k \times n}$ has the code as its row space: $\mathcal{C} = \{\mathbf{m}G : \mathbf{m} \in \F_2^k\}$.
+\item A \emph{parity-check matrix} $H \in \F_2^{(n-k) \times n}$ satisfies $H\mathbf{c}^\top = \mathbf{0}$ for every $\mathbf{c} \in \mathcal{C}$.
+\end{itemize}
+These are related by $HG^\top = \mathbf{0}$, and one can always choose $G = [I_k \mid P]$ in \emph{systematic form}\index{systematic form}, yielding $H = [-P^\top \mid I_{n-k}]$ (over $\F_2$, negation is the identity).
+\end{definition}
+
+
+\subsection{Minimum Distance and Error Correction}
+\label{subsec:min-distance}
+
+\begin{definition}[Hamming Distance and Weight]
+\label{def:hamming}
+\index{Hamming distance}\index{Hamming weight}
+The \emph{Hamming weight} of a vector $\mathbf{x} \in \F_2^n$ is $\operatorname{wt}(\mathbf{x}) = \abs{\{i : x_i \neq 0\}}$.  The \emph{Hamming distance} is $d(\mathbf{x}, \mathbf{y}) = \operatorname{wt}(\mathbf{x} - \mathbf{y})$.
+\end{definition}
+
+\begin{definition}[Minimum Distance]
+\label{def:min-distance}
+\index{minimum distance}
+The \emph{minimum distance} of a code $\mathcal{C}$ is
+\begin{equation}
+d(\mathcal{C}) \;=\; \min_{\mathbf{c}_1 \neq \mathbf{c}_2 \in \mathcal{C}} d(\mathbf{c}_1, \mathbf{c}_2) \;=\; \min_{\mathbf{0} \neq \mathbf{c} \in \mathcal{C}} \operatorname{wt}(\mathbf{c}),
+\end{equation}
+where the second equality holds because $\mathcal{C}$ is linear.  A code with parameters $[n, k, d]$ can detect up to $d-1$ errors and correct up to $t = \lfloor(d-1)/2\rfloor$ errors.
+\end{definition}
+
+The Singleton bound $d \leq n - k + 1$ limits how large the minimum distance can be for given $n$ and $k$.  For binary codes, the more relevant constraint is the \emph{Gilbert--Varshamov bound}\index{Gilbert--Varshamov bound}: there exist $[n, k, d]$ codes provided $\sum_{i=0}^{d-2}\binom{n-1}{i} < 2^{n-k}$.
+
+
+\subsection{Syndrome Decoding}
+\label{subsec:syndrome-decoding}
+
+Given a received word $\mathbf{y} = \mathbf{c} + \mathbf{e}$ (codeword plus error), the \emph{syndrome}\index{syndrome} $\mathbf{s} = H\mathbf{y}^\top = H\mathbf{e}^\top$ depends only on the error pattern.  The decoding problem reduces to finding a low-weight vector $\mathbf{e}$ with a given syndrome.
+
+\begin{definition}[Bounded Distance Decoding]
+\label{def:bdd}
+\index{bounded distance decoding}
+Given a parity-check matrix $H$ and a syndrome $\mathbf{s} = H\mathbf{e}^\top$ where $\operatorname{wt}(\mathbf{e}) \leq t$, find $\mathbf{e}$.  When $t \leq \lfloor(d-1)/2\rfloor$, the solution is unique.
+\end{definition}
+
+For a general linear code, bounded distance decoding is NP-hard.  The entire field of coding theory is devoted to finding \emph{structured} code families---Hamming, Reed--Solomon, BCH, Goppa, LDPC, polar---for which efficient decoding algorithms exist.  This gap between the hardness of decoding random codes and the tractability of decoding structured codes is the foundation of code-based cryptography.
+
+
+\subsection{The Physics Connection}
+\label{subsec:ecc-physics}
+
+\begin{svgraybox}
+\textbf{Codes, energy, and entropy.}
+The connection between error-correcting codes and physics runs deep:
+\begin{itemize}
+\item \textbf{Hamming distance as energy:} The minimum distance of a code corresponds to the energy gap between the ground state and the first excited state.  Decoding is equivalent to finding the minimum-energy configuration of a spin system---a connection formalised by Sourlas~(1989).
+\item \textbf{Shannon capacity:} Shannon's noisy-channel coding theorem is a statement about the free energy of a random code ensemble at a given noise level.  The capacity $C = 1 - H_2(p)$ of the binary symmetric channel (where $H_2$ is the binary entropy function) marks a phase transition between decodable and undecodable regimes.
+\item \textbf{Quantum error correction:} CSS codes, the workhorses of quantum error correction, are built directly from pairs of classical linear codes $\mathcal{C}_1 \supset \mathcal{C}_2^\perp$.  Syndrome measurements in quantum codes are the direct analogue of classical syndrome decoding.
+\end{itemize}
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Goppa Codes}
 \label{sec:goppa}
 
-% TODO: New section
-% - Classical Goppa codes: definition, parameters
-% - Efficient decoding: Patterson's algorithm
-% - Why Goppa codes are suitable for cryptography: look random, decode efficiently
-% - Binary Goppa codes: the specific family used in McEliece
+The McEliece cryptosystem requires a code family that is (i) efficiently decodable by the key holder, and (ii) indistinguishable from a random code by an adversary.  \emph{Binary Goppa codes}\index{Goppa code}, introduced by V.\,D.\ Goppa in~1970, satisfy both requirements and remain the standard choice after more than fifty years.
 
+\subsection{Definition and Parameters}
+\label{subsec:goppa-def}
+
+\begin{definition}[Binary Goppa Code]
+\label{def:goppa-code}
+\index{Goppa code!definition}
+Let $g(x) \in \F_{2^m}[x]$ be an irreducible polynomial of degree $t$ (the \emph{Goppa polynomial}\index{Goppa polynomial}), and let $L = \{\alpha_1, \ldots, \alpha_n\} \subseteq \F_{2^m}$ with $g(\alpha_i) \neq 0$ for all $i$.  The \emph{binary Goppa code} $\Gamma(L, g)$ is
+\begin{equation}
+\label{eq:goppa-code}
+\Gamma(L, g) \;=\; \left\{ \mathbf{c} \in \F_2^n \;:\; \sum_{i=1}^{n} \frac{c_i}{x - \alpha_i} \equiv 0 \pmod{g(x)} \right\}.
+\end{equation}
+\end{definition}
+
+\begin{theorem}[Goppa Code Parameters]
+\label{thm:goppa-params}
+\index{Goppa code!parameters}
+The code $\Gamma(L, g)$ is an $[n, k, d]$ binary linear code with:
+\begin{itemize}
+\item Block length: $n = \abs{L} \leq 2^m$.
+\item Dimension: $k \geq n - mt$.
+\item Minimum distance: $d \geq 2t + 1$.
+\end{itemize}
+Thus $\Gamma(L, g)$ can correct at least $t$ errors.  The factor of~$2$ improvement over the design distance ($t$ rather than $\lfloor t/2 \rfloor$) is specific to binary Goppa codes and follows from the algebraic structure of the syndrome equations over $\F_2$.
+\end{theorem}
+
+
+\subsection{Patterson's Decoding Algorithm}
+\label{subsec:patterson}
+
+\begin{algorithm}[t]
+\caption{Patterson's Decoding Algorithm for Binary Goppa Codes}
+\label{alg:patterson}
+\index{Patterson's algorithm}
+\begin{algorithmic}[1]
+\Require Goppa code $\Gamma(L, g)$, received word $\mathbf{y} = \mathbf{c} + \mathbf{e}$ with $\operatorname{wt}(\mathbf{e}) \leq t$
+\Ensure Error vector $\mathbf{e}$
+\State Compute the syndrome $S(x) = \sum_{i: y_i = 1} \frac{1}{x - \alpha_i} \bmod g(x)$
+\State Compute $T(x) = S(x)^{-1} + x \bmod g(x)$
+\State Compute $\tau(x) = \sqrt{T(x)} \bmod g(x)$ \Comment{Square root in $\F_{2^m}[x]/(g(x))$}
+\State Use the extended Euclidean algorithm to find $a(x), b(x)$ with $a(x) \equiv b(x)\,\tau(x) \pmod{g(x)}$ and $\deg a \leq \lceil t/2 \rceil$, $\deg b \leq \lfloor t/2 \rfloor$
+\State Form the error-locator polynomial $\sigma(x) = a(x)^2 + x\,b(x)^2$
+\State Find the roots of $\sigma(x)$ in $L$: $e_i = 1$ iff $\sigma(\alpha_i) = 0$
+\State \Return $\mathbf{e}$
+\end{algorithmic}
+\end{algorithm}
+
+Patterson's algorithm~(1975) runs in $\bigO(n^2)$ operations over $\F_{2^m}$ (or $\bigO(n^{3/2} \log n)$ using fast arithmetic), decoding up to $t$ errors---the full designed error-correction capability.  This efficiency is essential: the legitimate receiver can decode in polynomial time, while an adversary facing a random-looking code has no such shortcut.
+
+
+\subsection{Why Goppa Codes Are Suitable for Cryptography}
+\label{subsec:goppa-crypto}
+
+Binary Goppa codes possess a rare combination of properties:
+\begin{enumerate}
+\item \textbf{Efficient decoding:} Patterson's algorithm decodes the full $t$ errors in polynomial time.
+\item \textbf{Pseudorandomness:} The parity-check matrix of a Goppa code, when put in systematic form, is computationally indistinguishable from a uniformly random binary matrix.  No efficient distinguisher is known, despite decades of research.
+\item \textbf{Rich parameter space:} The number of irreducible polynomials of degree~$t$ over $\F_{2^m}$ is approximately $2^{mt}/t$, providing an exponentially large key space.
+\item \textbf{Well-understood structure:} As a subclass of alternant codes (and hence of BCH codes), Goppa codes have a solid algebraic theory enabling rigorous security analysis.
+\end{enumerate}
+
+\begin{svgraybox}
+\textbf{Why not other code families?}
+Attempts to replace Goppa codes with other families---Reed--Solomon, Reed--Muller, Gabidulin, generalised Reed--Solomon---have all led to broken schemes.  The core issue is that these codes have too much algebraic structure, enabling structural attacks that recover the secret key.  Binary Goppa codes sit in a ``Goldilocks zone'': enough structure for efficient decoding, not enough for efficient distinguishing.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{The Syndrome Decoding Problem}
 \label{sec:syndrome-decoding}
 
-% TODO: Adapt from notes.tex §3.4.2 (definition)
-% - Formal definition and NP-completeness
-% - Best known algorithms: Information Set Decoding (ISD)
-% - ISD variants: Prange, Lee-Brickell, Stern, MMT, BJMM
-% - Quantum speedup for ISD: Bernstein's analysis
-% - Concrete security estimates
+\subsection{Formal Definition and Hardness}
+\label{subsec:sdp-definition}
 
+\begin{definition}[Syndrome Decoding Problem (SDP)]
+\label{def:sdp}
+\index{syndrome decoding problem}
+Given:
+\begin{itemize}
+\item A random binary matrix $H \in \F_2^{r \times n}$ (parity-check matrix),
+\item A syndrome $\mathbf{s} \in \F_2^r$,
+\item An integer $w$ (target weight),
+\end{itemize}
+find an error vector $\mathbf{e} \in \F_2^n$ with $\operatorname{wt}(\mathbf{e}) = w$ such that $H\mathbf{e}^\top = \mathbf{s}$.
+\end{definition}
+
+\begin{theorem}[Berlekamp--McEliece--van Tilborg, 1978]
+\label{thm:sdp-np}
+\index{syndrome decoding problem!NP-completeness}
+The decision version of the syndrome decoding problem (``does there exist $\mathbf{e}$ with $\operatorname{wt}(\mathbf{e}) \leq w$ and $H\mathbf{e}^\top = \mathbf{s}$?'') is NP-complete.
+\end{theorem}
+
+The NP-completeness of SDP is the theoretical foundation of all code-based cryptosystems.  However, NP-completeness is a worst-case statement; cryptographic security requires average-case hardness.  Extensive study has produced no evidence of easy instances among random codes, and the best known algorithms have improved only incrementally over four decades.
+
+For physicists, the syndrome decoding problem has a direct statistical-mechanics interpretation.  Finding a weight-$w$ vector $\mathbf{e}$ satisfying $H\mathbf{e}^\top = \mathbf{s}$ is equivalent to finding a spin configuration of magnetisation $(n - 2w)/n$ in a random constraint satisfaction problem.  The phase transition between solvable and unsolvable regimes---controlled by the code rate $R = k/n$ and the relative error weight $w/n$---mirrors the replica symmetry breaking transitions studied in the physics of random systems.
+
+
+\subsection{Information Set Decoding}
+\label{subsec:isd}
+
+The best known algorithms for solving the syndrome decoding problem belong to the \emph{Information Set Decoding}\index{information set decoding} (ISD) family, first introduced by Prange~(1962).  All ISD algorithms share a common structure: select a subset of $k$ coordinates (an ``information set''), hope that these coordinates are error-free, and solve the resulting linear system.
+
+\begin{algorithm}[t]
+\caption{Prange's Information Set Decoding}
+\label{alg:prange}
+\index{Prange's algorithm}
+\begin{algorithmic}[1]
+\Require Parity-check matrix $H \in \F_2^{r \times n}$, syndrome $\mathbf{s}$, target weight $w$
+\Ensure Error vector $\mathbf{e}$ with $H\mathbf{e}^\top = \mathbf{s}$ and $\operatorname{wt}(\mathbf{e}) = w$
+\Repeat
+  \State Choose a random set $\mathcal{I} \subseteq [n]$ with $\abs{\mathcal{I}} = k$ \Comment{Information set}
+  \State Gaussian-eliminate $H$ on columns $\mathcal{I}$ to obtain $H' = [I_r \mid \cdot\,]$
+  \State Set $\mathbf{e}_{\mathcal{I}} = \mathbf{0}$ and $\mathbf{e}_{\bar{\mathcal{I}}} = $ the corresponding syndrome solution
+  \If{$\operatorname{wt}(\mathbf{e}) = w$}
+    \State \Return $\mathbf{e}$
+  \EndIf
+\Until{success}
+\end{algorithmic}
+\end{algorithm}
+
+The success probability per iteration is $\binom{n-w}{k}/\binom{n}{k}$---the probability that all $w$ errors fall outside the chosen information set.  The expected cost is therefore
+\begin{equation}
+\label{eq:prange-cost}
+T_{\mathrm{Prange}} \;=\; \frac{\binom{n}{k}}{\binom{n-w}{k}} \cdot \bigO(n^3) \;\approx\; \binom{n}{w} / \binom{r}{w} \cdot \bigO(n^3).
+\end{equation}
+
+
+\subsection{Improved ISD Variants}
+\label{subsec:isd-variants}
+
+Subsequent work improved Prange's algorithm by allowing a controlled number of errors in the information set and using birthday-type collisions to find them efficiently.  Table~\ref{tab:isd-variants} summarises the main variants.
+
+\begin{table}[t]
+\caption{Information Set Decoding variants: asymptotic exponent $c$ in $T = 2^{(c + o(1))n}$ for code rate $R = 1/2$ and relative weight $w/n$ at the Gilbert--Varshamov bound}
+\label{tab:isd-variants}
+\index{information set decoding!variants}
+\begin{tabular}{p{4.5cm}p{3cm}p{4.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Algorithm} & \textbf{Exponent $c$} & \textbf{Key idea} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Prange (1962) & $0.1207$ & Brute-force information sets \\
+Lee--Brickell (1988) & $0.1164$ & Allow $p$ errors in $\mathcal{I}$ \\
+Stern (1989) & $0.1059$ & Birthday collision on half-syndromes \\
+MMT (2011) & $0.0494$ & Representations technique \\
+BJMM (2012) & $0.0480$ & Near-neighbour search \\
+Both--May (2018) & $0.0473$ & Refined representations \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The key insight behind Stern's algorithm is to split the error vector into two halves and search for collisions: vectors whose partial syndromes match.  The MMT and BJMM algorithms refine this by exploiting the fact that a weight-$w$ error vector can be \emph{represented} in exponentially many ways as a sum of two vectors, and using near-neighbour search techniques to find matching pairs more efficiently.
+
+
+\subsection{Quantum Speedup for ISD}
+\label{subsec:quantum-isd}
+
+Quantum computers can accelerate ISD through Grover's algorithm, but the improvement is limited:
+
+\begin{theorem}[Quantum ISD Complexity]
+\label{thm:quantum-isd}
+\index{information set decoding!quantum}
+For a random $[n, k]$ code with $w$ errors:
+\begin{itemize}
+\item Classical (BJMM): $T_{\mathrm{class}} = 2^{(0.0480 + o(1))n}$ for rate $R = 1/2$.
+\item Quantum (Bernstein, 2010): Grover acceleration yields $T_{\mathrm{quant}} \approx \sqrt{T_{\mathrm{class}}}$, but memory constraints limit the practical speedup.
+\item Best quantum ISD (Kachigar--Tillich, 2017): $T_{\mathrm{quant}} = 2^{(0.0301 + o(1))n}$ for rate $R = 1/2$.
+\end{itemize}
+No exponential quantum advantage is known for syndrome decoding.
+\end{theorem}
+
+The absence of an exponential quantum speedup is the fundamental reason code-based cryptography is considered post-quantum secure.  Unlike integer factorisation (where Shor's algorithm provides an exponential advantage) or discrete logarithms (same), the syndrome decoding problem appears to admit only a polynomial quantum speedup.  This parallels the situation for lattice problems (Chap.~\ref{ch:lattice-theory}).
+
+
+%% ================================================================
 \section{The McEliece Cryptosystem}
 \label{sec:mceliece}
 
-% TODO: Expand from notes.tex §3.4.2
-% - Construction: KeyGen, Encrypt, Decrypt
-% - Security: 45+ years of resistance
-% - The key size problem: ~1 MB public keys
-% - Classic McEliece: the NIST candidate, parameters
-% - Cite: McEliece 1978, Bernstein et al. (Classic McEliece spec)
+Robert McEliece proposed his eponymous cryptosystem in 1978~\cite{McEliece1978}, making it the oldest unbroken public-key encryption scheme and one of the earliest alternatives to RSA (published a year earlier).
 
+\subsection{Construction}
+\label{subsec:mceliece-construction}
+
+\begin{definition}[McEliece PKE]
+\label{def:mceliece}
+\index{McEliece cryptosystem}
+The McEliece public-key encryption scheme based on an $[n, k, d]$ binary Goppa code with error-correction capability $t = \lfloor(d-1)/2\rfloor$:
+
+\medskip
+\noindent$\KeyGen(1^\lambda)$:
+\begin{enumerate}
+\item Choose a random irreducible polynomial $g(x) \in \F_{2^m}[x]$ of degree $t$ and a support set $L = \{\alpha_1, \ldots, \alpha_n\} \subseteq \F_{2^m}$.
+\item Compute the generator matrix $G \in \F_2^{k \times n}$ of the Goppa code $\Gamma(L, g)$.
+\item Choose a random invertible matrix $S \in \F_2^{k \times k}$ and a random permutation matrix $P \in \F_2^{n \times n}$.
+\item Set $\mathsf{pk} = (G' = SGP,\; t)$ and $\mathsf{sk} = (S, G, P, g, L)$.
+\end{enumerate}
+
+\medskip
+\noindent$\Enc(\mathsf{pk}, \mathbf{m})$: For message $\mathbf{m} \in \F_2^k$:
+\begin{enumerate}
+\item Sample a random error $\mathbf{e} \getsr \F_2^n$ with $\operatorname{wt}(\mathbf{e}) = t$.
+\item Output $\mathbf{c} = \mathbf{m}G' + \mathbf{e}$.
+\end{enumerate}
+
+\medskip
+\noindent$\Dec(\mathsf{sk}, \mathbf{c})$:
+\begin{enumerate}
+\item Compute $\mathbf{c}' = \mathbf{c}P^{-1} = \mathbf{m}SG + \mathbf{e}P^{-1}$.
+\item Apply Patterson's algorithm (Algorithm~\ref{alg:patterson}) to decode $\mathbf{c}'$, recovering $\mathbf{m}S$.
+\item Compute $\mathbf{m} = (\mathbf{m}S)S^{-1}$.
+\end{enumerate}
+\end{definition}
+
+Correctness follows from the fact that $P^{-1}$ is a permutation (preserving Hamming weight), so $\mathbf{e}P^{-1}$ has weight $t$, which lies within the decoding capability of the Goppa code.
+
+
+\subsection{Security Analysis}
+\label{subsec:mceliece-security}
+
+The security of McEliece rests on two computational assumptions:
+
+\begin{enumerate}
+\item \textbf{Generic decoding hardness:} Given the public key $G'$ (which looks like a random generator matrix) and a ciphertext $\mathbf{c} = \mathbf{m}G' + \mathbf{e}$, recovering $\mathbf{m}$ requires solving a syndrome decoding instance.  The best known attack is ISD (Sect.~\ref{subsec:isd}), which is exponential in the code parameters.
+
+\item \textbf{Goppa code indistinguishability:} The disguised public key $G' = SGP$ is computationally indistinguishable from a uniformly random $k \times n$ binary matrix.  Despite extensive research, no efficient distinguisher has been found for binary Goppa codes with appropriate parameters.
+\end{enumerate}
+
+\begin{svgraybox}
+\textbf{45+ years and counting.}
+The McEliece cryptosystem has survived cryptanalysis since 1978---longer than RSA (1977), longer than elliptic curve cryptography (1985), longer than any other public-key scheme in use.  The best known attacks have improved only incrementally: from Prange's $2^{64}$ work factor for the original parameters to approximately $2^{60}$ with BJMM, necessitating a parameter increase but not a structural break.  No attack has ever exploited the Goppa structure rather than treating the public key as a generic random code.
+\end{svgraybox}
+
+
+\subsection{Classic McEliece: The NIST Candidate}
+\label{subsec:classic-mceliece-nist}
+
+\index{Classic McEliece}
+Classic McEliece, submitted to the NIST post-quantum standardisation process by Bernstein et al., is a conservative instantiation of the original McEliece scheme with modern parameter choices.  It advanced to the fourth round of NIST's process and remains under evaluation.
+
+\begin{table}[t]
+\caption{Classic McEliece parameter sets}
+\label{tab:mceliece-params}
+\begin{tabular}{p{3.5cm}p{1.5cm}p{1.5cm}p{2cm}p{2cm}p{1.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Parameter set} & \textbf{$n$} & \textbf{$t$} & \textbf{PK (bytes)} & \textbf{CT (bytes)} & \textbf{Level} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+mceliece348864  & 3488 & 64  & 261,120  & 128  & I \\
+mceliece460896  & 4608 & 96  & 524,160  & 188  & III \\
+mceliece6688128 & 6688 & 128 & 1,044,992 & 240 & V \\
+mceliece6960119 & 6960 & 119 & 1,047,319 & 226 & V \\
+mceliece8192128 & 8192 & 128 & 1,357,824 & 240 & V \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The public key sizes in Table~\ref{tab:mceliece-params} reveal the fundamental tension of classic code-based cryptography: the public key is the systematic form of a $k \times n$ generator matrix, requiring $k(n-k)/8$ bytes of storage.  At NIST Level~I, this is $\sim$255\,KB---roughly $1000\times$ larger than ML-KEM-768's 1,184-byte public key.
+
+\begin{example}[Key Size Calculation]
+\label{ex:key-size}
+For \texttt{mceliece348864}: $n = 3488$, $k = n - mt = 3488 - 12 \cdot 64 = 2720$, $r = n - k = 768$.  The public key in systematic form is a $k \times r$ binary matrix:
+\begin{equation}
+\text{PK size} \;=\; \frac{k \cdot r}{8} \;=\; \frac{2720 \times 768}{8} \;=\; 261{,}120 \text{ bytes} \;\approx\; 255\text{ KB}.
+\end{equation}
+The ciphertext is a length-$n$ binary vector: $\lceil 3488/8 \rceil = 436$ bits, but in KEM mode (using a hash) only 128 bytes.
+\end{example}
+
+
+\subsection{The Key Size Problem}
+\label{subsec:key-size-problem}
+
+The large public keys are not a fixable engineering issue but a fundamental consequence of the security model:
+\begin{itemize}
+\item The public key must be a dense random-looking matrix to resist distinguishing attacks.
+\item Introducing algebraic structure to compress the key typically enables structural attacks.  Every attempt to use structured codes (quasi-cyclic, quasi-dyadic, etc.)\ in a McEliece-like framework has been broken, with the exception of the quasi-cyclic schemes discussed in Sects.~\ref{sec:hqc}--\ref{sec:bike}, which use a fundamentally different construction.
+\item The key size scales as $\Theta(n^2)$ in the code length, compared to $\Theta(n)$ for lattice-based schemes.
+\end{itemize}
+
+Despite this limitation, Classic McEliece has compelling advantages for specific deployment scenarios: long-lived keys (cached once, used many times), high-bandwidth links, and applications where security confidence outweighs bandwidth cost.
+
+
+%% ================================================================
 \section{HQC: Hamming Quasi-Cyclic}
 \label{sec:hqc}
 
-% TODO: New section
-% - Quasi-cyclic codes: structure and efficiency
-% - HQC construction: public-key encryption from QC codes
-% - Parameters and security levels
-% - NIST 4th round selection (2024)
-% - Cite: Melchor et al. (HQC specification)
+\index{HQC}
+HQC (Hamming Quasi-Cyclic), designed by Melchor, Aguilar-Melchor, and collaborators, represents a different approach to code-based cryptography: instead of disguising a structured code as a random one, it builds encryption directly from the hardness of decoding random quasi-cyclic codes, using a concatenated coding scheme for error correction.  In August~2024, NIST selected HQC for standardisation as a KEM, providing a code-based alternative to the lattice-based ML-KEM.
 
+\subsection{Quasi-Cyclic Codes}
+\label{subsec:qc-codes}
+
+\begin{definition}[Quasi-Cyclic Code]
+\label{def:qc-code}
+\index{quasi-cyclic code}
+An $[n, k]$ code $\mathcal{C}$ is \emph{quasi-cyclic}\index{quasi-cyclic code!definition} of index $\ell$ if every cyclic shift of a codeword by $n/\ell$ positions is also a codeword.  Equivalently, the generator matrix has a block-circulant structure: each block is an $r \times r$ circulant matrix, with $r = n/\ell$.
+\end{definition}
+
+The circulant structure admits a compact representation: an $r \times r$ circulant matrix is determined by its first row, so the entire generator matrix can be stored in $\ell \cdot r$ bits rather than $k \cdot n$.  This is the key to achieving small key sizes.
+
+Algebraically, a circulant matrix corresponds to multiplication by a polynomial in the quotient ring $\F_2[x]/(x^r - 1)$.  When $r$ is chosen to be prime with $\gcd(r, 2) = 1$, this ring has useful splitting properties that enhance the security analysis.
+
+
+\subsection{HQC Construction}
+\label{subsec:hqc-construction}
+
+HQC is a KEM built from a public-key encryption scheme via the Fujisaki--Okamoto transform (Chap.~\ref{ch:lwe-encryption}).  The underlying PKE is:
+
+\begin{definition}[HQC PKE]
+\label{def:hqc-pke}
+\index{HQC!construction}
+Let $n$ be prime, and let $\mathcal{C}$ be a $[n_1, k, d]$ code with efficient decoding (a tensor product of Reed--Muller and Reed--Solomon codes).
+
+\medskip
+\noindent$\KeyGen(1^\lambda)$:
+\begin{enumerate}
+\item Sample $\mathbf{h} \getsr \F_2[x]/(x^n - 1)$ uniformly at random.
+\item Sample $\mathbf{x}, \mathbf{y} \getsr \F_2[x]/(x^n - 1)$ of fixed Hamming weight $w$.
+\item Compute $\mathbf{s} = \mathbf{x} + \mathbf{h}\mathbf{y} \in \F_2[x]/(x^n - 1)$.
+\item Set $\mathsf{pk} = (\mathbf{h}, \mathbf{s})$ and $\mathsf{sk} = (\mathbf{x}, \mathbf{y})$.
+\end{enumerate}
+
+\medskip
+\noindent$\Enc(\mathsf{pk}, \mathbf{m})$: For a message $\mathbf{m} \in \F_2^k$:
+\begin{enumerate}
+\item Encode: $\hat{\mathbf{m}} = \mathsf{Encode}(\mathbf{m}) \in \F_2^{n_1}$.
+\item Sample $\mathbf{e}, \mathbf{r}_1, \mathbf{r}_2 \getsr \F_2[x]/(x^n - 1)$ of fixed weight $w_r$.
+\item Compute $\mathbf{u} = \mathbf{r}_1 + \mathbf{h}\mathbf{r}_2$ and $\mathbf{v} = \hat{\mathbf{m}} + \mathbf{s}\mathbf{r}_2 + \mathbf{e}$.
+\item Output $\mathbf{c} = (\mathbf{u}, \mathbf{v})$.
+\end{enumerate}
+
+\medskip
+\noindent$\Dec(\mathsf{sk}, \mathbf{c})$:
+\begin{enumerate}
+\item Compute $\hat{\mathbf{m}}' = \mathbf{v} - \mathbf{u}\mathbf{y} = \hat{\mathbf{m}} + \mathbf{e} + \mathbf{r}_2\mathbf{x} - \mathbf{r}_1\mathbf{y}$.
+\item Decode $\hat{\mathbf{m}}'$ using the efficient decoder of $\mathcal{C}$ to recover $\mathbf{m}$.
+\end{enumerate}
+\end{definition}
+
+The term $\mathbf{e} + \mathbf{r}_2\mathbf{x} - \mathbf{r}_1\mathbf{y}$ is a noise vector whose weight is bounded by $w_r \cdot w + w_r$---guaranteed to lie within the decoding capability of $\mathcal{C}$ for appropriate parameter choices.  The security relies on the hardness of distinguishing $(\mathbf{h}, \mathbf{s} = \mathbf{x} + \mathbf{h}\mathbf{y})$ from uniform---the \emph{decisional quasi-cyclic syndrome decoding problem}\index{quasi-cyclic syndrome decoding}, which is the code-based analogue of the decisional LWE problem.
+
+
+\subsection{Parameters and NIST Standardisation}
+\label{subsec:hqc-params}
+
+\begin{table}[t]
+\caption{HQC parameter sets (NIST submission, 2024)}
+\label{tab:hqc-params}
+\begin{tabular}{p{2cm}p{1.8cm}p{1.5cm}p{2cm}p{2cm}p{1.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Level} & \textbf{$n$} & \textbf{$w$} & \textbf{PK (bytes)} & \textbf{CT (bytes)} & \textbf{SS (bytes)} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+128 & 17,669 & 66 & 2,249 & 4,497  & 64 \\
+192 & 35,851 & 100 & 4,522 & 9,042  & 64 \\
+256 & 57,637 & 131 & 7,245 & 14,485 & 64 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+Compared to Classic McEliece, HQC achieves dramatically smaller public keys ($\sim$2\,KB vs.\ $\sim$255\,KB at Level~I) at the cost of larger ciphertexts ($\sim$4.5\,KB vs.\ 128 bytes).  The key size reduction comes from the quasi-cyclic structure, which compresses the public key from a full matrix to a pair of polynomials.
+
+NIST selected HQC for standardisation in 2024, citing the value of cryptographic diversity: having a code-based standard alongside the lattice-based ML-KEM ensures that a hypothetical breakthrough against lattice problems would not compromise all post-quantum deployments.
+
+
+%% ================================================================
 \section{BIKE: Bit Flipping Key Encapsulation}
 \label{sec:bike}
 
-% TODO: New section
-% - QC-MDPC codes
-% - BIKE construction
-% - The decoding failure rate challenge
-% - Current status in NIST process
+\index{BIKE}
+BIKE (Bit Flipping Key Encapsulation) is a KEM based on \emph{quasi-cyclic moderate-density parity-check} (QC-MDPC) codes\index{QC-MDPC code}.  It was a NIST fourth-round candidate alongside Classic McEliece and HQC.
 
+\subsection{QC-MDPC Codes}
+\label{subsec:qc-mdpc}
+
+\begin{definition}[QC-MDPC Code]
+\label{def:qc-mdpc}
+\index{QC-MDPC code!definition}
+A \emph{quasi-cyclic moderate-density parity-check} code is a binary linear code whose parity-check matrix $H = [H_0 \mid H_1]$ consists of two $r \times r$ circulant blocks, each with row weight $w/2$ (so the total row weight is $w$).  The term ``moderate density'' distinguishes these from LDPC codes: the row weight $w = \bigO(\sqrt{n})$ is larger than the $\bigO(1)$ weight of LDPC codes but much smaller than $n/2$.
+\end{definition}
+
+The resulting code has parameters $[n = 2r,\; k = r,\; d \geq w + 1]$ (rate $1/2$) and can be decoded using iterative \emph{bit-flipping} algorithms.  The quasi-cyclic structure means the parity-check matrix is determined by two polynomials $h_0, h_1 \in \F_2[x]/(x^r - 1)$, giving a compact representation.
+
+
+\subsection{BIKE Construction}
+\label{subsec:bike-construction}
+
+\begin{definition}[BIKE KEM]
+\label{def:bike}
+\index{BIKE!construction}
+
+\medskip
+\noindent$\KeyGen(1^\lambda)$:
+\begin{enumerate}
+\item Sample $h_0, h_1 \in \F_2[x]/(x^r - 1)$ of weight $w/2$ each.
+\item Compute $h = h_1 \cdot h_0^{-1} \bmod (x^r - 1)$.
+\item Set $\mathsf{pk} = h$ and $\mathsf{sk} = (h_0, h_1)$.
+\end{enumerate}
+
+\medskip
+\noindent$\Encaps(\mathsf{pk})$:
+\begin{enumerate}
+\item Sample a random message $\mathbf{m}$ and derive $(\mathbf{e}_0, \mathbf{e}_1)$ of weight $t$ via a hash function.
+\item Compute $\mathbf{c} = (\mathbf{c}_0, \mathbf{c}_1) = (\mathbf{e}_0 + \mathbf{e}_1 \cdot h,\; \mathbf{m} \oplus \mathsf{Hash}(\mathbf{e}_0, \mathbf{e}_1))$.
+\item Shared secret: $K = \mathsf{Hash}(\mathbf{m}, \mathbf{c})$.
+\end{enumerate}
+
+\medskip
+\noindent$\Decaps(\mathsf{sk}, \mathbf{c})$:
+\begin{enumerate}
+\item Use the secret parity-check matrix $H = [H_0 \mid H_1]$ to compute the syndrome of $(\mathbf{c}_0, \mathbf{c}_1 \cdot h_0) = (\mathbf{e}_0 + \mathbf{e}_1 \cdot h) \cdot h_0$, and apply a bit-flipping decoder to recover $(\mathbf{e}_0, \mathbf{e}_1)$.
+\item Recover $\mathbf{m}$ and re-derive $K$.
+\end{enumerate}
+\end{definition}
+
+
+\subsection{The Decoding Failure Challenge}
+\label{subsec:bike-dft}
+
+The principal technical challenge in BIKE is controlling the \emph{decoding failure rate}\index{BIKE!decoding failure rate} (DFR).  Unlike Goppa codes, which have algebraic decoders with guaranteed error-correction radius, QC-MDPC decoders are iterative and probabilistic: they fail with some non-zero probability.
+
+\begin{svgraybox}
+\textbf{Why decoding failures matter for security.}
+A non-negligible decoding failure rate is not merely an engineering nuisance---it is a \emph{security vulnerability}.  Guo, Johansson, and Stankovski~(2016) showed that an adversary who can trigger decoding failures can recover the secret key through a \emph{reaction attack}: by observing which ciphertexts cause decryption failures, the attacker learns information about the secret key's structure.  This forces BIKE to target an extremely low DFR (below $2^{-128}$), which is difficult to prove for iterative decoders.
+\end{svgraybox}
+
+The BIKE team addresses this through a combination of:
+\begin{enumerate}
+\item Conservative parameter choices ensuring high decoder success probability.
+\item The Black--Gray--Flip decoder, an improved bit-flipping algorithm with provably lower failure rates.
+\item Extensive statistical analysis and extrapolation from empirical data to certify DFR $< 2^{-128}$.
+\end{enumerate}
+
+\begin{table}[t]
+\caption{BIKE parameter sets}
+\label{tab:bike-params}
+\begin{tabular}{p{2cm}p{1.8cm}p{1.5cm}p{2cm}p{2cm}p{2.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Level} & \textbf{$r$} & \textbf{$w$} & \textbf{PK (bytes)} & \textbf{CT (bytes)} & \textbf{Target DFR} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+128 & 12,323 & 142 & 1,541 & 1,573 & $< 2^{-128}$ \\
+192 & 24,659 & 206 & 3,083 & 3,115 & $< 2^{-192}$ \\
+256 & 40,973 & 274 & 5,122 & 5,154 & $< 2^{-256}$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+BIKE's public keys and ciphertexts are the smallest among the three code-based schemes discussed here, but the lack of a rigorous DFR bound (as opposed to an empirical/heuristic one) was a factor in NIST's decision not to select BIKE for immediate standardisation.
+
+
+%% ================================================================
 \section{Comparative Analysis}
 \label{sec:code-comparison}
 
-% TODO: New section
-% - Classic McEliece vs HQC vs BIKE
-% - Tradeoffs: key size, ciphertext size, security confidence, speed
-% - When code-based crypto is the right choice
+\index{code-based cryptography!comparison}
+The three code-based KEMs occupy distinct points in the design space, each with a different tradeoff between security confidence, key size, ciphertext size, and implementation maturity.
 
-%% Exercises
+\begin{table}[t]
+\caption{Comparison of code-based KEMs at NIST Security Level~I (128-bit post-quantum security).  ML-KEM-768 is included as a lattice-based reference point.}
+\label{tab:code-comparison}
+\begin{tabular}{p{3cm}p{2cm}p{2cm}p{2cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Scheme} & \textbf{PK (B)} & \textbf{CT (B)} & \textbf{PK+CT (B)} & \textbf{Security basis} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Classic McEliece & 261,120 & 128    & 261,248 & Binary Goppa \\
+HQC              & 2,249   & 4,497  & 6,746   & QC codes \\
+BIKE             & 1,541   & 1,573  & 3,114   & QC-MDPC \\
+ML-KEM-768       & 1,184   & 1,088  & 2,272   & Module-LWE \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The tradeoffs can be summarised along several axes:
+
+\begin{enumerate}
+\item \textbf{Security confidence:} Classic McEliece has the strongest security argument---45+ years of cryptanalysis, conservative assumptions, and a reduction to the well-studied syndrome decoding problem for unstructured codes.  HQC and BIKE rely on the quasi-cyclic variant of syndrome decoding, which has a shorter track record.  ML-KEM relies on Module-LWE, well-studied but post-dating McEliece by decades.
+
+\item \textbf{Key and ciphertext sizes:} Classic McEliece has tiny ciphertexts but enormous public keys.  HQC and BIKE achieve practical key sizes through quasi-cyclic structure, with BIKE having the smallest combined PK+CT among the code-based schemes.
+
+\item \textbf{Decoding assurance:} Classic McEliece has zero decoding failures (algebraic decoder).  HQC has a negligible but analytically bounded failure probability.  BIKE's failure probability is the hardest to bound rigorously, relying on heuristic analysis of iterative decoders.
+
+\item \textbf{Implementation complexity:} Classic McEliece is the simplest to implement correctly, owing to the well-understood algebraic structure of Goppa codes.  BIKE requires careful constant-time implementation of the bit-flipping decoder to avoid timing side channels.
+
+\item \textbf{NIST status (2024):} ML-KEM is the primary standard.  HQC was selected for standardisation as a code-based backup.  Classic McEliece and BIKE remain under evaluation.
+\end{enumerate}
+
+\begin{svgraybox}
+\textbf{When to use code-based cryptography.}
+Classic McEliece is the right choice when public keys can be cached (e.g., in long-lived server certificates) and security confidence is paramount---it is the ``gold standard'' for conservative post-quantum security.  HQC provides a balanced code-based alternative suitable for general deployment, and its selection by NIST ensures it will be available as a hedge against lattice breaks.  BIKE offers the most compact combined sizes but requires the strongest trust in heuristic decoder analysis.
+\end{svgraybox}
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch09-hamming}
-Construct the $[7,4,3]$ Hamming code. Write its generator matrix $G$ and parity-check matrix $H$. Encode the message $\mathbf{m} = (1,0,1,1)$, introduce a single-bit error, and decode using syndrome decoding.
+Construct the $[7,4,3]$ Hamming code.
+\begin{enumerate}
+\item[(a)] Write its generator matrix $G$ and parity-check matrix $H$ in systematic form.
+\item[(b)] Encode the message $\mathbf{m} = (1,0,1,1)$ to obtain a codeword $\mathbf{c}$.
+\item[(c)] Introduce a single-bit error in position~$3$ to form the received word $\mathbf{y} = \mathbf{c} + \mathbf{e}_3$.  Compute the syndrome $\mathbf{s} = H\mathbf{y}^\top$ and use it to identify and correct the error.
+\item[(d)] What is the maximum number of errors the Hamming code can correct?  How does this relate to the minimum distance?
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
-\label{prob:ch09-mceliece}
-In the McEliece cryptosystem with a $[1024, 524, 101]$ Goppa code, compute the public key size in bytes. Compare this with the public key sizes of ML-KEM-768 and RSA-2048. Discuss the practical implications.
+\label{prob:ch09-mceliece-keysize}
+In the McEliece cryptosystem with a binary Goppa code over $\F_{2^{12}}$ and Goppa polynomial of degree $t = 64$:
+\begin{enumerate}
+\item[(a)] Compute the code parameters $[n, k, d]$ assuming $n = 2^{12}$ support points and using $k \geq n - mt$.
+\item[(b)] Compute the public key size in bytes (systematic form).
+\item[(c)] Compare this with the public key sizes of ML-KEM-768 (1,184 bytes) and RSA-2048 (256 bytes).
+\item[(d)] A 100\,Mbps link establishes 1,000 TLS sessions per second.  Estimate the bandwidth overhead of replacing ECDH key exchange with McEliece.
+\end{enumerate}
 \end{prob}
 
 \begin{prob}
 \label{prob:ch09-isd}
-Describe Prange's Information Set Decoding algorithm. Estimate the expected number of iterations to decode a random $[n, k, t]$ code. For $n = 2048$, $k = 1024$, $t = 50$, compute the work factor and compare with the security claims of Classic McEliece.
+\textbf{Prange's ISD analysis.}
+\begin{enumerate}
+\item[(a)] For a random $[n, k]$ code with $w$ errors, show that the probability that a random information set $\mathcal{I}$ of size $k$ is error-free is $p = \binom{n-w}{k}/\binom{n}{k}$.
+\item[(b)] For Classic McEliece parameters $n = 3488$, $k = 2720$, $w = 64$, compute $\log_2(1/p)$ and estimate the work factor of Prange's algorithm.
+\item[(c)] Compare your estimate with the claimed 128-bit security level.  What does this tell you about the gap between Prange's algorithm and BJMM?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch09-qc}
+\textbf{Quasi-cyclic structure.}
+\begin{enumerate}
+\item[(a)] Let $r = 7$ and consider the ring $\F_2[x]/(x^7 - 1)$.  Write the $7 \times 7$ circulant matrix corresponding to the polynomial $h(x) = 1 + x + x^3$.
+\item[(b)] Verify that the product of two circulant matrices is circulant by computing $h(x) \cdot g(x) \bmod (x^7 - 1)$ for $g(x) = 1 + x^2 + x^4$ and checking against the matrix product.
+\item[(c)] Explain why storing a circulant matrix requires only $r$ bits rather than $r^2$ bits, and why this is crucial for the practicality of HQC and BIKE.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch09-dft}
+\textbf{Decoding failure and security.}
+\begin{enumerate}
+\item[(a)] Explain why a decoding failure rate of $2^{-64}$ is insufficient for a KEM claiming 128-bit security.  (Hint: consider how an IND-CCA adversary can exploit decryption failures.)
+\item[(b)] In the Guo--Johansson--Stankovski reaction attack on QC-MDPC codes, the attacker submits specially crafted ciphertexts and observes whether decryption succeeds or fails.  Explain qualitatively how the pattern of failures reveals information about the secret key.
+\item[(c)] Why does this attack not apply to Classic McEliece?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch09-physics}
+\textbf{Codes and statistical mechanics.}
+\begin{enumerate}
+\item[(a)] Consider the binary symmetric channel with crossover probability $p$.  State Shannon's noisy-channel coding theorem and identify the capacity $C(p) = 1 - H_2(p)$, where $H_2$ is the binary entropy function.
+\item[(b)] The syndrome decoding problem asks for a weight-$w$ vector $\mathbf{e}$ satisfying $r = n - k$ linear constraints.  By analogy with a random constraint satisfaction problem, argue that a phase transition occurs at the Gilbert--Varshamov bound: for $w/n$ below a critical threshold (depending on $R = k/n$), solutions exist with high probability; above it, they do not.
+\item[(c)] Explain why this phase transition is relevant to setting parameters for code-based cryptosystems.
+\end{enumerate}
 \end{prob}

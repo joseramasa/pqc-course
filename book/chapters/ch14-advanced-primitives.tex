@@ -1,58 +1,470 @@
 \chapter{Advanced Cryptographic Primitives}
 \label{ch:advanced-primitives}
 
-\abstract*{Lattice-based cryptography enables capabilities far beyond encryption and signatures. This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical. For physicists, these protocols offer striking parallels: noise accumulation mirrors thermodynamics, zero-knowledge echoes quantum measurement, and multiparty computation resembles distributed quantum systems.}
+\abstract*{Lattice-based cryptography enables capabilities far beyond encryption and signatures.  This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical.  For physicists, these protocols offer striking parallels: noise accumulation mirrors thermodynamics, zero-knowledge echoes quantum measurement, and multiparty computation resembles distributed quantum systems.  The chapter closes with a survey of lattice-based advanced constructions---attribute-based encryption, identity-based encryption, threshold signatures, and functional encryption---that point toward a richer cryptographic future.}
+
+\abstract{Lattice-based cryptography enables capabilities far beyond encryption and signatures.  This chapter introduces fully homomorphic encryption, zero-knowledge proofs, and secure multiparty computation---primitives that were theoretical curiosities until lattice theory made them practical.  For physicists, these protocols offer striking parallels: noise accumulation mirrors thermodynamics, zero-knowledge echoes quantum measurement, and multiparty computation resembles distributed quantum systems.  The chapter closes with a survey of lattice-based advanced constructions that point toward a richer cryptographic future.}
 
 % =============================================================
 % SOURCE: notes.tex §6.2 (lines 8327–8905)
-% REUSE: ~40%. Good overviews with physics analogies.
+% REUSE: ~40%.  Good overviews with physics analogies.
 % Keep focused — this is a gateway chapter, not a treatise.
 % =============================================================
+
 
 \section{Fully Homomorphic Encryption}
 \label{sec:fhe}
 
-% TODO: Adapt from notes.tex §6.2.1
-% - The concept: computing on encrypted data
-% - Gentry's blueprint: somewhat HE + bootstrapping
-% - LWE-based FHE: BGV, BFV, CKKS, TFHE
-% - The noise growth challenge (physics: thermal noise analogy)
-% - Bootstrapping: the noise reset operation
-% - Practical FHE today: Microsoft SEAL, TFHE-rs, Zama
-% - Cite: Gentry 2009, BGV 2012, CKKS 2017
+Imagine encrypting your medical records before uploading them to the cloud, having the cloud run a diagnostic algorithm on that encrypted data, and receiving encrypted results that only you can decrypt.  The cloud processes your data faithfully yet learns nothing about it.  This seemingly impossible capability---\emph{fully homomorphic encryption} (FHE)\index{fully homomorphic encryption}---has moved from theoretical breakthrough to practical deployment in under two decades, powered by the same lattice problems that underpin post-quantum security.
 
+\subsection{The Concept: Computing on Encrypted Data}
+\label{subsec:fhe-concept}
+
+\begin{definition}[Homomorphic Encryption]
+\label{def:fhe}
+An encryption scheme $(\Gen, \Enc, \Dec, \mathsf{Eval})$ is \emph{fully homomorphic}\index{FHE|see{fully homomorphic encryption}} if it supports an efficient evaluation algorithm $\mathsf{Eval}$ such that for any circuit $f$ and any plaintexts $m_1, \ldots, m_k$:
+\begin{equation}
+\label{eq:fhe-correctness}
+\Dec\bigl(\mathit{sk},\; \mathsf{Eval}(f,\, \Enc(\mathit{pk}, m_1),\, \ldots,\, \Enc(\mathit{pk}, m_k))\bigr) \;=\; f(m_1, \ldots, m_k),
+\end{equation}
+where $\mathsf{Eval}$ works without access to the secret key $\mathit{sk}$.
+\end{definition}
+
+It suffices that $\mathsf{Eval}$ supports addition and multiplication of ciphertexts, since these two operations are \emph{universal}---any Boolean or arithmetic circuit can be built from them.  Schemes supporting only one operation (e.g., unpadded RSA is multiplicatively homomorphic) are called \emph{partially homomorphic}; schemes supporting both but only to a bounded depth are called \emph{somewhat homomorphic} (SHE).
+
+\begin{svgraybox}
+\textbf{Why FHE matters.}
+Public-key encryption protects data \emph{at rest} and \emph{in transit}.  FHE protects data \emph{in use}.  This is the missing piece for privacy-preserving cloud computing: a hospital can outsource genomic analysis, a bank can outsource fraud detection, and a government can outsource census statistics---all without exposing raw data to the computing party.
+\end{svgraybox}
+
+
+\subsection{Gentry's Blueprint: Somewhat HE Plus Bootstrapping}
+\label{subsec:gentry-blueprint}
+
+The existence of FHE was an open problem for over 30~years, from Rivest, Adleman, and Dertouzos's 1978 conjecture to Gentry's 2009 resolution~\cite{Gentry2009}.  Gentry's construction follows a two-step blueprint that remains the template for all modern FHE schemes:
+
+\begin{enumerate}
+\item \textbf{Build a somewhat homomorphic scheme.}  Construct an encryption scheme that supports both homomorphic addition and multiplication, but only for circuits up to some bounded depth~$L$.
+
+\item \textbf{Bootstrap to full homomorphism.}  Use the SHE scheme to homomorphically evaluate its \emph{own decryption circuit}, thereby ``refreshing'' a noisy ciphertext into a fresh one.  If the decryption circuit has depth less than~$L$, one application of $\mathsf{Eval}$ resets the noise without exceeding the scheme's capacity, and the process can be repeated indefinitely.
+\end{enumerate}
+
+The bootstrapping step is the conceptual leap.  The evaluator encrypts the secret key under the public key (a so-called \emph{bootstrapping key}), then homomorphically computes decryption ``inside the encryption.''  The output is a fresh ciphertext of the same plaintext, with noise reset to the level introduced by one decryption-circuit evaluation.
+
+\begin{svgraybox}
+\textbf{The Maxwell's demon analogy.}
+Bootstrapping appears to violate a fundamental law: noise should only grow under computation, never shrink.  The resolution is thermodynamic in spirit.  Noise is not destroyed; it is shifted.  The computational cost of bootstrapping (time and ciphertext expansion) absorbs the entropy that the noise carried.  Just as Maxwell's demon must expend energy to measure and sort molecules, the bootstrapping procedure expends computation to reset ciphertext noise.
+\end{svgraybox}
+
+
+\subsection{LWE-Based FHE: BGV, BFV, CKKS, and TFHE}
+\label{subsec:fhe-schemes}
+
+All modern FHE schemes derive their security from the Learning With Errors problem (Chap.~\ref{ch:lwe-encryption}) or its ring/module variants~\cite{Regev2009}.  They differ in how they represent plaintexts and manage noise.
+
+\begin{table}[t]
+\caption{Modern FHE scheme families and their characteristics}
+\label{tab:fhe-schemes}
+\begin{tabular}{p{2cm}p{3.5cm}p{3cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Scheme} & \textbf{Plaintext space} & \textbf{Best for} & \textbf{Noise management} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+BGV & Integers mod $p$ & Exact integer arithmetic & Modulus switching \\
+BFV & Integers mod $p$ & Exact integer arithmetic & Scale-invariant \\
+CKKS & Approximate reals & Machine learning, statistics & Rescaling \\
+TFHE & Single bits & Boolean circuits, fast bootstrap & Gate bootstrapping \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+In each scheme, a ciphertext is an \lwe{} (or Ring-\lwe{}) sample $(\mathbf{a}, b = \ip{\mathbf{a}}{\mathbf{s}} + e + \Delta m)$ where $\Delta$ is an encoding factor and $e$ is the noise term.  Homomorphic addition adds two such samples (noise grows additively); homomorphic multiplication involves a tensor product that causes the noise to grow \emph{multiplicatively}.  This multiplicative noise growth is the central bottleneck.
+
+
+\subsection{Noise Growth: The Thermal Noise Analogy}
+\label{subsec:noise-growth}
+
+The noise dynamics of FHE are best understood through a physics analogy.
+
+\begin{definition}[Noise Budget]
+\label{def:noise-budget}
+A fresh ciphertext in an \lwe{}-based scheme carries a noise term $e$ with magnitude $\norm{e} \approx \sigma$.  After homomorphic operations, the noise evolves as:
+\begin{align}
+\text{Addition:}\quad & \norm{e_{\mathrm{add}}} \;\approx\; \norm{e_1} + \norm{e_2}, \label{eq:noise-add}\\
+\text{Multiplication:}\quad & \norm{e_{\mathrm{mult}}} \;\approx\; \norm{e_1}\cdot\norm{e_2}\cdot\poly(n). \label{eq:noise-mult}
+\end{align}
+Decryption fails when $\norm{e} \geq q/2$, where $q$ is the ciphertext modulus.  The \emph{noise budget} is $\log_2(q / 2\norm{e})$ bits.
+\end{definition}
+
+Equation~\eqref{eq:noise-mult} is the crux: after $L$ levels of multiplication, noise grows as $\sigma^{2^L}\cdot\poly(n)^L$.  Without intervention, even modest circuits exhaust the noise budget.
+
+\begin{svgraybox}
+\textbf{Noise as thermal noise.}
+In a communication channel, thermal noise accumulates with each amplification stage.  An amplifier cascade of depth~$L$ produces noise proportional to $T^L$ (temperature raised to the number of stages).  FHE ciphertexts behave identically: each multiplication ``amplifies'' the noise quadratically, and deep circuits produce exponential noise growth.  Bootstrapping is the cryptographic analogue of a \emph{regenerative repeater}---it decodes and re-encodes the signal, resetting the noise floor at the cost of latency.
+\end{svgraybox}
+
+
+\subsection{Bootstrapping: The Noise Reset}
+\label{subsec:bootstrapping}
+
+Bootstrapping is the operation that transforms somewhat homomorphic encryption into \emph{fully} homomorphic encryption.  Given a ciphertext $c$ with high noise, bootstrapping produces a ciphertext $c'$ encrypting the same plaintext with low noise:
+
+\begin{enumerate}
+\item Publish an encrypted secret key: $\widetilde{\mathit{sk}} = \Enc(\mathit{pk}, \mathit{sk})$.
+\item Homomorphically evaluate the decryption function: $c' \leftarrow \mathsf{Eval}(\Dec(\cdot, \widetilde{\mathit{sk}}),\; c)$.
+\item The output $c'$ is a fresh encryption of the original plaintext $m$, with noise determined only by the depth of the decryption circuit.
+\end{enumerate}
+
+The circular-security assumption---that it is safe to encrypt the secret key under its own public key---is required but widely believed to hold for \lwe{}-based schemes.
+
+\begin{example}[Bootstrapping Cost Over Time]
+\label{ex:bootstrap-progress}
+The practical viability of FHE is measured by bootstrapping speed.  Gentry's original scheme required approximately 30~minutes per bootstrap in 2009.  TFHE reduced this to 13~ms by 2016, and current GPU-accelerated implementations achieve sub-millisecond bootstraps.  This six-orders-of-magnitude improvement in 15~years has brought FHE from theoretical curiosity to deployable technology.
+\end{example}
+
+
+\subsection{Practical FHE Today}
+\label{subsec:fhe-practice}
+
+Several open-source libraries make FHE accessible to practitioners:
+\begin{itemize}
+\item \textbf{Microsoft SEAL:} Implements BFV and CKKS.  Used in privacy-preserving machine learning.
+\item \textbf{TFHE-rs / Zama:} Implements TFHE with fast gate bootstrapping.  Targets Boolean circuits and integer operations.
+\item \textbf{OpenFHE:} Supports BGV, BFV, CKKS, and TFHE under a unified API.
+\end{itemize}
+
+\begin{example}[Private Medical Diagnosis]
+\label{ex:fhe-medical}
+A hospital encrypts a patient's genomic data (approximately 3~GB) and uploads it to a cloud server.  The cloud homomorphically evaluates a cancer risk model---comparing one million single-nucleotide polymorphisms---and returns encrypted risk scores.  The hospital decrypts the result; the cloud learns nothing about the patient.  Current systems perform this computation in a few hours on commodity hardware, at a fraction of the cost of building an in-house secure computation facility.
+\end{example}
+
+
+%% ================================================================
 \section{Zero-Knowledge Proofs}
 \label{sec:zkp}
 
-% TODO: Adapt from notes.tex §6.2.2
-% - The concept: proving without revealing
-% - Interactive proofs and the Fiat-Shamir heuristic (callback to Ch. 8)
-% - Lattice-based ZK proofs: Stern-type protocols
-% - Post-quantum SNARKs and STARKs
-% - Applications: privacy-preserving authentication, anonymous credentials
-% - Cite: Goldwasser et al. 1989, Stern 1993, Ben-Sasson et al. (STARKs)
+A zero-knowledge proof\index{zero-knowledge proof} allows a \emph{prover} to convince a \emph{verifier} that a statement is true, without revealing \emph{any} information beyond the truth of the statement itself.  This paradoxical-sounding capability is one of the most powerful ideas in modern cryptography.
 
+\subsection{The Concept: Proving Without Revealing}
+\label{subsec:zkp-concept}
+
+\begin{definition}[Zero-Knowledge Proof]
+\label{def:zkp}
+An interactive protocol between a prover~$P$ and a verifier~$V$ for a language $\mathcal{L}$ satisfies three properties:
+\begin{itemize}
+\item \textbf{Completeness:} If $x \in \mathcal{L}$, the honest prover convinces the verifier with probability~$1$ (or $1 - \negl(\lambda)$).
+\item \textbf{Soundness:} If $x \notin \mathcal{L}$, no cheating prover convinces the verifier except with probability $\negl(\lambda)$.
+\item \textbf{Zero-knowledge:} The verifier's view can be \emph{simulated} without interaction with the prover.  Formally, there exists a polynomial-time simulator $S$ such that $S(x) \approx \mathrm{View}_V(P \leftrightarrow V)(x)$.
+\end{itemize}
+\end{definition}
+
+The zero-knowledge property is the remarkable one: the verifier learns that ``$x \in \mathcal{L}$'' but gains no additional knowledge---not even a single bit about \emph{why} the statement is true.
+
+\begin{svgraybox}
+\textbf{The quantum measurement analogy.}
+A zero-knowledge proof resembles a quantum measurement in a precise sense.  When you measure a qubit in the computational basis, you learn one bit of information (the outcome) but the act of measurement destroys all other information the qubit carried.  Similarly, a zero-knowledge proof reveals exactly one bit---``the statement is true''---while provably destroying the verifier's ability to extract anything else.
+\end{svgraybox}
+
+
+\subsection{Interactive Proofs and the Fiat--Shamir Heuristic}
+\label{subsec:fiat-shamir}
+
+The classical structure of an interactive zero-knowledge proof follows a three-move \emph{sigma protocol}\index{sigma protocol}:
+
+\begin{enumerate}
+\item \textbf{Commitment.} The prover sends a commitment $a$ (e.g., a randomised encryption).
+\item \textbf{Challenge.} The verifier sends a random challenge $c \getsr \{0,1\}^\lambda$.
+\item \textbf{Response.} The prover sends a response $z$ that the verifier checks against $(a, c)$.
+\end{enumerate}
+
+To eliminate interaction, Fiat and Shamir~\cite{FiatShamir1986} proposed replacing the verifier's random challenge with the output of a cryptographic hash function applied to the commitment and the statement:
+\begin{equation}
+\label{eq:fiat-shamir}
+c \;=\; H(a \,\|\, x),
+\end{equation}
+where $H$ is modelled as a random oracle\index{random oracle}.  The resulting \emph{non-interactive} proof $\pi = (a, z)$ can be verified by anyone, without live interaction.
+
+\begin{definition}[Post-Quantum Fiat--Shamir Security]
+\label{def:pq-fiat-shamir}
+In the quantum random oracle model (QROM)\index{QROM}, the Fiat--Shamir transform remains sound but incurs a security loss: an adversary making $q$ quantum queries to $H$ achieves soundness error $\bigO(\sqrt{q} \cdot \varepsilon)$ rather than $\varepsilon$, where $\varepsilon$ is the soundness error of the interactive protocol.  This $\sqrt{q}$ factor must be accounted for when setting security parameters.
+\end{definition}
+
+The Fiat--Shamir transform is the mechanism behind the CRYSTALS-Dilithium (ML-DSA) signature scheme (Chap.~\ref{ch:lattice-signatures}).
+
+
+\subsection{Lattice-Based Zero-Knowledge: Stern-Type Protocols}
+\label{subsec:lattice-zk}
+
+Lattices enable efficient zero-knowledge proofs for algebraically structured statements.  The prototypical example is \emph{proving knowledge of a short vector}:
+
+\begin{example}[ZK Proof of a Short Preimage]
+\label{ex:stern-proof}
+\textbf{Statement:} ``I know $\mathbf{s} \in \Z^m$ with $\norm{\mathbf{s}} \leq \beta$ such that $\mathbf{A}\mathbf{s} = \mathbf{t} \pmod{q}$.''
+
+A Stern-type protocol\index{Stern protocol} proceeds as follows:
+\begin{enumerate}
+\item \textbf{Commit:} Sample a mask $\mathbf{y} \getsr D_{\Z^m, \sigma}$ (discrete Gaussian) and send $\mathbf{w} = \mathbf{A}\mathbf{y} \pmod{q}$.
+\item \textbf{Challenge:} Receive a random challenge $c \in \{0, 1, 2\}$.
+\item \textbf{Respond:}
+  \begin{itemize}
+  \item If $c = 0$: reveal $\mathbf{y}$ and $\mathbf{s}$ in permuted form.
+  \item If $c = 1$: reveal $\mathbf{z} = \mathbf{y} + \mathbf{s}$ and a commitment opening.
+  \item If $c = 2$: reveal $\mathbf{y}$ and a commitment to $\mathbf{s}$.
+  \end{itemize}
+\item \textbf{Verify:} Check the appropriate linear relation and norm bound.
+\end{enumerate}
+Each round has soundness error $2/3$.  After $\lambda$ rounds, the soundness error drops to $(2/3)^\lambda$, which is negligible for $\lambda \approx 200$.  The mask $\mathbf{y}$ information-theoretically hides the secret $\mathbf{s}$, provided $\sigma$ is large enough relative to $\norm{\mathbf{s}}$.
+\end{example}
+
+Stern-type proofs are the basis of several post-quantum anonymous credential schemes and group signature proposals.
+
+
+\subsection{Post-Quantum SNARKs and STARKs}
+\label{subsec:snarks-starks}
+
+\emph{Succinct Non-interactive Arguments of Knowledge} (SNARKs)\index{SNARK} compress proofs to a few hundred bytes and enable verification in milliseconds, regardless of the complexity of the proven statement.  Most deployed SNARKs rely on elliptic-curve pairings and are therefore vulnerable to quantum attack.
+
+Post-quantum alternatives fall into two families:
+
+\begin{itemize}
+\item \textbf{STARKs}\index{STARK} (Scalable Transparent Arguments of Knowledge): Replace pairings with hash-based commitments.  Proof sizes are larger (tens of kilobytes) but rely only on collision-resistant hash functions---already quantum-safe.  STARKs require no trusted setup and scale transparently.
+
+\item \textbf{Lattice-based SNARKs:} Replace pairing-based polynomial commitments with lattice-based commitments.  Active research has produced proof sizes in the range of 10--50~KB with verification times around 100~ms.  The main challenge remains reducing prover time, which can be orders of magnitude slower than pairing-based provers.
+\end{itemize}
+
+\begin{table}[t]
+\caption{Comparison of proof systems for post-quantum zero-knowledge}
+\label{tab:pq-zk}
+\begin{tabular}{p{3cm}p{2.5cm}p{2.5cm}p{3.5cm}}
+\hline\noalign{\smallskip}
+\textbf{System} & \textbf{Proof size} & \textbf{Verification} & \textbf{Assumption} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Classical SNARK & $\sim$128 bytes & $\sim$10 ms & Pairings (quantum-broken) \\
+STARK & 10--200 KB & $\sim$50 ms & Hash functions \\
+Lattice SNARK & 10--50 KB & $\sim$100 ms & \lwe{} / \textsc{SIS} \\
+Stern-type & $\sim$100 KB & $\sim$200 ms & \lwe{} / \textsc{SIS} \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Applications of Zero-Knowledge}
+\label{subsec:zk-applications}
+
+Zero-knowledge proofs enable a range of privacy-preserving applications:
+\begin{itemize}
+\item \textbf{Anonymous authentication:} Prove membership in a group (e.g., ``I hold a valid credential'') without revealing which credential.
+\item \textbf{Range proofs:} Prove that a value lies in an interval (e.g., ``my age is at least 18'') without revealing the value itself.
+\item \textbf{Verifiable computation:} A cloud server proves that it executed a computation correctly on outsourced data.
+\item \textbf{Blockchain privacy:} Prove transaction validity without revealing sender, receiver, or amount.
+\end{itemize}
+
+All of these applications require quantum-safe instantiations as the transition to post-quantum cryptography proceeds.
+
+
+%% ================================================================
 \section{Secure Multiparty Computation}
 \label{sec:mpc}
 
-% TODO: Adapt from notes.tex §6.2.3
-% - The millionaires' problem and general MPC
-% - Secret sharing: Shamir's scheme
-% - Garbled circuits: Yao's protocol
-% - MPC from lattice-based OT (oblivious transfer)
-% - Applications: private set intersection, federated learning
+In secure multiparty computation (MPC)\index{multiparty computation}, $n$ parties holding private inputs $x_1, \ldots, x_n$ jointly compute a function $f(x_1, \ldots, x_n)$ such that each party learns the output but nothing else about the other parties' inputs---even if some parties are corrupted.
 
+\subsection{The Millionaires' Problem}
+\label{subsec:millionaires}
+
+Yao's \emph{millionaires' problem}\index{millionaires' problem} (1982) is the canonical MPC example: Alice and Bob each know their net worth and wish to determine who is richer without revealing the actual amounts.  The problem generalises immediately: any function computable by a circuit can be evaluated securely by multiple parties.
+
+\begin{definition}[Secure Computation]
+\label{def:mpc}
+A protocol $\Pi$ among $n$ parties securely computes $f$ if, for any adversary corrupting up to $t$ parties, there exists a simulator $S$ such that the adversary's view in $\Pi$ is computationally indistinguishable from $S$'s output given only the corrupted parties' inputs and the function output.
+\end{definition}
+
+
+\subsection{Shamir Secret Sharing}
+\label{subsec:shamir}
+
+The foundation of most MPC protocols is \emph{secret sharing}\index{secret sharing}: distributing a secret among $n$ parties so that any $t+1$ can reconstruct it, but any $t$ learn nothing.
+
+\begin{definition}[Shamir's $(t+1, n)$-Secret Sharing]
+\label{def:shamir}
+To share a secret $s \in \Zq$:
+\begin{enumerate}
+\item Choose random coefficients $a_1, \ldots, a_t \getsr \Zq$.
+\item Define the polynomial $p(x) = s + a_1 x + \cdots + a_t x^t \pmod{q}$.
+\item Give party $i$ the share $s_i = p(i)$ for $i = 1, \ldots, n$.
+\end{enumerate}
+Any $t+1$ shares determine $p$ uniquely by Lagrange interpolation; any $t$ shares are uniformly distributed and reveal nothing about~$s$.
+\end{definition}
+
+Shamir secret sharing is information-theoretically secure---its security does not rely on any computational assumption and therefore survives quantum computers without modification.
+
+\begin{svgraybox}
+\textbf{Secret sharing as a hologram.}
+In holography, every fragment of a holographic plate contains information about the entire image, but the image can only be reconstructed from enough fragments.  Shamir shares behave analogously: each share individually is uniformly random (contains no information about the secret), yet any sufficiently large collection of shares perfectly reconstructs the original.
+\end{svgraybox}
+
+
+\subsection{Garbled Circuits}
+\label{subsec:garbled-circuits}
+
+Yao's \emph{garbled circuits}\index{garbled circuits} protocol provides a general method for two-party secure computation:
+
+\begin{enumerate}
+\item The \emph{garbler} (Alice) takes the Boolean circuit for $f$, assigns random cryptographic labels to each wire's $0$ and $1$ values, and creates an encrypted truth table for each gate.
+\item Alice sends the garbled circuit plus labels for her own input bits.
+\item Bob obtains labels for his input bits via \emph{oblivious transfer} (OT)\index{oblivious transfer}---a sub-protocol in which Alice sends one of two values and learns nothing about Bob's choice, while Bob learns only his chosen value.
+\item Bob evaluates the garbled circuit gate by gate and obtains labels for the output wires, which Alice helps decode.
+\end{enumerate}
+
+The security of garbled circuits reduces to the security of the symmetric encryption used for the truth tables and the security of oblivious transfer.
+
+
+\subsection{MPC from Lattice-Based Oblivious Transfer}
+\label{subsec:lattice-ot}
+
+Oblivious transfer is the critical building block.  Classical OT protocols rely on the Diffie--Hellman assumption or RSA, both quantum-vulnerable.  Post-quantum OT can be constructed from the \lwe{} assumption:
+
+\begin{enumerate}
+\item The receiver generates an \lwe{} public key that encodes their choice bit $b \in \{0,1\}$.
+\item The sender encrypts both messages $m_0, m_1$ under keys derived from the receiver's public key, such that only $m_b$ is decryptable.
+\item The receiver decrypts $m_b$; the \lwe{} assumption guarantees that $m_{1-b}$ is computationally hidden.
+\end{enumerate}
+
+This \lwe{}-based OT, combined with garbled circuits, yields a complete post-quantum two-party computation protocol.  Extension to $n$ parties uses standard techniques (e.g., the BMR protocol or SPDZ with lattice-based preprocessing).
+
+\begin{table}[t]
+\caption{Post-quantum MPC overhead compared to classical MPC}
+\label{tab:pq-mpc}
+\begin{tabular}{p{3.5cm}p{2.5cm}p{2.5cm}p{2cm}}
+\hline\noalign{\smallskip}
+\textbf{Operation} & \textbf{Classical} & \textbf{Post-quantum} & \textbf{Overhead} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+AES evaluation & 13 ms & 18 ms & 1.4$\times$ \\
+$10^6$ AND gates & 1.2 s & 2.1 s & 1.75$\times$ \\
+ML inference & 5 s & 8 s & 1.6$\times$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The overhead of post-quantum MPC (Table~\ref{tab:pq-mpc}) is modest: typically 1.4--1.8$\times$ compared to classical protocols.  The bottleneck is the larger ciphertext and key sizes of lattice-based OT, not any fundamental efficiency barrier.
+
+
+%% ================================================================
 \section{Lattice-Based Advanced Constructions}
 \label{sec:lattice-advanced}
 
-% TODO: Adapt from notes.tex §6.2.4
-% - Attribute-based encryption
-% - Identity-based encryption from lattices
-% - Threshold signatures and distributed key generation
-% - Functional encryption: computing specific functions on encrypted data
+The algebraic richness of lattices---particularly the trapdoor and preimage-sampling techniques developed by Gentry, Peikert, and Vaikuntanathan---enables cryptographic functionalities that have no efficient realisation from other post-quantum assumptions.  This section briefly surveys four such constructions.
 
-%% Exercises
+
+\subsection{Identity-Based Encryption}
+\label{subsec:ibe}
+
+In conventional public-key encryption, each user generates an independent key pair, and a public-key infrastructure (PKI) binds identities to public keys via certificates.  \emph{Identity-based encryption}\index{identity-based encryption} (IBE) eliminates the PKI: a user's public key \emph{is} their identity (e.g., an email address), and a trusted authority issues corresponding secret keys.
+
+Lattice-based IBE constructions use the following structure:
+\begin{itemize}
+\item A master authority generates a random matrix $\mathbf{A} \in \Zq^{n \times m}$ together with a short basis (trapdoor) for the lattice $\lat^\perp(\mathbf{A})$.
+\item To issue a key for identity $\mathit{id}$, the authority uses the trapdoor to sample a short vector $\mathbf{s}$ such that $H(\mathit{id}) \cdot \mathbf{s} = \mathbf{0} \pmod{q}$, where $H$ maps identities to matrices.
+\item Encryption to identity $\mathit{id}$ uses the matrix $H(\mathit{id})$ as a public key, and security reduces to \lwe{}.
+\end{itemize}
+
+Lattice IBE achieves adaptive security under standard \lwe{} assumptions---a stronger guarantee than the pairing-based schemes it replaces.
+
+
+\subsection{Attribute-Based Encryption}
+\label{subsec:abe}
+
+\emph{Attribute-based encryption}\index{attribute-based encryption} (ABE) generalises IBE from identities to Boolean policies.  Ciphertexts are tagged with attributes (e.g., ``Department = Physics'', ``Clearance = Secret''), and decryption keys are associated with policies (e.g., ``Department = Physics \textbf{AND} Clearance $\geq$ Secret'').  Decryption succeeds if and only if the ciphertext's attributes satisfy the key's policy.
+
+\begin{definition}[Ciphertext-Policy ABE]
+\label{def:cp-abe}
+A ciphertext-policy ABE scheme consists of:
+\begin{itemize}
+\item $\mathsf{Setup}(\lambda) \to (\mathit{mpk}, \mathit{msk})$: Generate master public/secret keys.
+\item $\Enc(\mathit{mpk}, P, m) \to \mathit{ct}$: Encrypt message $m$ under access policy~$P$.
+\item $\KeyGen(\mathit{msk}, S) \to \mathit{sk}_S$: Issue a secret key for attribute set~$S$.
+\item $\Dec(\mathit{sk}_S, \mathit{ct}) \to m$: Decrypt if and only if $S$ satisfies~$P$.
+\end{itemize}
+\end{definition}
+
+Lattice-based ABE constructions support policies expressible as Boolean formulas or even arbitrary circuits.  The key technique is Gentry, Sahai, and Waters's method of \emph{attribute-encoding} lattice trapdoors, which maps policy evaluation to lattice operations.
+
+
+\subsection{Threshold Signatures and Distributed Key Generation}
+\label{subsec:threshold}
+
+A \emph{threshold signature}\index{threshold signature} scheme distributes signing authority among $n$ parties so that any $t+1$ can jointly produce a valid signature, but $t$ or fewer cannot.  This is essential for securing cryptocurrency wallets, certificate authorities, and any system where a single point of compromise is unacceptable.
+
+Lattice-based threshold signatures face a unique challenge: the ``noise'' in lattice signatures must be carefully managed across distributed signers.  Recent constructions combine Shamir-style secret sharing of the lattice signing key with specialised distributed Gaussian sampling protocols, achieving threshold variants of both Dilithium-style and Falcon-style signatures.
+
+
+\subsection{Functional Encryption}
+\label{subsec:fe}
+
+\emph{Functional encryption}\index{functional encryption} (FE) is a generalisation of public-key encryption in which a decryption key $\mathit{sk}_f$ associated with a function $f$ allows the holder to compute $f(m)$ from a ciphertext encrypting $m$---and nothing more.
+
+\begin{example}[Inner-Product Functional Encryption]
+\label{ex:ipfe}
+A hospital encrypts a patient record $\mathbf{m} \in \Zq^n$.  A researcher holds a key $\mathit{sk}_{\mathbf{y}}$ for a vector $\mathbf{y}$.  Decryption yields the inner product $\ip{\mathbf{m}}{\mathbf{y}} \pmod{q}$---e.g., a weighted health score---without revealing any other component of $\mathbf{m}$.  Lattice-based inner-product FE is efficient and secure under standard \lwe{} assumptions.
+\end{example}
+
+General functional encryption (for arbitrary functions $f$) remains largely theoretical, with constructions relying on indistinguishability obfuscation.  However, inner-product and quadratic functional encryption from lattices are practical today and see use in privacy-preserving data analytics.
+
+\begin{table}[t]
+\caption{Maturity of lattice-based advanced constructions}
+\label{tab:advanced-maturity}
+\begin{tabular}{p{3.5cm}p{2.5cm}p{2.5cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Primitive} & \textbf{Theory} & \textbf{Practice} & \textbf{Main challenge} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+FHE & Mature & Deployed & Performance \\
+IBE & Mature & Prototypes & Key management \\
+ABE & Mature & Research & Ciphertext/key size \\
+Threshold signatures & Active & Prototypes & Distributed sampling \\
+Functional encryption & Partial & Limited & General functions \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch14-fhe}
-In an LWE-based FHE scheme, a fresh ciphertext has noise magnitude $\sigma$. After one homomorphic multiplication, the noise grows to approximately $\sigma^2 \cdot n$ where $n$ is the lattice dimension. If the modulus is $q$ and decryption fails when noise exceeds $q/2$, compute the maximum multiplicative depth as a function of $\sigma$, $n$, and $q$. For $\sigma = 3.2$, $n = 1024$, $q = 2^{27}$, how many multiplications can be performed before bootstrapping is required?
+\textbf{FHE noise budget.}\\
+In an \lwe{}-based FHE scheme, a fresh ciphertext has noise magnitude $\sigma$.  After one homomorphic multiplication, the noise grows to approximately $\sigma^2 \cdot n$ where $n$ is the lattice dimension.  If the modulus is $q$ and decryption fails when noise exceeds $q/2$:
+\begin{enumerate}
+\item[(a)] Show that after $L$ levels of multiplication the noise is approximately $\sigma^{2^L} \cdot n^{2^L - 1}$.
+\item[(b)] Derive the maximum multiplicative depth $L_{\max}$ as a function of $\sigma$, $n$, and $q$ by solving $\sigma^{2^L} \cdot n^{2^L - 1} = q/2$.
+\item[(c)] For $\sigma = 3.2$, $n = 1024$, $q = 2^{27}$, compute $L_{\max}$.  How many multiplications can be performed before bootstrapping is required?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch14-zkp}
+\textbf{Stern-type soundness.}\\
+A Stern-type zero-knowledge protocol has soundness error $2/3$ per round.
+\begin{enumerate}
+\item[(a)] How many rounds are needed to achieve soundness error below $2^{-128}$?
+\item[(b)] If each round requires sending three commitments of 256~bits each, estimate the total proof size.
+\item[(c)] The Fiat--Shamir transform converts this interactive proof into a non-interactive one.  In the quantum random oracle model, the soundness loss is a multiplicative factor of $\sqrt{q_H}$ where $q_H$ is the number of hash queries.  If we allow $q_H = 2^{64}$ quantum queries, how many additional rounds must be added to maintain $2^{-128}$ soundness?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch14-shamir}
+\textbf{Secret sharing arithmetic.}\\
+Consider Shamir $(3, 5)$-secret sharing over $\Z_{17}$.  The dealer wishes to share $s = 11$.
+\begin{enumerate}
+\item[(a)] Choose random coefficients $a_1, a_2 \in \Z_{17}$ and compute the five shares.
+\item[(b)] Verify that any three shares reconstruct $s$ via Lagrange interpolation.
+\item[(c)] Verify that any two shares are consistent with \emph{every} possible secret $s' \in \Z_{17}$.
+\item[(d)] Suppose two parties hold shares of secrets $s$ and $s'$ respectively (shared with the same evaluation points).  Explain how the parties can compute shares of $s + s'$ without interaction, and shares of $s \cdot s'$ with one round of communication.  Why does multiplication increase the threshold?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch14-advanced}
+\textbf{Research-level.}\\
+Functional encryption for inner products over $\Zq$ allows a key holder to learn $\ip{\mathbf{m}}{\mathbf{y}}$ from an encryption of $\mathbf{m}$.  Explain why this does \emph{not} trivially allow recovery of $\mathbf{m}$ itself (even if the adversary can request keys for many different vectors $\mathbf{y}$), provided $\dim(\mathbf{m}) > $ the number of key queries.  What happens when the number of queries equals $\dim(\mathbf{m})$?  Discuss the implications for bounding the number of functional decryption keys in a practical deployment.
 \end{prob}

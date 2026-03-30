@@ -3,72 +3,405 @@
 
 \abstract*{Mathematical security is necessary but not sufficient: more cryptographic deployments are compromised through implementation flaws than through mathematical breakthroughs. This chapter addresses the engineering challenges of post-quantum cryptography, from constant-time programming and side-channel resistance to random number generation and the bandwidth implications of larger keys and ciphertexts.}
 
+\abstract{Mathematical security is necessary but not sufficient: more cryptographic deployments are compromised through implementation flaws than through mathematical breakthroughs. This chapter addresses the engineering challenges of post-quantum cryptography, from constant-time programming and side-channel resistance to random number generation and the bandwidth implications of larger keys and ciphertexts.}
+
 % =============================================================
-% SOURCE: notes.tex §5.1 (lines 6426–6943)
-% REUSE: ~60%. Add masking for NTT, fault injection, CMVP.
+% Adapted from notes.tex §5.1 (lines 6426–6943).
+% New material: masking for NTT, fault injection, CMVP/FIPS 140-3.
 % =============================================================
+
 
 \section{The Constant-Time Imperative}
 \label{sec:constant-time}
 
-% TODO: Adapt from notes.tex §5.1.1
-% - Why timing variations leak secrets
-% - The Barrett reduction example (from notes)
-% - Constant-time programming patterns: no branches, no table lookups
-% - Tools: ctgrind, timecop, dudect
+A cryptographic algorithm may be provably secure in the mathematical model, yet a careless implementation can leak the entire secret key through execution time alone.  Timing side channels\index{timing side channel} arise whenever the duration of a computation depends on secret data: a branch taken or not taken, a cache line hit or miss, a variable-latency instruction---any of these can reveal bits of the key to an attacker who measures wall-clock time over many executions~\cite{FIPS203}.
 
+\subsection{Why Timing Variations Leak Secrets}
+\label{subsec:timing-leak}
+
+Consider an attacker who can query a decapsulation oracle and measure response time with nanosecond precision.  If the implementation contains a single conditional branch whose outcome depends on a secret coefficient, the attacker observes two clusters of timings.  By correlating timing with chosen ciphertexts, the attacker partitions the secret space and recovers coefficients one by one.  Kocher's seminal work showed that even \emph{average} timing differences of a few microseconds suffice when the attacker collects millions of measurements.
+
+\begin{example}[A Timing Disaster: Barrett Reduction]
+\label{ex:barrett-timing}
+The Barrett reduction\index{Barrett reduction} computes $a \bmod q$ using multiplication by a precomputed factor instead of division.  A naive implementation finishes with a conditional correction:
+\begin{lstlisting}[language=C]
+// INSECURE: timing depends on secret value
+int16_t barrett_reduce(int32_t a) {
+    int32_t t = (a * BARRETT_FACTOR) >> BARRETT_SHIFT;
+    t = a - t * KYBER_Q;
+    if (t >= KYBER_Q) {   // SECRET-DEPENDENT BRANCH
+        t -= KYBER_Q;
+    }
+    return (int16_t)t;
+}
+\end{lstlisting}
+The branch on line~5 executes conditionally depending on~\texttt{t}, which correlates with the secret polynomial coefficient being reduced.  Over millions of NTT operations, the timing difference between the taken and not-taken paths leaks enough information to reconstruct the secret key.
+\end{example}
+
+The constant-time fix replaces the branch with an arithmetic mask:
+
+\begin{lstlisting}[language=C]
+// SECURE: constant-time Barrett reduction
+int16_t barrett_reduce_ct(int32_t a) {
+    int32_t t = (a * BARRETT_FACTOR) >> BARRETT_SHIFT;
+    t = a - t * KYBER_Q;
+    t -= KYBER_Q & ~((t - KYBER_Q) >> 31);  // branchless
+    return (int16_t)t;
+}
+\end{lstlisting}
+
+The expression \texttt{(t - KYBER\_Q) >> 31} produces an all-ones mask when $t < q$ and an all-zeros mask when $t \geq q$.  The subtraction is performed unconditionally; the mask selects whether the result is kept.
+
+\subsection{Constant-Time Programming Patterns}
+\label{subsec:ct-patterns}
+
+\begin{svgraybox}
+\textbf{The four rules of constant-time programming.}
+Every implementation that processes secret data must obey:
+\begin{enumerate}
+\item \textbf{No secret-dependent branches.}  All conditional logic on secret values must be replaced by arithmetic or bitwise select operations.
+\item \textbf{No secret-dependent memory access patterns.}  Array indices derived from secret data cause cache-timing leaks; use constant-index sweeps with conditional moves.
+\item \textbf{No variable-latency instructions on secret data.}  On many microarchitectures, integer division and floating-point operations have data-dependent latency.
+\item \textbf{No early termination.}  Comparison routines must always examine every byte; loops must execute a fixed number of iterations.
+\end{enumerate}
+\end{svgraybox}
+
+These rules apply to all three NIST standards.  ML-KEM~\cite{FIPS203} uses the Fujisaki--Okamoto transform, which requires a constant-time comparison of re-encrypted ciphertext.  ML-DSA~\cite{FIPS204} rejection-samples signatures in a loop that must always run a fixed number of iterations.  SLH-DSA~\cite{FIPS205} uses hash-based tree traversal with secret-dependent leaf selection that must be protected.
+
+\subsection{Verification Tools}
+\label{subsec:ct-tools}
+
+Manual inspection is insufficient for verifying constant-time behaviour.  The following tools automate the analysis:
+
+\begin{table}[t]
+\caption{Constant-time verification tools}
+\label{tab:ct-tools}
+\begin{tabular}{p{2.5cm}p{3.5cm}p{5cm}}
+\hline\noalign{\smallskip}
+\textbf{Tool} & \textbf{Approach} & \textbf{Scope} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+\texttt{ctgrind}  & Valgrind-based taint tracking  & Detects branches and memory accesses on tainted (secret) data \\
+\texttt{timecop}  & Valgrind memcheck extension     & Flags uninitialised-value-style errors for secret-dependent control flow \\
+\texttt{dudect}   & Statistical black-box testing   & Measures timing distributions; no source access needed \\
+\texttt{ct-verif} & LLVM-based formal verification  & Proves constant-time at the IR level \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+For production code, a combination of static analysis (\texttt{ct-verif}) and dynamic testing (\texttt{dudect}) provides the strongest assurance.
+
+
+%% ================================================================
 \section{Side Channels in Lattice Cryptography}
 \label{sec:side-channels}
 
-% TODO: Expand from notes.tex §5.1.1
-% - Timing attacks on NTT and polynomial arithmetic
-% - Power analysis: SPA and DPA on lattice operations
-% - Electromagnetic emanation attacks
-% - Cache-timing attacks on table-based implementations
-% - Masking countermeasures for NTT
-% - Cite: Primas et al. 2017, Ravi et al. 2020
+Lattice-based schemes introduce side-channel surfaces that have no analogue in RSA or ECC.  The Number Theoretic Transform (NTT), polynomial sampling, and the Fujisaki--Okamoto decapsulation check each present distinct attack opportunities.
 
+\subsection{Timing Attacks on the NTT}
+\label{subsec:ntt-timing}
+
+The NTT\index{NTT!side channel} is the performance-critical kernel of ML-KEM and ML-DSA: it reduces polynomial multiplication from $\bigO(n^2)$ to $\bigO(n \log n)$.  Each butterfly operation involves a modular multiplication followed by modular reduction.  If the reduction uses a conditional subtraction (as in \cref{ex:barrett-timing}), the attacker can correlate timing with individual coefficients of the secret polynomial.
+
+A constant-time butterfly avoids all branches:
+
+\begin{lstlisting}[language=C]
+// Constant-time NTT butterfly with Montgomery reduction
+void ct_butterfly(int16_t *a, int16_t *b, int16_t zeta) {
+    int32_t t = (int32_t)montgomery_reduce((int32_t)*b * zeta);
+    *b = *a - t;
+    *a = *a + t;
+    // Branchless conditional reduction
+    *a -= KYBER_Q & -((*a >= KYBER_Q));
+    *b += KYBER_Q & -((*b < 0));
+}
+\end{lstlisting}
+
+\subsection{Power and Electromagnetic Analysis}
+\label{subsec:power-em}
+
+Simple Power Analysis (SPA)\index{SPA} and Differential Power Analysis (DPA)\index{DPA} exploit the fact that different instructions and data values draw different amounts of current.  A single power trace of an NTT execution can reveal the structure of the butterfly network, and by extension the secret polynomial.
+
+\textbf{SPA on lattice operations.}  The NTT butterfly has a characteristic power signature: the multiply-and-reduce step draws measurably more current than addition.  When the reduction step is conditional, the power trace directly reveals whether the subtraction occurred.  For ML-DSA, the rejection sampling loop produces a variable number of NTT calls per signature; the number of iterations visible in the power trace leaks information about the secret key.
+
+\textbf{DPA on polynomial coefficients.}  By collecting thousands of power traces during decapsulation and correlating with hypothesised coefficient values, an attacker mounts a DPA attack that recovers the secret polynomial coefficient by coefficient.  The attack succeeds because each butterfly operation processes one coefficient against one twiddle factor, creating a localised power-secret dependency.
+
+\textbf{Electromagnetic emanation attacks.}  EM probes placed near the processor die can achieve spatial resolution sufficient to isolate individual pipeline stages.  This is particularly threatening for embedded implementations (smart cards, IoT devices) where the attacker may have physical access.
+
+\subsection{Cache-Timing Attacks}
+\label{subsec:cache-timing}
+
+Table-based implementations of modular arithmetic or hash functions are vulnerable to cache-timing attacks\index{cache-timing attack}.  When a lookup table exceeds one cache line (typically 64 bytes), the access pattern reveals which entries were used.  In lattice cryptography, this affects:
+
+\begin{itemize}
+\item \textbf{NTT twiddle factor tables.}  If the table of roots of unity is large enough to span multiple cache lines, the access pattern during the NTT reveals structural information about the transform.
+\item \textbf{Discrete Gaussian sampling via CDT.}  The cumulative distribution table (CDT) method performs a binary search; the sequence of cache lines accessed reveals the sampled value.
+\item \textbf{SHAKE/SHA-3 round functions.}  The Keccak permutation is naturally constant-time, but software implementations that use lookup tables for the $\chi$ step may leak.
+\end{itemize}
+
+The countermeasure is to ensure all table accesses sweep the entire table in constant time, selecting the desired entry via conditional moves.
+
+\subsection{Masking Countermeasures for the NTT}
+\label{subsec:masking-ntt}
+
+Masking\index{masking} is the standard countermeasure against power and EM analysis.  The idea is to split every secret value $x$ into $d+1$ shares $x_0, \ldots, x_d$ such that $x = x_0 + x_1 + \cdots + x_d \bmod q$, where each share is individually uniformly random.  An attacker who observes fewer than $d+1$ shares learns nothing about~$x$.
+
+\begin{definition}[Boolean and Arithmetic Masking]
+\label{def:masking}
+Let $x \in \Zq$ be a secret value.
+\begin{itemize}
+\item \textbf{Boolean masking\index{masking!Boolean}:} choose $r \getsr \{0,1\}^k$ and store $(x \oplus r,\; r)$.
+\item \textbf{Arithmetic masking\index{masking!arithmetic}:} choose $r \getsr \Zq$ and store $(x - r \bmod q,\; r)$.
+\end{itemize}
+A $d$-th order masking scheme uses $d+1$ shares and is secure against attackers who can probe at most $d$ intermediate values simultaneously.
+\end{definition}
+
+Applying masking to the NTT is non-trivial because the butterfly mixes shares through both addition and multiplication.  The state of the art proceeds as follows:
+
+\begin{enumerate}
+\item Mask all input coefficients with arithmetic shares before entering the NTT.
+\item Perform the NTT independently on each share (the NTT is linear over $\Zq$, so $\mathrm{NTT}(x_0 + x_1) = \mathrm{NTT}(x_0) + \mathrm{NTT}(x_1)$).
+\item For pointwise multiplication (which is non-linear), use a secure multiplication gadget that refreshes shares after every product.
+\item Recombine shares only at the final output, after all secret-dependent operations are complete.
+\end{enumerate}
+
+The overhead of first-order masking ($d=1$) is roughly $2$--$3\times$ in execution time and $2\times$ in memory.  Higher-order masking scales as $\bigO(d^2)$ due to the secure multiplication gadget.
+
+\begin{remark}[Masking vs.\ Hiding]
+Masking (splitting secrets into shares) and hiding (adding random delays or shuffling operation order) are complementary.  Production implementations targeting smart-card certification (Common Criteria EAL4+ or higher) typically combine both.
+\end{remark}
+
+
+%% ================================================================
 \section{Fault Injection Attacks}
 \label{sec:fault-injection}
 
-% TODO: New section
-% - Fault models: instruction skip, bit flip, random value
-% - Attacks on Dilithium: skipping rejection sampling
-% - Attacks on Kyber: faulting decapsulation
-% - Countermeasures: redundancy, checksums, detection
-% - The physics perspective: laser fault injection, EM pulses
+Fault injection\index{fault injection} attacks corrupt a computation by inducing physical perturbations---voltage glitches, clock manipulation, laser pulses, or electromagnetic pulses---and exploit the faulty output to recover secrets.  Unlike side-channel attacks, which passively observe, fault attacks actively modify the device's behaviour.
 
+\subsection{Fault Models}
+\label{subsec:fault-models}
+
+The standard fault models, ordered by attacker strength, are:
+
+\begin{enumerate}
+\item \textbf{Instruction skip.}  A single instruction is replaced by a NOP.  This is achievable with voltage or clock glitches and requires only coarse temporal control.
+\item \textbf{Random byte/word fault.}  A storage element (register or SRAM cell) is set to a random value.  Laser fault injection achieves this with spatial precision of a few micrometres.
+\item \textbf{Bit flip.}  A single bit in a register or memory cell is toggled.  Focused ion beam or precise laser attacks can target individual bits.
+\item \textbf{Stuck-at fault.}  A bit is forced to~0 or~1 permanently.  This models persistent hardware damage.
+\end{enumerate}
+
+\subsection{Attacks on ML-DSA (Dilithium)}
+\label{subsec:fault-dilithium}
+
+ML-DSA~\cite{FIPS204} uses rejection sampling: after computing a candidate signature $\mathbf{z} = \mathbf{y} + c\mathbf{s}_1$, the signer checks $\norm{\mathbf{z}}_\infty < \gamma_1 - \beta$.  If the check fails, the signer restarts with fresh randomness.
+
+\textbf{Skipping the rejection check.}  If an attacker can induce an instruction skip that bypasses the norm check, the faulty signature is output without rejection.  This signature leaks information about $\mathbf{s}_1$: without the bound on $\norm{\mathbf{z}}_\infty$, the distribution of $\mathbf{z}$ is no longer independent of the secret.  Collecting a few hundred faulty signatures enables full key recovery via lattice reduction.
+
+\textbf{Faulting the hash computation.}  If the challenge hash $c = H(\mu \| \mathbf{w}_1)$ is corrupted, the resulting signature $(c', \mathbf{z})$ satisfies $\mathbf{z} = \mathbf{y} + c'\mathbf{s}_1$ for a known $c'$.  Two signatures with the same $\mathbf{y}$ but different challenges yield $\mathbf{z}_1 - \mathbf{z}_2 = (c_1' - c_2')\mathbf{s}_1$, recovering $\mathbf{s}_1$ directly.
+
+\subsection{Attacks on ML-KEM (Kyber)}
+\label{subsec:fault-kyber}
+
+ML-KEM~\cite{FIPS203} uses the Fujisaki--Okamoto (FO) transform, which re-encrypts the decrypted message and compares the result to the received ciphertext.  If they match, the shared secret is derived from the message; otherwise, an implicit rejection value is returned.
+
+\textbf{Faulting the FO comparison.}  If the attacker skips the re-encryption check, the oracle always returns the ``real'' shared secret, converting the CCA-secure scheme into a CPA-only scheme.  The attacker then mounts a chosen-ciphertext attack against the underlying CPA encryption, recovering the secret key.
+
+\textbf{Faulting decryption coefficients.}  A random fault during inverse-NTT corrupts a single coefficient of the decrypted polynomial.  By submitting the same ciphertext multiple times and comparing correct and faulted outputs, the attacker isolates individual coefficients of the secret key.
+
+\subsection{Countermeasures}
+\label{subsec:fault-countermeasures}
+
+\begin{table}[t]
+\caption{Fault injection countermeasures and their overhead}
+\label{tab:fault-countermeasures}
+\begin{tabular}{p{3cm}p{5cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Countermeasure} & \textbf{Mechanism} & \textbf{Overhead} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Redundant computation & Execute critical operations twice and compare results & $\sim\!2\times$ time \\
+Algorithm-level checksums & Verify $\mathbf{A}\mathbf{s} + \mathbf{e} = \mathbf{t}$ after key generation & Low ($< 5\%$) \\
+Instruction flow monitoring & Hardware watchdog or software control-flow integrity & $10$--$20\%$ \\
+Infection countermeasure & Randomise output on detected fault (no error signal) & Negligible \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The most effective strategy combines algorithmic redundancy (recompute and compare) with randomised fault detection (infection).  An attacker who cannot distinguish a detected fault from a natural rejection gains no information.
+
+\begin{remark}[The Physics of Fault Injection]
+Laser fault injection uses focused infrared pulses ($\lambda \approx 1064\,\mathrm{nm}$) to generate photo-currents in SRAM cells, flipping bits with spatial resolution of $\sim\!1\,\mu\mathrm{m}$.  Electromagnetic fault injection (EMFI) uses a coil probe to induce transient currents, offering lower precision but no requirement for decapsulation of the chip package.  Both techniques are available as commercial test equipment for security evaluation laboratories.
+\end{remark}
+
+
+%% ================================================================
 \section{Random Number Generation}
 \label{sec:rng}
 
-% TODO: Adapt from notes.tex §5.1.2
-% - Why randomness quality is critical for PQC
-% - DRBG requirements: NIST SP 800-90A
-% - Hardware RNG: quantum RNG advantages (connection to Quside!)
-% - Deterministic key generation: avoiding randomness failures
+Lattice-based cryptography is extraordinarily hungry for randomness.  ML-KEM key generation requires sampling an entire matrix $\mathbf{A} \in \Zq^{k \times k}$ of polynomials plus secret and error vectors---thousands of random coefficients per operation.  Poor randomness does not merely weaken security; it can destroy it completely.
 
+\subsection{DRBG Requirements}
+\label{subsec:drbg}
+
+NIST SP~800-90A specifies three approved Deterministic Random Bit Generators (DRBGs)\index{DRBG}: \texttt{CTR\_DRBG} (based on AES), \texttt{Hash\_DRBG} (based on SHA-2), and \texttt{HMAC\_DRBG}.  All three NIST post-quantum standards use SHAKE-128 or SHAKE-256 (instances of SHA-3) to expand a seed into the required random bytes, effectively using the seed-expansion paradigm internally.
+
+The critical requirement is the quality of the initial seed.  A DRBG seeded with 256~bits of true entropy provides $2^{256}$ security regardless of how many bytes are subsequently generated.  A DRBG seeded with 15~bits of entropy (as in the 2008 Debian OpenSSL disaster\index{Debian OpenSSL bug}) reduces the entire key space to $2^{15}$, and the lattice structure makes key recovery even easier than brute force: the error distribution collapses, and simple linear algebra suffices.
+
+\subsection{Hardware and Quantum Random Number Generation}
+\label{subsec:hw-qrng}
+
+\textbf{Hardware RNG (HRNG).}  Modern processors include hardware entropy sources: Intel's \texttt{RDRAND}/\texttt{RDSEED} (thermal noise in a metastable circuit), ARM's \texttt{TRNG} (ring oscillator jitter).  These provide the seed entropy that DRBGs expand.  The Linux kernel's \texttt{getrandom()} system call blocks until sufficient entropy is available, making it the recommended interface.
+
+\textbf{Quantum RNG (QRNG).}  Quantum random number generators\index{QRNG} exploit the fundamental indeterminacy of quantum measurements---typically photon arrival times, vacuum fluctuations, or beam splitter outcomes.  Unlike classical entropy sources, whose unpredictability rests on complexity assumptions, QRNG unpredictability is guaranteed by the laws of physics.  For post-quantum cryptography, there is a pleasing conceptual closure: the same quantum mechanics that threatens classical cryptography provides provably random seeds for its replacement.
+
+\subsection{Deterministic Key Generation}
+\label{subsec:deterministic-keygen}
+
+All three NIST standards support deterministic key generation from a single 32-byte seed:
+
+\begin{lstlisting}[language=C]
+// ML-KEM: deterministic key generation (FIPS 203, Algorithm 16)
+void ml_kem_keygen(uint8_t *pk, uint8_t *sk, const uint8_t seed[32]) {
+    uint8_t expanded[64];
+    shake256(expanded, 64, seed, 32);
+    // expanded[0..31] -> seed for matrix A
+    // expanded[32..63] -> seed for secret/error
+    expand_A(A, expanded);
+    sample_secret(s, e, expanded + 32);
+    pk = encode(A, A*s + e);
+    sk = encode(s, pk, H(pk), z);  // z = implicit rejection seed
+}
+\end{lstlisting}
+
+\textbf{Advantages:} reproducible key generation for testing, reduced RNG exposure surface (one call instead of many), and the ability to recover keys from a backed-up seed.
+
+\textbf{Risks:} seed compromise is total compromise, and the seed expansion itself must be protected against side channels.
+
+\begin{remark}[Hedged Randomness]
+A prudent implementation \emph{hedges} by mixing the output of the system RNG with a deterministic component: $\text{seed} = H(\text{DRBG output} \| \text{nonce} \| \text{context})$.  If either source is compromised, the other provides a safety net.
+\end{remark}
+
+
+%% ================================================================
 \section{Key and Ciphertext Sizes}
 \label{sec:sizes}
 
-% TODO: Adapt from notes.tex §5.1.3
-% - Comprehensive comparison table: all NIST standards
-% - Impact on protocols: TLS handshake overhead
-% - Impact on storage: certificate databases, blockchain
-% - Compression techniques for lattice elements
+The most immediate practical consequence of post-quantum cryptography is larger keys and ciphertexts.  Table~\ref{tab:pqc-sizes} presents a comprehensive comparison of all NIST post-quantum standards against classical baselines.
 
+\begin{table}[t]
+\caption{Key, signature, and ciphertext sizes for NIST PQC standards (bytes)}
+\label{tab:pqc-sizes}
+\begin{tabular}{p{3.2cm}rrrr}
+\hline\noalign{\smallskip}
+\textbf{Algorithm} & \textbf{Public key} & \textbf{Secret key} & \textbf{Sig./CT} & \textbf{Security} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+\multicolumn{5}{l}{\textit{Classical baselines}} \\
+ECDH-P256         &   64 &   32 &   64\textsuperscript{CT} & 128-bit \\
+Ed25519            &   32 &   32 &   64\textsuperscript{Sig} & 128-bit \\
+RSA-3072           &  384 &  384 &  384\textsuperscript{Sig} & 128-bit \\
+\noalign{\smallskip}\hline\noalign{\smallskip}
+\multicolumn{5}{l}{\textit{ML-KEM (FIPS 203)---Key Encapsulation}} \\
+ML-KEM-512         &  800 & 1{,}632 &  768\textsuperscript{CT} & 128-bit \\
+ML-KEM-768         & 1{,}184 & 2{,}400 & 1{,}088\textsuperscript{CT} & 192-bit \\
+ML-KEM-1024        & 1{,}568 & 3{,}168 & 1{,}568\textsuperscript{CT} & 256-bit \\
+\noalign{\smallskip}\hline\noalign{\smallskip}
+\multicolumn{5}{l}{\textit{ML-DSA (FIPS 204)---Digital Signature}} \\
+ML-DSA-44          & 1{,}312 & 2{,}560 & 2{,}420\textsuperscript{Sig} & 128-bit \\
+ML-DSA-65          & 1{,}952 & 4{,}032 & 3{,}309\textsuperscript{Sig} & 192-bit \\
+ML-DSA-87          & 2{,}592 & 4{,}896 & 4{,}627\textsuperscript{Sig} & 256-bit \\
+\noalign{\smallskip}\hline\noalign{\smallskip}
+\multicolumn{5}{l}{\textit{SLH-DSA (FIPS 205)---Hash-Based Signature}} \\
+SLH-DSA-128s       &   32 &   64 & 7{,}856\textsuperscript{Sig} & 128-bit \\
+SLH-DSA-128f       &   32 &   64 & 17{,}088\textsuperscript{Sig} & 128-bit \\
+SLH-DSA-192s       &   48 &   96 & 16{,}224\textsuperscript{Sig} & 192-bit \\
+SLH-DSA-256s       &   64 &  128 & 29{,}792\textsuperscript{Sig} & 256-bit \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\subsection{Impact on TLS}
+\label{subsec:tls-impact}
+
+A TLS~1.3 handshake with X25519~+~Ed25519 transmits approximately 1.5\,KB of cryptographic material (key shares, certificates, signatures).  Replacing this with ML-KEM-768~+~ML-DSA-65 increases the cryptographic payload to roughly 9\,KB---a $6\times$ increase.  With a typical certificate chain of three certificates, the total signature contribution alone is $3 \times 3{,}309 = 9{,}927$~bytes, requiring TCP fragmentation and potentially an additional round trip.
+
+\begin{example}[Handshake Overhead Calculation]
+\label{ex:tls-overhead}
+Consider replacing X25519 (32\,B public key) + Ed25519 (32\,B public key, 64\,B signature) with ML-KEM-768 + ML-DSA-65 in a TLS~1.3 handshake:
+\begin{itemize}
+\item Key exchange overhead: $(1{,}184 + 1{,}088) - (32 + 32) = +2{,}208$\,B.
+\item Authentication overhead (3-cert chain): $3 \times (1{,}952 + 3{,}309) - 3 \times (32 + 64) = +15{,}495$\,B.
+\item Total additional bytes: $\approx 17{,}700$\,B.
+\end{itemize}
+With a 1{,}500-byte MTU, the classical handshake fits in $\sim\!2$ TCP segments; the post-quantum handshake requires $\sim\!14$ segments and may need an additional round trip.
+\end{example}
+
+\subsection{Storage and Compression}
+\label{subsec:storage}
+
+\textbf{Certificate databases.}  A certificate authority storing $10^6$ end-entity certificates sees public-key storage grow from 32\,MB (Ed25519) to 1.95\,GB (ML-DSA-65)---a $61\times$ increase that has infrastructure implications for database indexing, replication, and backup.
+
+\textbf{Blockchain.}  A Bitcoin transaction is approximately 250~bytes; replacing ECDSA with ML-DSA-65 would increase this to $\sim\!3{,}500$~bytes, accelerating blockchain growth by $14\times$.
+
+\textbf{Compression techniques.}  Lattice public keys exhibit algebraic structure that enables moderate compression:
+\begin{itemize}
+\item \textbf{Seed expansion.}  Store only the 32-byte seed for the matrix $\mathbf{A}$ and transmit $\mathbf{t} = \mathbf{A}\mathbf{s} + \mathbf{e}$; the receiver re-expands $\mathbf{A}$ from the seed.  This is already standard in ML-KEM and ML-DSA.
+\item \textbf{Coefficient compression.}  ML-KEM compresses ciphertext coefficients from 12~bits to 10 or 4~bits (depending on the component), reducing ciphertext size by $\sim\!25\%$ at the cost of a small decryption failure probability.
+\item \textbf{Hybrid schemes.}  During the transition period, using a compact classical algorithm alongside PQC (e.g., X25519~+~ML-KEM-768) adds only $\sim\!32$~bytes over the PQC-only cost while providing backward security.
+\end{itemize}
+
+
+%% ================================================================
 \section{Testing and Validation}
 \label{sec:validation}
 
-% TODO: New section
-% - Known-answer tests (KATs)
-% - NIST CMVP and FIPS 140-3 for PQC modules
-% - Formal verification of PQC implementations
-% - Cite: NIST validation program documentation
+Deploying a new cryptographic algorithm requires not only correct implementation but also formal evidence of correctness.  The testing and validation ecosystem for PQC is still maturing, but the foundational elements are in place.
 
+\subsection{Known-Answer Tests}
+\label{subsec:kats}
+
+A Known-Answer Test (KAT)\index{KAT} consists of a fixed input (seed, message, key) and the expected output (ciphertext, signature, shared secret).  NIST published KAT vectors for all parameter sets of ML-KEM, ML-DSA, and SLH-DSA as part of the FIPS standardisation process.  Any conforming implementation must reproduce these vectors bit-for-bit.
+
+KATs verify functional correctness but not security properties: an implementation that passes all KATs may still have timing leaks, fault vulnerabilities, or incorrect error handling on malformed inputs.  KATs are necessary but not sufficient.
+
+\subsection{FIPS 140-3 and the CMVP}
+\label{subsec:fips140}
+
+The Cryptographic Module Validation Program (CMVP)\index{CMVP}, jointly operated by NIST and the Canadian Centre for Cyber Security, certifies cryptographic modules under FIPS~140-3.  The standard defines four security levels:
+
+\begin{enumerate}
+\item \textbf{Level~1.}  Basic requirements: approved algorithms, KATs, no physical security.
+\item \textbf{Level~2.}  Tamper-evidence (seals, coatings), role-based authentication.
+\item \textbf{Level~3.}  Tamper-response (active zeroisation), identity-based authentication.
+\item \textbf{Level~4.}  Environmental failure protection, complete physical penetration resistance.
+\end{enumerate}
+
+With the publication of FIPS~203, 204, and 205 in 2024, the CMVP began accepting validation submissions for modules implementing the post-quantum standards.  The validation process tests:
+\begin{itemize}
+\item Algorithm correctness via KATs.
+\item Self-tests (power-up and conditional) as required by FIPS~140-3 \S4.9.
+\item Entropy source validation (SP~800-90B) for the seed generation path.
+\item Key zeroisation: secret keys must be erased from memory when no longer needed.
+\end{itemize}
+
+\subsection{Formal Verification}
+\label{subsec:formal-verification}
+
+Formal verification provides mathematical proof that an implementation correctly realises its specification.  Two approaches are gaining traction for PQC:
+
+\textbf{EasyCrypt and Jasmin.}  The Jasmin language compiles to verified constant-time assembly, and EasyCrypt provides machine-checked proofs of cryptographic security.  The FORMOSA project used this toolchain to produce a formally verified implementation of ML-KEM that is provably functionally correct and constant-time at the assembly level.
+
+\textbf{HACL* and Vale.}  The HACL* library (written in F*) provides verified C implementations of cryptographic primitives.  The Vale framework targets verified assembly for performance-critical routines.  Extensions to cover ML-KEM and ML-DSA are under active development.
+
+\begin{remark}[The Verification Gap]
+As of 2026, formally verified implementations of the NIST PQC standards exist only for ML-KEM.  ML-DSA and SLH-DSA lack complete verified implementations, and no verified implementation includes side-channel countermeasures beyond constant-time execution (i.e., no verified masking).  Closing this gap is one of the most important open problems in applied PQC.
+\end{remark}
+
+
+%% ================================================================
 %% Exercises
+%% ================================================================
+
 \begin{prob}
 \label{prob:ch12-timing}
-The following C function performs modular reduction. Identify the timing side channel and rewrite it in constant time.
+The following C function performs modular reduction.  Identify the timing side channel and rewrite it in constant time.
 \begin{lstlisting}[language=C]
 int16_t reduce(int32_t a, int16_t q) {
     int16_t r = a % q;
@@ -76,9 +409,31 @@ int16_t reduce(int32_t a, int16_t q) {
     return r;
 }
 \end{lstlisting}
+\textit{Hint:} Replace the branch with an arithmetic mask derived from the sign bit of~\texttt{r}.
 \end{prob}
 
 \begin{prob}
 \label{prob:ch12-bandwidth}
-A TLS 1.3 handshake currently fits in a single TCP round trip. Compute the additional bytes introduced by replacing X25519 + Ed25519 with ML-KEM-768 + ML-DSA-65. Will the handshake still fit in one round trip assuming a typical MTU of 1500 bytes?
+A TLS~1.3 handshake currently fits in a single TCP round trip.  Compute the additional bytes introduced by replacing X25519 + Ed25519 with ML-KEM-768 + ML-DSA-65.  Will the handshake still fit in one round trip assuming a typical MTU of 1{,}500~bytes?  What if SLH-DSA-128s is used for authentication instead of ML-DSA-65?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch12-masking}
+Consider an NTT butterfly that computes $a' = a + \omega b$ and $b' = a - \omega b$ over $\Zq$.  Suppose the inputs are arithmetically masked: $a = a_0 + a_1 \bmod q$ and $b = b_0 + b_1 \bmod q$.  Show that performing the butterfly independently on each share pair $(a_0, b_0)$ and $(a_1, b_1)$ produces valid shares of the output, i.e., $a'_0 + a'_1 = a' \bmod q$.  Why does this argument fail for pointwise multiplication $c = a \cdot b$?
+\end{prob}
+
+\begin{prob}
+\label{prob:ch12-fault}
+An attacker can inject a single instruction-skip fault during ML-DSA signing.  Describe which instruction the attacker should target to bypass rejection sampling.  If the attacker collects $N$ faulty signatures, outline how to mount a key-recovery attack.  Propose a software countermeasure and argue that it defeats the single-fault model.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch12-ct-verify}
+Write a C function \texttt{ct\_equal(const uint8\_t *a, const uint8\_t *b, size\_t len)} that returns 1 if the two byte arrays are identical and 0 otherwise, in constant time.  Verify that your implementation has no early-exit path.  Explain why \texttt{memcmp()} from the standard library is \emph{not} suitable for comparing secret data.
+\begin{lstlisting}[language=C]
+// Skeleton: fill in the body
+int ct_equal(const uint8_t *a, const uint8_t *b, size_t len) {
+    // Your implementation here
+}
+\end{lstlisting}
 \end{prob}

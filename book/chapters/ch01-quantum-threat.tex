@@ -1,55 +1,288 @@
 \chapter{The Quantum Threat to Modern Cryptography}
 \label{ch:quantum-threat}
 
-\abstract*{The advent of large-scale quantum computers poses an existential threat to the cryptographic infrastructure underpinning modern digital communications. This chapter introduces the scope of the problem, from the theoretical certainty of Shor's algorithm to the practical urgency of the ``harvest now, decrypt later'' attack model. We establish the timeline for the post-quantum transition and motivate the mathematical journey ahead.}
+\abstract*{The advent of large-scale quantum computers poses an existential threat to the cryptographic infrastructure underpinning modern digital communications.  This chapter quantifies the scope of that infrastructure, introduces the ``harvest now, decrypt later'' attack model that makes the threat an immediate concern, traces the historical arc from Shor's algorithm in 1994 to the NIST post-quantum standards finalised in 2024, and outlines the structure of the remainder of this book.}
 
-% =============================================================
-% SOURCE: notes.tex §1 (lines 52–224)
-% REUSE: ~70%. Remove lecture framing, expand historical context.
-% NEW: Formal threat model, detailed HNDL timeline with data.
-% =============================================================
+\abstract{The advent of large-scale quantum computers poses an existential threat to the cryptographic infrastructure underpinning modern digital communications.  This chapter quantifies the scope of that infrastructure, introduces the ``harvest now, decrypt later'' attack model that makes the threat an immediate concern, traces the historical arc from Shor's algorithm in 1994 to the NIST post-quantum standards finalised in 2024, and outlines the structure of the remainder of this book.}
+
+
+%% =============================================================
+%% Adapted from notes.tex §1.1 (lines 52–224).
+%% New material: §1.2 (HNDL threat model), §1.3 (historical arc),
+%%               §1.4 (book roadmap).
+%% =============================================================
+
 
 \section{The Cryptographic Infrastructure of the Digital Age}
 \label{sec:crypto-infrastructure}
 
-% TODO: Adapt from notes.tex §1.1
-% - Remove "Three hours ago..." framing
-% - Quantify: daily TLS connections, certificates issued, economic value protected
-% - Cite: Diffie-Hellman 1976, RSA 1978, Koblitz/Miller 1985
+Every digital interaction of economic or strategic value---from credit-card transactions to diplomatic cables---depends on a small number of public-key cryptographic primitives\index{public-key cryptography}.  The scale of this dependence is difficult to overstate.
 
+\subsection{Scale and Economic Exposure}
+
+The Transport Layer Security (TLS)\index{TLS} protocol negotiates roughly $10^{10}$ new sessions per day worldwide; each session begins with a public-key handshake that establishes a shared secret.  The certificate ecosystem backing those handshakes comprises over $5\times10^{9}$ active X.509 certificates, every one of which binds a public key to an identity via a digital signature.  The annual volume of electronic commerce protected by these mechanisms exceeds USD~$5\times10^{12}$.
+
+Beneath this surface, essentially all inter-bank settlement, government communications, software-update authentication, and critical-infrastructure control traffic rely on the same mathematical foundations: the presumed hardness of integer factorisation (RSA~\cite{RSA1978})\index{RSA}, the discrete logarithm problem in finite fields (Diffie--Hellman key exchange~\cite{DiffieHellman1976})\index{Diffie--Hellman}, or the elliptic-curve discrete logarithm problem (ECDSA, ECDH)\index{elliptic curve cryptography}.
+
+\subsection{The Asymmetric Bottleneck}
+
+Symmetric-key algorithms such as AES are not directly threatened by Shor's algorithm; Grover's algorithm~\cite{Grover1996}\index{Grover's algorithm} provides at most a quadratic speedup, which is mitigated by doubling key lengths.  The vulnerability concentrates in the \emph{asymmetric} component of every protocol: key exchange, digital signatures, and public-key encryption.  This asymmetric bottleneck means that a single algorithmic advance---Shor's algorithm\index{Shor's algorithm}---compromises the entirety of the public-key infrastructure without touching the symmetric layer.
+
+\begin{svgraybox}
+\textbf{A useful analogy.}  Think of the global cryptographic infrastructure as a building.  Symmetric ciphers are the walls: solid, well-understood, and quantum-resistant with modest reinforcement.  Public-key algorithms are the load-bearing columns: few in number, but if any one fails the entire structure collapses.  Shor's algorithm is a threat to the columns, not the walls.
+\end{svgraybox}
+
+\subsection{What Exactly Breaks}
+
+The vulnerability of current public-key cryptography rests on two number-theoretic problems:
+
+\begin{enumerate}
+\item \textbf{Integer factorisation\index{integer factorisation}:} Given $N = pq$ for large primes $p, q$, find $p$ and $q$.  RSA encryption and RSA signatures rely on the hardness of this problem.  The best known classical algorithm, the General Number Field Sieve, runs in sub-exponential time $e^{\bigO(n^{1/3}\log^{2/3}n)}$ where $n = \log N$.
+
+\item \textbf{Discrete logarithm\index{discrete logarithm}:} Given $g, h$ in a cyclic group $G$ of order $q$, find $x$ such that $g^x = h$.  Diffie--Hellman key exchange, the Digital Signature Algorithm (DSA), and all elliptic-curve protocols depend on this problem.
+\end{enumerate}
+
+Shor's algorithm~\cite{Shor1994, Shor1997} solves both problems in polynomial time on a quantum computer, specifically in $\bigO(n^3)$ quantum gate operations for an $n$-bit input.  The algorithm reduces factorisation and discrete logarithm computation to instances of the \emph{hidden subgroup problem}\index{hidden subgroup problem} over abelian groups, which quantum Fourier sampling solves efficiently.
+
+\begin{example}[Concrete Resource Estimates]
+\label{ex:resource-estimates}
+Gidney and Eker\r{a}~\cite{GidneyEkera2021}\index{quantum resource estimates} estimated that factoring a 2048-bit RSA modulus requires approximately $20\times10^{6}$ noisy physical qubits and roughly 8~hours of computation using surface-code error correction.  As of 2025, the largest superconducting processors contain on the order of $10^{3}$ qubits with error rates near $10^{-3}$---roughly four orders of magnitude short in qubit count and nine orders of magnitude short in error rate.  The gap is large but finite; roadmaps from multiple vendors project $10^{4}$--$10^{5}$ physical qubits by 2030.
+\end{example}
+
+
+%% =============================================================
 \section{Harvest Now, Decrypt Later}
 \label{sec:hndl}
 
-% TODO: Expand from notes.tex §1.1 (HNDL timeline)
-% - Add concrete examples: state-level data collection programs
-% - Quantify data sensitivity lifetimes by sector
-% - Cite: NSA/CNSA guidance, ETSI QSC reports
+The fact that cryptographically relevant quantum computers (CRQCs)\index{cryptographically relevant quantum computer} do not yet exist does not mean the threat is deferred.  The ``harvest now, decrypt later'' (HNDL)\index{harvest now, decrypt later} attack model captures the essential timing mismatch.
 
+\subsection{The Threat Model}
+
+\begin{definition}[HNDL Attack Model]
+\label{def:hndl}
+An adversary with access to encrypted network traffic at time $t_0$ records ciphertexts at low marginal cost.  At a future time $t_0 + \Delta$, a CRQC becomes available.  The adversary retroactively decrypts all stored ciphertexts whose underlying keys were established via quantum-vulnerable key exchange.
+\end{definition}
+
+The HNDL model implies a simple inequality: migration to post-quantum cryptography must be complete before
+\begin{equation}
+\label{eq:hndl-deadline}
+t_{\mathrm{migrate}} \;\leq\; t_{\mathrm{CRQC}} - t_{\mathrm{sensitivity}},
+\end{equation}
+where $t_{\mathrm{sensitivity}}$ is the required secrecy lifetime of the data and $t_{\mathrm{CRQC}}$ is the date a CRQC becomes operational.  If data must remain confidential for 25~years and a CRQC arrives in 2035, migration should have been complete by 2010---a deadline already passed.
+
+\subsection{Data Sensitivity Lifetimes}
+
+Different sectors face different urgency under the HNDL model.  Table~\ref{tab:hndl-sensitivity} summarises representative sensitivity lifetimes.
+
+\begin{table}[t]
+\caption{Approximate data sensitivity lifetimes by sector}
+\label{tab:hndl-sensitivity}
+\begin{tabular}{p{4.5cm}p{3cm}p{3.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Sector / data type} & \textbf{Sensitivity} & \textbf{Deadline if CRQC in 2035} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Classified intelligence     & 50+ years  & Already past \\
+Strategic military plans    & 25--50 years & Already past \\
+Medical records             & Patient lifetime ($\sim$50 yr) & Already past \\
+Trade secrets, M\&A data    & 10--20 years & 2015--2025 \\
+Financial transactions      & 5--10 years  & 2025--2030 \\
+Consumer web browsing       & 1--3 years   & 2032--2034 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\subsection{Evidence of Active Harvesting}
+
+The HNDL model is not hypothetical.  Publicly documented programs confirm that state-level actors routinely intercept and store encrypted communications at scale\index{mass surveillance}.  The economic case for harvesting is straightforward: storage costs roughly USD~$10$ per terabyte per year, while the intelligence value of decrypted diplomatic, military, or corporate communications is immense.  Even a conservative estimate of daily international backbone traffic suggests that targeted collection of high-value encrypted flows is well within the budget of a major intelligence service.
+
+\begin{svgraybox}
+\textbf{The asymmetry of the HNDL threat.}  Protecting against HNDL requires acting \emph{before} the quantum computer exists, on the basis of a probabilistic estimate of when one will arrive.  If the estimate is too optimistic (migration happens too late), the damage is irreversible---decrypted secrets cannot be re-encrypted.  If the estimate is too pessimistic (migration happens early), the cost is merely the engineering effort of deploying new algorithms.  The asymmetry strongly favours early action.
+\end{svgraybox}
+
+\subsection{Impact on Signatures vs.\ Encryption}
+
+It is important to distinguish the HNDL threat for confidentiality from the quantum threat to authentication\index{digital signature!quantum threat}:
+
+\begin{itemize}
+\item \textbf{Encryption / key exchange:} Vulnerable to HNDL.  Ciphertexts recorded today can be decrypted retroactively.  This is the more urgent migration target.
+\item \textbf{Digital signatures:} Not vulnerable to HNDL in the same way.  A signature verified today does not need to resist future quantum attack \emph{unless} the signature must remain valid for a long period (e.g., software supply-chain signatures, long-lived certificates, legal documents).  The threat to signatures is forward-looking: once a CRQC exists, new forgeries become possible.
+\end{itemize}
+
+This distinction explains why early hybrid deployments (e.g., Google's CECPQ2 experiment in 2016, Cloudflare's post-quantum key agreement in 2019) focused on key exchange before signatures.
+
+
+%% =============================================================
 \section{From Shor's Algorithm to NIST Standards: A Historical Arc}
 \label{sec:historical-arc}
 
-% TODO: New section
-% - 1994: Shor's algorithm
-% - 2006: NIST workshop on post-quantum
-% - 2016: NIST call for proposals
-% - 2017-2022: Rounds 1-4
-% - 2024: FIPS 203, 204, 205 finalized
-% - Cite: NIST PQC project reports
+The transition from theoretical vulnerability to deployed countermeasures spans three decades\index{post-quantum cryptography!history}.  Understanding this timeline clarifies both the pace of the field and the maturity of the solutions now available.
 
+\subsection{The Theoretical Foundation (1994--2005)}
+
+\begin{itemize}
+\item \textbf{1994:} Peter Shor presents his factoring and discrete-logarithm algorithm at FOCS~\cite{Shor1994}\index{Shor's algorithm!original paper}.  The full journal version appears in 1997~\cite{Shor1997}.  At this date, quantum computers are purely theoretical; Shor's result is treated as a curiosity by most of the cryptographic community.
+
+\item \textbf{1996:} Lov Grover discovers his search algorithm~\cite{Grover1996}, providing a quadratic speedup for unstructured search.  Unlike Shor's algorithm, Grover's does not break any widely deployed cryptosystem---it merely halves the effective key length of symmetric ciphers.  The same year, Ajtai proves the first worst-case to average-case reduction for lattice problems, laying the theoretical foundation for lattice-based cryptography.
+
+\item \textbf{1997--2005:} Research groups begin exploring alternative mathematical foundations for public-key cryptography.  McEliece's 1978 code-based cryptosystem receives renewed attention.  Lattice-based schemes based on NTRU (1998) and Ajtai--Dwork encryption enter the literature.  Hash-based signature schemes, tracing back to Lamport (1979) and Merkle (1979), are revisited.  The term ``post-quantum cryptography'' begins to appear in the literature.
+\end{itemize}
+
+\subsection{Building Momentum (2006--2016)}
+
+\begin{itemize}
+\item \textbf{2006:} The first \emph{PQCrypto} workshop is held, establishing a dedicated research community.
+
+\item \textbf{2005--2009:} Regev introduces the Learning With Errors (LWE) problem and proves a quantum worst-case to average-case reduction, providing the theoretical cornerstone for modern lattice-based encryption.
+
+\item \textbf{2010:} Lyubashevsky, Peikert, and Regev introduce Ring-LWE, enabling efficient lattice-based constructions with quasi-linear operations.
+
+\item \textbf{2015:} The NSA's Information Assurance Directorate announces that it will transition to quantum-resistant algorithms, signalling government-level urgency.
+
+\item \textbf{2016:} NIST formally announces a call for post-quantum cryptographic algorithm submissions, initiating the most consequential cryptographic standardisation process since the AES competition.  A total of 82 submissions are received by the November 2017 deadline.
+\end{itemize}
+
+\subsection{The NIST Standardisation Process (2017--2024)}
+
+The NIST Post-Quantum Cryptography Standardisation Process\index{NIST PQC standardisation} proceeded in multiple rounds of public evaluation:
+
+\begin{table}[t]
+\caption{Timeline of the NIST PQC standardisation process}
+\label{tab:nist-timeline}
+\begin{tabular}{p{2.2cm}p{2cm}p{7cm}}
+\hline\noalign{\smallskip}
+\textbf{Date} & \textbf{Phase} & \textbf{Milestone} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Dec 2016   & Call          & 82 submissions received \\
+Jan 2019   & Round 2       & 26 candidates advance \\
+Jul 2020   & Round 3       & 15 candidates: 7 finalists + 8 alternates \\
+Jul 2022   & Selection     & 4 algorithms selected for standardisation \\
+Aug 2024   & Publication   & FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA) \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The four algorithms selected in 2022 were:
+\begin{enumerate}
+\item \textbf{CRYSTALS-Kyber} (now ML-KEM, FIPS 203~\cite{FIPS203})\index{ML-KEM}: a lattice-based key encapsulation mechanism built on Module-LWE.  Selected as the primary KEM standard.
+\item \textbf{CRYSTALS-Dilithium} (now ML-DSA, FIPS 204~\cite{FIPS204})\index{ML-DSA}: a lattice-based digital signature scheme built on Module-LWE and Module-SIS.  Selected as the primary signature standard.
+\item \textbf{SPHINCS+} (now SLH-DSA, FIPS 205~\cite{FIPS205})\index{SLH-DSA}: a hash-based signature scheme offering conservative, well-understood security at the cost of larger signatures.
+\item \textbf{FALCON}\index{FALCON}: a lattice-based signature scheme based on NTRU lattices, offering compact signatures but more complex implementation.  Standardisation as FIPS 206 is expected in 2025.
+\end{enumerate}
+
+Two features of this outcome deserve emphasis.  First, three of the four selected algorithms are lattice-based, confirming the central role of lattice theory in post-quantum cryptography.  Second, the process took eight years from call to publication---a timeline that underscores the difficulty of building confidence in new cryptographic assumptions.
+
+\subsection{Cautionary Tales}
+
+The standardisation process also eliminated candidates whose underlying assumptions turned out to be weaker than believed\index{cryptanalytic break}:
+
+\begin{itemize}
+\item \textbf{SIKE} (2022): a finalist based on supersingular isogeny graphs, broken by a devastating classical attack by Castryck and Decru that recovered private keys in minutes on a laptop.
+\item \textbf{Rainbow} (2022): a multivariate signature scheme, broken by a key-recovery attack by Beullens that exploited the structure of the central map.
+\end{itemize}
+
+These breaks are a healthy reminder that cryptographic confidence is built incrementally through sustained cryptanalysis, not through existence proofs alone.  The lattice-based schemes have survived over 25~years of scrutiny; the isogeny-based and multivariate schemes had shorter track records.
+
+
+%% =============================================================
 \section{Scope and Organization of This Book}
 \label{sec:scope}
 
-% TODO: New section — roadmap through the 15 chapters
-% - What we assume (quantum mechanics, linear algebra, basic number theory)
-% - What we build (cryptographic foundations, lattice theory, PQC schemes)
-% - How to read: dependency graph between chapters
+This book develops the mathematical foundations of post-quantum cryptography at a level suitable for graduate students in mathematics, physics, computer science, or electrical engineering.  It is structured in three parts.
+
+\subsection{Prerequisites}
+
+We assume familiarity with the following:
+\begin{itemize}
+\item \textbf{Linear algebra:} vector spaces, basis transformations, eigenvalues, norms, inner products.
+\item \textbf{Abstract algebra:} groups, rings, fields, and modular arithmetic at an introductory level.
+\item \textbf{Probability:} basic discrete and continuous probability, expectation, variance, tail bounds.
+\item \textbf{Algorithms:} asymptotic notation ($\bigO$, $\Omega$, $\Theta$) and the distinction between polynomial and exponential running time.
+\item \textbf{Quantum mechanics} (for Part~I only): Dirac notation, unitary evolution, measurement, entanglement.
+\end{itemize}
+
+No prior knowledge of cryptography is assumed.  Readers with a physics background will find lattice geometry and quantum algorithms particularly natural; readers with a computer science background will be more comfortable with reductions and complexity arguments.  Both perspectives are needed, and the book aims to bridge them.
+
+\subsection{Structure of the Book}
+
+\noindent\textbf{Part~I: Foundations} (Chapters~\ref{ch:quantum-threat}--\ref{ch:pqc-landscape}) establishes the context and the classical and quantum tools needed for everything that follows.
+\begin{itemize}
+\item Chapter~\ref{ch:quantum-threat} (this chapter) motivates the transition to post-quantum cryptography.
+\item Chapter~\ref{ch:math-prelim} reviews the mathematical prerequisites: number theory, algebra, and probability.
+\item Chapter~\ref{ch:classical-crypto} develops classical public-key cryptography (RSA, Diffie--Hellman, elliptic curves) with enough detail to understand precisely what Shor's algorithm breaks.
+\item Chapter~\ref{ch:quantum-algorithms} presents the quantum algorithms relevant to cryptography: Shor's algorithm, Grover's algorithm, and quantum random walks.
+\item Chapter~\ref{ch:pqc-landscape} surveys the post-quantum landscape, comparing the main families of quantum-resistant schemes and the criteria by which they are evaluated.
+\end{itemize}
+
+\noindent\textbf{Part~II: Post-Quantum Cryptographic Families} (Chapters~\ref{ch:lattice-theory}--\ref{ch:other-approaches}) is the mathematical core of the book.
+\begin{itemize}
+\item Chapter~\ref{ch:lattice-theory} develops lattice theory: definitions, computational problems, basis reduction, and worst-case to average-case reductions.
+\item Chapter~\ref{ch:lwe-encryption} introduces the Learning With Errors problem and builds lattice-based encryption, culminating in ML-KEM (FIPS 203).
+\item Chapter~\ref{ch:lattice-signatures} covers lattice-based signatures: the Fiat--Shamir with Aborts paradigm (ML-DSA) and hash-then-sign over NTRU lattices (FALCON).
+\item Chapter~\ref{ch:code-based} treats code-based cryptography, from McEliece to the BIKE and HQC candidates.
+\item Chapter~\ref{ch:hash-based} develops hash-based signatures from Lamport and Merkle trees through SPHINCS+ (SLH-DSA).
+\item Chapter~\ref{ch:other-approaches} surveys multivariate, isogeny-based, and group-based approaches.
+\end{itemize}
+
+\noindent\textbf{Part~III: Deployment and Open Problems} (Chapters~\ref{ch:implementation}--\ref{ch:open-problems}) addresses practical deployment and the frontier.
+\begin{itemize}
+\item Chapter~\ref{ch:implementation} discusses implementation: constant-time code, side-channel resistance, and performance engineering.
+\item Chapter~\ref{ch:migration} covers the migration challenge: hybrid modes, crypto-agility, and transition planning.
+\item Chapter~\ref{ch:advanced-primitives} introduces advanced primitives built on post-quantum assumptions: fully homomorphic encryption, attribute-based encryption, and zero-knowledge proofs.
+\item Chapter~\ref{ch:open-problems} identifies open problems and research directions.
+\end{itemize}
+
+\subsection{Chapter Dependencies}
 
 \begin{svgraybox}
-\textbf{Chapter dependencies.} Chapters~\ref{ch:math-prelim}--\ref{ch:quantum-algorithms} are prerequisites for the rest of the book. Within Part~II, Chapter~\ref{ch:lattice-theory} is required before Chapters~\ref{ch:lwe-encryption} and~\ref{ch:lattice-signatures}. Chapters~\ref{ch:code-based}, \ref{ch:hash-based}, and~\ref{ch:other-approaches} can be read independently. Part~III assumes familiarity with at least one family from Part~II.
+\textbf{Chapter dependencies.}  Chapters~\ref{ch:math-prelim}--\ref{ch:quantum-algorithms} are prerequisites for the rest of the book.  Within Part~II, Chapter~\ref{ch:lattice-theory} is required before Chapters~\ref{ch:lwe-encryption} and~\ref{ch:lattice-signatures}.  Chapters~\ref{ch:code-based}, \ref{ch:hash-based}, and~\ref{ch:other-approaches} can be read independently.  Part~III assumes familiarity with at least one family from Part~II.
 \end{svgraybox}
 
-%% Exercises
+A reader interested primarily in the NIST standards may proceed directly from Chapter~\ref{ch:pqc-landscape} to Chapter~\ref{ch:lattice-theory} and then to Chapters~\ref{ch:lwe-encryption}--\ref{ch:lattice-signatures}, deferring or omitting the remaining families.  A reader with a background in coding theory may prefer to start with Chapter~\ref{ch:code-based} after completing Part~I.
+
+\subsection{What This Book Does Not Cover}
+
+Certain important topics lie outside our scope:
+\begin{itemize}
+\item \textbf{Quantum key distribution (QKD):} an information-theoretically secure approach to key exchange that requires a quantum channel.  QKD and PQC are complementary rather than competing technologies; we occasionally contrast them but do not develop QKD in detail.
+\item \textbf{Quantum error correction:} essential for building CRQCs but not for understanding PQC.
+\item \textbf{Post-quantum TLS and protocol engineering:} we discuss the principles in Chapter~\ref{ch:migration} but do not provide implementation-level protocol specifications.
+\end{itemize}
+
+
+%% =============================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch01-hndl}
-A government agency encrypts classified documents with RSA-2048. The documents have a 30-year sensitivity period. Assuming a cryptographically relevant quantum computer becomes available in 2035, determine the latest date by which the agency must complete its migration to post-quantum cryptography. Justify your answer with a concrete threat model.
+A government agency encrypts classified documents with RSA-2048.  The documents have a 30-year sensitivity period.  Assuming a cryptographically relevant quantum computer becomes available in 2035, determine the latest date by which the agency must complete its migration to post-quantum cryptography.  Justify your answer with a concrete threat model based on~\eqref{eq:hndl-deadline}.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch01-grover}
+Grover's algorithm\index{Grover's algorithm!impact on symmetric ciphers} provides a quadratic speedup for unstructured search.
+\begin{enumerate}
+\item[(a)] Explain why Grover's algorithm reduces the effective security of AES-128 to approximately 64~bits against a quantum adversary.
+\item[(b)] A system designer proposes using AES-256 to achieve 128-bit post-quantum security.  Is this sufficient?  Discuss any caveats related to the cost model for quantum computation (logical qubits, gate depth, parallelism).
+\item[(c)] Why does Grover's quadratic speedup \emph{not} pose the same existential threat to symmetric ciphers that Shor's exponential speedup poses to RSA?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch01-timeline}
+Consider an organisation that processes financial transactions with an average sensitivity lifetime of 7~years.  The organisation estimates that deploying post-quantum cryptography across its infrastructure will take 3~years.
+\begin{enumerate}
+\item[(a)] Using the HNDL inequality~\eqref{eq:hndl-deadline}, determine the latest date the migration must \emph{begin} if a CRQC is expected by 2035.
+\item[(b)] Suppose the CRQC timeline is uncertain, with estimates ranging from 2033 to 2045.  How should the organisation weigh the cost of early migration against the risk of late migration?  Frame your answer in terms of the asymmetry discussed in Sect.~\ref{sec:hndl}.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch01-shor-resources}
+Gidney and Eker\r{a}~\cite{GidneyEkera2021} estimate that factoring an $n$-bit RSA modulus requires approximately $3n + 0.002n\log_2 n$ logical qubits using their optimised circuit.
+\begin{enumerate}
+\item[(a)] Compute the logical qubit count for RSA-2048 and RSA-4096.
+\item[(b)] Assuming a surface-code overhead of $\sim$5000 physical qubits per logical qubit at the required error rate, estimate the total physical qubit count for each key size.
+\item[(c)] If quantum hardware scales at a rate of $2\times$ more physical qubits every 2~years from a 2025 baseline of 1000~qubits, in what year would factoring RSA-2048 become feasible under this (highly simplified) model?
+\end{enumerate}
 \end{prob}

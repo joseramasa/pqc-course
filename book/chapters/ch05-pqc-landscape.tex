@@ -1,64 +1,378 @@
 \chapter{The Post-Quantum Landscape}
 \label{ch:pqc-landscape}
 
-\abstract*{With the quantum threat established, this chapter surveys the families of mathematical problems proposed as quantum-resistant foundations for cryptography. We trace the NIST standardization process from its 2016 call for proposals through the selection of ML-KEM, ML-DSA, and SLH-DSA as federal standards, and examine the complementary roles of post-quantum cryptography and quantum key distribution.}
+\abstract*{With the quantum threat established, this chapter surveys the five families of mathematical problems proposed as quantum-resistant foundations for cryptography.  We trace the NIST standardization process from its 2016 call for proposals through the selection of ML-KEM, ML-DSA, and SLH-DSA as federal standards, examine the complementary---not competing---roles of post-quantum cryptography and quantum key distribution, and discuss the hybrid classical/post-quantum strategies that will dominate the transition period.  The chapter concludes with a framework for evaluating any PQC candidate.}
+
+\abstract{With the quantum threat established, this chapter surveys the five families of mathematical problems proposed as quantum-resistant foundations for cryptography.  We trace the NIST standardization process from its 2016 call for proposals through the selection of ML-KEM, ML-DSA, and SLH-DSA as federal standards, examine the complementary---not competing---roles of post-quantum cryptography and quantum key distribution, and discuss the hybrid classical/post-quantum strategies that will dominate the transition period.  The chapter concludes with a framework for evaluating any PQC candidate.}
 
 % =============================================================
-% SOURCE: notes.tex §3.2–3.3, §4.4.1 (scattered)
-% REUSE: ~60%. Consolidate NIST process, add 4th-round candidates.
+% Adapted from notes.tex §3.2–3.3, §4.4.1.
+% New material: §5.4 (hybrid approaches), §5.5 (evaluation criteria).
 % =============================================================
+
 
 \section{Algorithm Families at a Glance}
 \label{sec:families-overview}
 
-% TODO: Adapt from notes.tex §3.3
-% - Lattice-based, code-based, hash-based, multivariate, isogeny-based
-% - One paragraph + key characteristics table per family
-% - Comparative table: key sizes, signature sizes, speed, maturity
+Post-quantum cryptography draws on five families of mathematical problems, each with a distinct history, security profile, and set of engineering trade-offs.  No single family dominates across all criteria; the diversity is a feature, not a deficiency~\cite{BernsteinLange2017}.
 
+\subsection{Lattice-Based Cryptography}
+\label{subsec:family-lattice}
+
+Lattice-based schemes---the subject of Chaps.~\ref{ch:lattice-theory}--\ref{ch:lattice-signatures}---derive their security from the hardness of finding short vectors in high-dimensional lattices.  The Learning With Errors (\lwe{}) and Module-\lwe{} problems underpin the NIST standards ML-KEM~\cite{FIPS203} and ML-DSA~\cite{FIPS204}.  Lattice-based cryptography offers uniquely strong \emph{worst-case to average-case} security reductions (Sect.~\ref{sec:worst-avg-case}), moderate key sizes, and efficient implementations.  Its algebraic structure also enables advanced constructions such as fully homomorphic encryption~\cite{Gentry2009}.  The main concern is that lattice problems have been studied intensively for only three decades, and the rich algebraic structure that enables advanced applications also provides a wider attack surface than, say, hash-based schemes.
+
+\subsection{Code-Based Cryptography}
+\label{subsec:family-code}
+
+Code-based cryptography, inaugurated by McEliece in 1978~\cite{McEliece1978}, rests on the hardness of decoding a random linear code.  The generic decoding problem has resisted algorithmic progress for over four decades, making code-based schemes among the most conservatively secure PQC candidates.  Classic McEliece, the oldest unbroken public-key scheme, was a NIST round-4 finalist; HQC, a Hamming Quasi-Cyclic code-based KEM, was selected for standardization in 2024.  The principal drawback is key size: Classic McEliece public keys exceed 250\,KB at the 128-bit security level, which limits deployment in bandwidth-constrained environments.
+
+\subsection{Hash-Based Signatures}
+\label{subsec:family-hash}
+
+Hash-based signatures rely solely on the security of the underlying hash function---no number-theoretic or algebraic assumption is required.  Lamport one-time signatures~\cite{Lamport1979} and Merkle trees~\cite{Merkle1979} date from the late 1970s; the modern SPHINCS+ construction (standardized as SLH-DSA~\cite{FIPS205}) extends this to a stateless many-time signature scheme.  Hash-based signatures are the ``insurance policy'' of PQC: even if every algebraic assumption fails simultaneously, hash functions would need to be broken as well.  The trade-off is large signatures (8--50\,KB for SLH-DSA) and slower signing compared to lattice-based alternatives.
+
+\subsection{Multivariate Cryptography}
+\label{subsec:family-multivariate}
+
+Multivariate schemes are built on the NP-hardness of solving systems of multivariate quadratic equations over finite fields.  They can produce very compact signatures (tens of bytes) and fast verification, but public keys tend to be large and the design space is riddled with structural attacks.  Rainbow, a prominent NIST round-3 finalist, was broken in 2022 by Beullens~\cite{Beullens2022} on a single laptop---a sobering reminder that compact parameters alone do not imply security.  Research continues on schemes such as UOV (Unbalanced Oil and Vinegar), selected by NIST for additional signature evaluation, but no multivariate KEM has survived serious cryptanalysis.
+
+\subsection{Isogeny-Based Cryptography}
+\label{subsec:family-isogeny}
+
+Isogeny-based cryptography uses maps between elliptic curves as the hard mathematical object.  SIKE (Supersingular Isogeny Key Encapsulation)~\cite{JaoDeFeo2011} offered the smallest keys of any PQC candidate but was catastrophically broken in 2022 by Castryck and Decru~\cite{CastryckDecru2023}, who exploited auxiliary torsion-point information to recover secret isogenies in polynomial time.  The CSIDH family~\cite{CSIDH2018}, which avoids torsion-point auxiliary data, remains unbroken but is too slow for most practical applications.  Isogeny-based cryptography is the youngest and least mature family; its long-term viability remains an open question.
+
+\subsection{Comparative Overview}
+\label{subsec:family-comparison}
+
+Table~\ref{tab:family-comparison} summarises the key characteristics of each family.  Readers should note that ``years of study'' refers to the age of the underlying hard problem, not any individual scheme.
+
+\begin{table}[t]
+\caption{Comparative overview of PQC algorithm families}
+\label{tab:family-comparison}
+\begin{tabular}{p{2.2cm}p{2.3cm}p{1.5cm}p{1.5cm}p{1.8cm}p{2.2cm}}
+\hline\noalign{\smallskip}
+\textbf{Family} & \textbf{Hard problem} & \textbf{Key sizes} & \textbf{Speed} & \textbf{Study (yrs)} & \textbf{NIST status} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Lattice     & \lwe{}/\mlwe{}           & Moderate  & Fast      & $\sim$30  & ML-KEM, ML-DSA \\
+Code        & Syndrome decoding        & Large     & Fast      & $\sim$45  & HQC (round 4) \\
+Hash        & Hash function security   & N/A$^*$   & Slow sign & $\sim$45  & SLH-DSA \\
+Multivariate & MQ problem              & Large     & Fast ver. & $\sim$35  & Under evaluation \\
+Isogeny     & Isogeny computation      & Small     & Slow      & $\sim$15  & SIKE broken \\
+\noalign{\smallskip}\hline
+\multicolumn{6}{l}{\footnotesize $^*$Hash-based schemes are signature-only; key sizes depend on the specific construction.}
+\end{tabular}
+\end{table}
+
+
+%% ================================================================
 \section{The NIST Standardization Process}
 \label{sec:nist-process}
 
-% TODO: Consolidate from notes.tex §4.4.1 and scattered references
-% - Round 1 (2017): 69 submissions
-% - Round 2 (2019): 26 candidates
-% - Round 3 (2020): 7 finalists + 8 alternates
-% - Round 4 (2022): additional signatures
-% - Standards (2024): FIPS 203, 204, 205
-% - Ongoing: HQC selected (2024), additional signature schemes
-% - Cite: NIST status reports for each round
+The NIST Post-Quantum Cryptography Standardization Process is the largest coordinated cryptographic evaluation in history, deliberately modelled on the successful AES and SHA-3 competitions but unprecedented in scope~\cite{BernsteinLange2017}.
 
+\subsection{Timeline}
+\label{subsec:nist-timeline}
+
+The process unfolded over nine years:
+
+\begin{enumerate}
+\item \textbf{2015 -- Catalyst.}  The NSA announces that it will transition to quantum-resistant algorithms, signalling to the world that the threat is taken seriously at the highest levels.
+
+\item \textbf{2016 -- Call for proposals.}  NIST publishes a formal call for post-quantum public-key encryption, key-encapsulation, and digital-signature algorithms.  Submission requirements include: complete specification, reference implementation, performance benchmarks, and a security analysis.
+
+\item \textbf{2017 -- Round~1.}  Eighty-two submissions are received from teams spanning academia, industry, and government laboratories worldwide; 69 are deemed complete and accepted for evaluation.
+
+\item \textbf{2019 -- Round~2.}  After two years of public cryptanalysis and three dedicated PQC conferences, NIST narrows the field to 26 candidates.  Several submissions are withdrawn after attacks; others are merged.
+
+\item \textbf{2020 -- Round~3.}  Fifteen candidates survive: 7 finalists (expected to be standardized) and 8 alternates (backup candidates and schemes meriting further study).
+
+\item \textbf{2022 -- Winners announced.}  NIST selects CRYSTALS-Kyber (KEM), CRYSTALS-Dilithium (signature), and SPHINCS+ (signature) for standardization.  Falcon is selected as an additional signature standard.  A 4th round is opened for four KEM candidates, including Classic McEliece and HQC.
+
+\item \textbf{2024 -- Standards published.}  Three Federal Information Processing Standards are released: FIPS~203 (ML-KEM, formerly Kyber)~\cite{FIPS203}, FIPS~204 (ML-DSA, formerly Dilithium)~\cite{FIPS204}, and FIPS~205 (SLH-DSA, formerly SPHINCS+)~\cite{FIPS205}.  HQC is selected from the 4th round as an additional KEM standard, providing algorithmic diversity beyond lattices.  A separate call for additional signature schemes continues.
+\end{enumerate}
+
+\subsection{Evaluation Criteria}
+\label{subsec:nist-criteria}
+
+NIST evaluated candidates across multiple dimensions, recognizing that theoretical security alone is insufficient for a deployable standard.  Table~\ref{tab:nist-criteria} summarises the criteria and their approximate weighting.
+
+\begin{table}[t]
+\caption{NIST evaluation criteria for PQC candidates}
+\label{tab:nist-criteria}
+\begin{tabular}{p{2.8cm}p{6cm}p{1.8cm}}
+\hline\noalign{\smallskip}
+\textbf{Criterion} & \textbf{Description} & \textbf{Approx.\ weight} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Security           & Resistance to classical and quantum attacks; quality of security reductions; parameter margins against future cryptanalysis & High \\
+Performance        & Speed on diverse platforms (server, desktop, mobile, embedded) & Medium \\
+Key/ciphertext size & Bandwidth and storage impact; compatibility with existing protocols & Medium \\
+Implementation     & Side-channel resistance; simplicity; misuse resistance & Medium--Low \\
+Flexibility        & Parameter choices; suitability for advanced protocols; crypto-agility & Low \\
+Maturity           & Years of public cryptanalytic study; diversity of analysis & Low \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The multi-criterion evaluation prevented single-point optimization and exposed unexpected weaknesses.  Rainbow, for instance, offered tiny 66-byte signatures and fast verification, but its large public keys (158\,KB) and eventual complete break in 2022~\cite{Beullens2022} illustrated why a holistic assessment is essential.
+
+\subsection{Why Multiple Winners?}
+\label{subsec:nist-diversity}
+
+NIST deliberately selected algorithms from different mathematical families to provide \emph{algorithmic diversity}\index{algorithmic diversity}.  If a breakthrough attack compromises all lattice-based schemes---however unlikely---SLH-DSA (hash-based) and HQC (code-based) remain secure.  This portfolio strategy mirrors engineering best practice: no single point of failure.
+
+\begin{svgraybox}
+\textbf{The naming convention.}
+During standardization, NIST renamed the selected algorithms:
+\begin{itemize}
+\item CRYSTALS-Kyber $\to$ ML-KEM (Module-Lattice-Based Key-Encapsulation Mechanism)~\cite{FIPS203}.
+\item CRYSTALS-Dilithium $\to$ ML-DSA (Module-Lattice-Based Digital Signature Algorithm)~\cite{FIPS204}.
+\item SPHINCS+ $\to$ SLH-DSA (Stateless Hash-Based Digital Signature Algorithm)~\cite{FIPS205}.
+\end{itemize}
+The literature uses both names interchangeably; this book follows the FIPS naming throughout.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{PQC vs QKD: Complementary, Not Competing}
 \label{sec:pqc-vs-qkd}
 
-% TODO: Adapt from notes.tex §3.2
-% - Fundamental differences: computational vs information-theoretic
-% - Deployment realities: software update vs fiber infrastructure
-% - Use case analysis: when to use which
-% - Hybrid QKD + PQC approaches
-% - Cite: ETSI QSC white papers, BSI recommendations
+A persistent misconception frames Post-Quantum Cryptography (PQC) and Quantum Key Distribution (QKD) as competitors.  This is a false dichotomy.  The two technologies solve different problems, operate on different principles, and have different failure modes.  Most critically, QKD \emph{cannot} provide digital signatures, making PQC mandatory regardless of QKD deployment.
 
+\subsection{Security Paradigms}
+\label{subsec:security-paradigms}
+
+The fundamental distinction is between \emph{information-theoretic} and \emph{computational} security:
+
+\begin{itemize}
+\item \textbf{QKD} derives security from the laws of quantum mechanics (the no-cloning theorem, measurement disturbance).  No amount of computational power helps an eavesdropper; security is guaranteed by physics.
+
+\item \textbf{PQC} derives security from the assumed computational hardness of mathematical problems (lattice problems, syndrome decoding, hash inversion).  Security holds as long as the adversary's computational resources remain bounded.
+\end{itemize}
+
+\noindent Neither paradigm is inherently superior.  QKD wins when the adversary has unlimited computation but must obey physics; PQC wins when the application requires signatures, internet-scale deployment, or a software-only solution.
+
+\subsection{Infrastructure and Scalability}
+\label{subsec:infrastructure}
+
+The physical nature of QKD imposes severe deployment constraints.  Table~\ref{tab:qkd-pqc-infra} summarises the key differences.
+
+\begin{table}[t]
+\caption{Infrastructure comparison: QKD versus PQC}
+\label{tab:qkd-pqc-infra}
+\begin{tabular}{p{3cm}p{4.2cm}p{4.2cm}}
+\hline\noalign{\smallskip}
+\textbf{Requirement} & \textbf{QKD} & \textbf{PQC} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Physical channel  & Dedicated fiber or free-space link & Any classical channel \\
+Distance limit    & $\sim$100--200\,km (fiber)         & Unlimited \\
+Trusted repeaters & Required for long distance          & Not needed \\
+Quantum hardware  & Single-photon sources and detectors & None \\
+Cost per link     & \$100\,000+                         & \$0 (software update) \\
+Deployment time   & Months (fiber installation)          & Minutes (software update) \\
+Scalability       & $\binom{n}{2}$ quantum channels for $n$ parties & Any-to-any over existing networks \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+For $n = 1000$ parties, QKD requires 499\,500 dedicated quantum channels (or trusted relay nodes, which weaken the security model).  PQC works over the existing internet infrastructure with no additional hardware.
+
+\subsection{The Signature Gap}
+\label{subsec:signature-gap}
+
+QKD distributes shared secret keys between two parties.  It cannot, even in principle, provide \emph{digital signatures}---the public verifiability, non-repudiation, and transferability that underpin software updates, TLS certificates, financial transactions, and legal documents all require public-key signatures.  Moreover, QKD itself requires an authenticated classical channel to prevent man-in-the-middle attacks, and that authentication ultimately depends on digital signatures or pre-shared keys.
+
+The implication is stark: \emph{you cannot deploy QKD without also deploying PQC} (for signatures and authentication), but you can deploy PQC without QKD.
+
+\subsection{When to Use Which}
+\label{subsec:qkd-use-cases}
+
+QKD is justified when \emph{all} of the following hold: the data value is extreme, the link is point-to-point between fixed facilities, the distance is within fiber reach, the budget supports dedicated quantum infrastructure, and the threat model includes adversaries with potentially unbounded future computation.  In practice, this means a small number of government and critical-infrastructure links.
+
+For the remaining 99.9\% of cryptographic applications---web browsing, email, software signing, cloud services, mobile devices, IoT, blockchain---PQC is the only viable technology.  Table~\ref{tab:qkd-pqc-use} provides a concise summary.
+
+\begin{table}[t]
+\caption{Technology applicability by use case}
+\label{tab:qkd-pqc-use}
+\begin{tabular}{p{4cm}p{2cm}p{2cm}p{3.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Application} & \textbf{QKD viable?} & \textbf{PQC required?} & \textbf{Recommendation} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Web browsing (TLS)        & No    & Yes & PQC only \\
+Software signing          & No    & Yes & PQC only \\
+Cloud / IoT / mobile      & No    & Yes & PQC only \\
+Government backbone       & Maybe & Yes & QKD + PQC hybrid \\
+Critical infrastructure   & Maybe & Yes & Evaluate case-by-case \\
+Nuclear / diplomatic      & Yes   & Yes & QKD + PQC hybrid \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\begin{svgraybox}
+\textbf{The engineering reality.}
+QKD is elegant physics with rigorous security proofs, but engineering reality is unforgiving.  PQC is less exotic, yet it solves the actual problem for the vast majority of use cases: a software update that deploys in minutes, works over existing networks, supports signatures, and costs nothing beyond development effort.  The two technologies are complementary layers, not competing alternatives.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Hybrid Classical/Post-Quantum Approaches}
 \label{sec:hybrid-intro}
 
-% TODO: Adapt from notes.tex §3.2.3
-% - Motivation: defense in depth during transition
-% - Composite KEMs: concatenated shared secrets
-% - Composite signatures: dual signing
-% - Standardization: X.509 hybrid certificates
+During the transition to post-quantum cryptography, a prudent strategy is \emph{hybrid deployment}: combining a classical algorithm (e.g., ECDH, ECDSA) with a post-quantum algorithm so that the system remains secure as long as \emph{at least one} of the two underlying assumptions holds.  This defense-in-depth approach hedges against both premature quantum computers and undiscovered weaknesses in new PQC schemes.
 
+\subsection{Composite KEMs}
+\label{subsec:composite-kems}
+
+A \emph{composite KEM}\index{composite KEM} runs two independent key encapsulations---one classical, one post-quantum---and combines the resulting shared secrets via a key derivation function:
+\begin{equation}
+\label{eq:composite-kem}
+K_{\mathrm{final}} = \mathrm{KDF}\bigl(K_{\mathrm{classical}} \;\|\; K_{\mathrm{PQC}} \;\|\; \mathrm{context}\bigr).
+\end{equation}
+If either $K_{\mathrm{classical}}$ or $K_{\mathrm{PQC}}$ is indistinguishable from random, then so is $K_{\mathrm{final}}$ (under standard assumptions on the KDF).  This construction is already deployed: Google's CECPQ2 experiment combined X25519 with NTRU-HRSS in Chrome, and Cloudflare has deployed X25519 + ML-KEM to millions of websites with negligible overhead.
+
+The cost of a composite KEM is approximately the sum of the two individual KEM costs in computation and bandwidth.  For ML-KEM-768 combined with X25519, the additional ciphertext overhead is roughly 1\,KB and the additional computation is sub-millisecond on modern hardware---a modest price for hedged security.
+
+\subsection{Dual Signatures}
+\label{subsec:dual-signatures}
+
+Hybrid signatures are more complex than hybrid KEMs because the verification semantics must be unambiguous.  Two principal strategies exist:
+
+\begin{enumerate}
+\item \textbf{Concatenated signatures.}  Both a classical signature $\sigma_C$ and a PQC signature $\sigma_P$ are attached to the message; the verifier accepts if and only if \emph{both} signatures verify.  Security requires only one assumption to hold.  The downside is doubled signature size and doubled verification time.
+
+\item \textbf{Nested signatures.}  The PQC signature signs the message concatenated with the classical signature: $\sigma_P = \Sign_{\mathrm{PQC}}(m \,\|\, \sigma_C)$.  This binds the two signatures more tightly but introduces an asymmetric dependency.
+\end{enumerate}
+
+\noindent In both cases, the combined signature is valid only if neither component can be stripped by an attacker---the protocol must be designed to reject messages with missing components.
+
+\subsection{X.509 Hybrid Certificates}
+\label{subsec:hybrid-certs}
+
+The Web PKI depends on X.509 certificates, which contain a single public key and a single signature from the issuing CA.  Hybrid certificates embed both a classical and a post-quantum key pair, along with dual signatures from the CA.  Several approaches are under development:
+
+\begin{itemize}
+\item \textbf{Composite keys (IETF draft):}  A single ``composite'' public key contains both an ECDSA and an ML-DSA key; the corresponding composite signature contains both signatures.  Existing relying parties that do not understand composite keys reject the certificate gracefully (fail-closed).
+
+\item \textbf{Alternative signatures (X.509 extension):}  The certificate carries a classical signature in the standard field and a PQC signature in an extension.  Legacy clients verify only the classical signature; updated clients verify both.  This provides backward compatibility at the cost of a weaker security guarantee for legacy clients.
+
+\item \textbf{Dual certificate chains:}  Two parallel certificate chains---one classical, one post-quantum---are maintained.  The client negotiates which chain to use via TLS extensions.  This approach is the simplest conceptually but doubles the CA's operational burden.
+\end{itemize}
+
+\begin{svgraybox}
+\textbf{Transition is the hard part.}
+The mathematical security of hybrid constructions is well-understood; the difficulty lies in engineering the transition.  Every protocol, library, hardware module, and certificate chain must be updated.  Organizations that invest in \emph{crypto-agility}---the ability to swap algorithms without redesigning systems---will navigate this transition far more smoothly than those with hard-coded cryptographic choices.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Evaluating a PQC Candidate}
 \label{sec:evaluation-criteria}
 
-% TODO: New section
-% - Security: reduction quality, parameter margins, cryptanalytic history
-% - Performance: speed, key/ciphertext sizes, memory
-% - Implementation: side-channel resistance, misuse resistance
-% - Maturity: years of study, diversity of analysis
-% - Flexibility: parameter scaling, algebraic structure for advanced protocols
+Whether selecting an algorithm for deployment or assessing a new research proposal, a systematic evaluation framework prevents both unwarranted enthusiasm and excessive conservatism.  The five criteria below---adapted from NIST's evaluation methodology---apply to any PQC candidate.
 
-%% Exercises
+\subsection{Security}
+\label{subsec:eval-security}
+
+\begin{itemize}
+\item \textbf{Reduction quality.}  Does the scheme reduce to a well-studied worst-case problem, or does security rest on an ad-hoc assumption?  Lattice-based schemes enjoy worst-case to average-case reductions (Sect.~\ref{sec:worst-avg-case}); most code-based and multivariate schemes rely on average-case hardness only.
+
+\item \textbf{Parameter margins.}  How much headroom exists between the concrete security estimate and the target security level?  A scheme operating at exactly 128 bits of security with zero margin is fragile; a 20\% margin absorbs algorithmic improvements without requiring re-parameterization.
+
+\item \textbf{Cryptanalytic history.}  How many years has the underlying hard problem been studied, and by how many independent groups?  A problem that has resisted three decades of attacks (e.g., syndrome decoding) inspires more confidence than one studied for a single decade (e.g., supersingular isogeny problems---whose confidence was justified by the SIKE break~\cite{CastryckDecru2023}).
+\end{itemize}
+
+\subsection{Performance}
+\label{subsec:eval-performance}
+
+\begin{itemize}
+\item \textbf{Speed.}  Key generation, encapsulation/signing, and decapsulation/verification times on representative platforms (server, desktop, embedded).
+
+\item \textbf{Sizes.}  Public key, secret key, ciphertext, and signature sizes directly impact bandwidth, storage, and protocol round-trips.  ML-KEM-768 public keys are 1\,184~bytes; Classic McEliece public keys exceed 261\,000~bytes.  This three-order-of-magnitude difference determines which protocols and devices can support each scheme.
+
+\item \textbf{Memory footprint.}  Embedded devices and smart cards may have only a few kilobytes of RAM.  Schemes requiring large intermediate buffers (e.g., Falcon's FFT-based signing) may be unsuitable for constrained environments.
+\end{itemize}
+
+\subsection{Implementation Quality}
+\label{subsec:eval-implementation}
+
+\begin{itemize}
+\item \textbf{Side-channel resistance.}  Is the algorithm naturally resistant to timing and power-analysis attacks, or does constant-time implementation require complex masking?  ML-KEM's operations are largely linear and amenable to constant-time implementation; Falcon's floating-point discrete Gaussian sampling is notoriously difficult to implement securely.
+
+\item \textbf{Misuse resistance.}  Does the scheme fail catastrophically on nonce reuse, bad randomness, or parameter misuse?  An IND-CCA2 KEM (such as ML-KEM, via the Fujisaki--Okamoto transform~\cite{FujisakiOkamoto1999}) provides stronger guarantees than a CPA-secure scheme that leaks secrets on ciphertext manipulation.
+
+\item \textbf{Simplicity.}  Fewer lines of code and simpler control flow reduce the likelihood of implementation bugs.  This is a practical consideration that theoretical analyses often neglect.
+\end{itemize}
+
+\subsection{Maturity}
+\label{subsec:eval-maturity}
+
+\begin{itemize}
+\item \textbf{Years of public analysis} of the specific scheme (not just the problem family).
+\item \textbf{Diversity of analysis:} has the scheme been examined by cryptanalysts, side-channel experts, formal-methods researchers, and implementers?
+\item \textbf{Deployed implementations:} production deployment surfaces bugs that no amount of academic review can find.
+\end{itemize}
+
+\subsection{Flexibility}
+\label{subsec:eval-flexibility}
+
+\begin{itemize}
+\item \textbf{Parameter scaling.}  Can the scheme be tuned to different security levels without fundamental redesign?  ML-KEM offers three parameter sets (512, 768, 1024) covering NIST levels I, III, and V.
+
+\item \textbf{Algebraic structure.}  Does the underlying mathematics support advanced constructions---threshold signatures, multi-party computation, homomorphic encryption?  Lattice-based schemes excel here; hash-based schemes offer no algebraic structure at all.
+
+\item \textbf{Crypto-agility.}  How easily can the scheme be swapped into existing protocols and infrastructure if a better alternative emerges?
+\end{itemize}
+
+Table~\ref{tab:eval-summary} applies the framework to the three NIST-standardized algorithms and two notable alternatives.
+
+\begin{table}[t]
+\caption{Evaluation framework applied to selected PQC algorithms}
+\label{tab:eval-summary}
+\begin{tabular}{p{2.2cm}p{2cm}p{2cm}p{2cm}p{2cm}p{1.8cm}}
+\hline\noalign{\smallskip}
+ & \textbf{ML-KEM} & \textbf{ML-DSA} & \textbf{SLH-DSA} & \textbf{McEliece} & \textbf{HQC} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Reduction   & Worst-case   & Worst-case   & Minimal$^\dagger$ & Average-case & Average-case \\
+Key sizes   & Moderate     & Moderate     & Small         & Very large    & Moderate \\
+Speed       & Fast         & Fast         & Slow sign     & Fast decaps   & Moderate \\
+Side-ch.    & Good         & Good         & Excellent     & Good          & Good \\
+Maturity    & High         & High         & Very high     & Very high     & Moderate \\
+Flexibility & High         & High         & Low           & Low           & Low \\
+\noalign{\smallskip}\hline
+\multicolumn{6}{l}{\footnotesize $^\dagger$SLH-DSA security reduces to hash-function properties, which are minimal assumptions.}
+\end{tabular}
+\end{table}
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
 \label{prob:ch05-compare}
-Construct a comparison table of ML-KEM, Classic McEliece, and HQC as KEM candidates. Include: underlying hard problem, public key size, ciphertext size, security reduction quality, and years of cryptanalytic study. Which would you recommend for (a)~a resource-constrained IoT device, (b)~a government classified network?
+Construct a detailed comparison table of ML-KEM-768, Classic McEliece (kem/mceliece6960119), and HQC-192 as KEM candidates.  Include: underlying hard problem, public key size (bytes), ciphertext size (bytes), shared-secret size, decapsulation failure probability, security reduction quality, and approximate years of cryptanalytic study of the underlying problem.  Based on your table, which scheme would you recommend for (a)~a resource-constrained IoT sensor with 32\,KB of RAM, (b)~a government classified network where long-term confidence outweighs bandwidth cost?  Justify your answers.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch05-hybrid}
+Consider a composite KEM that combines X25519 (classical ECDH) with ML-KEM-768 (post-quantum).  Let $K_C$ denote the X25519 shared secret and $K_P$ the ML-KEM shared secret, with $K_{\mathrm{final}} = \mathrm{HKDF}(K_C \,\|\, K_P)$.
+\begin{enumerate}
+\item[(a)] Argue that $K_{\mathrm{final}}$ is indistinguishable from random if \emph{either} the CDH assumption or the \mlwe{} assumption holds (but not necessarily both).
+\item[(b)] Compute the total bandwidth overhead of the composite KEM (public keys + ciphertexts) compared to X25519 alone and to ML-KEM-768 alone.
+\item[(c)] A colleague argues that the hybrid approach is pointless because ``if we trust ML-KEM, we don't need X25519.''  Provide a counterargument grounded in the precautionary principle during cryptographic transitions.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch05-nist}
+The NIST PQC competition began with 82 submissions and ended with 4 selected algorithms.  Research the fates of at least five eliminated candidates.  For each, identify: (a)~the algorithm family, (b)~the reason for elimination (cryptanalytic break, poor performance, patent issues, merged with another submission, or withdrawn by authors), and (c)~whether the underlying hard problem is still considered viable for future schemes.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch05-qkd}
+A bank with 10 branch offices is evaluating quantum-safe options.  The branches are distributed across a 300\,km region.  The bank needs to protect both inter-branch encrypted communications and customer-facing TLS connections.
+\begin{enumerate}
+\item[(a)] Explain why QKD alone cannot secure the bank's customer-facing services.
+\item[(b)] Estimate the number of QKD links needed for full inter-branch connectivity and the approximate infrastructure cost, assuming \$200\,000 per link and a maximum QKD distance of 100\,km without trusted relays.
+\item[(c)] Propose a practical architecture that uses PQC for all services, with QKD optionally deployed for the highest-value links.  Justify which links, if any, warrant QKD investment.
+\end{enumerate}
 \end{prob}
