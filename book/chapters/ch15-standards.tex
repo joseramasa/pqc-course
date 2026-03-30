@@ -1,0 +1,500 @@
+\chapter{Standards and the Regulatory Landscape}
+\label{ch:standards}
+
+\abstract*{An algorithm is not a standard, a standard is not a protocol, a protocol is not a mandate, and a mandate is not compliance. This chapter traces the path from the NIST post-quantum standards (FIPS 203--205) through the IETF protocol integration pipeline, across the patchwork of international standards bodies (ETSI, ISO, BSI, ANSSI), and into the regulatory frameworks that transform recommendations into legal obligations. We examine each link in this chain---what it produces, who governs it, and where the seams create risk---so that readers can navigate the standards ecosystem rather than merely cite it.}
+
+\abstract{An algorithm is not a standard, a standard is not a protocol, a protocol is not a mandate, and a mandate is not compliance. This chapter traces the path from the NIST post-quantum standards (FIPS 203--205) through the IETF protocol integration pipeline, across the patchwork of international standards bodies (ETSI, ISO, BSI, ANSSI), and into the regulatory frameworks that transform recommendations into legal obligations. We examine each link in this chain---what it produces, who governs it, and where the seams create risk---so that readers can navigate the standards ecosystem rather than merely cite it.}
+
+% =============================================================
+% New chapter. Cross-references to Ch 7 (ML-KEM), Ch 8 (ML-DSA),
+% Ch 10 (SLH-DSA), Ch 12 (implementation), Ch 14 (migration).
+% =============================================================
+
+
+\section{Anatomy of a FIPS Standard}
+\label{sec:fips-anatomy}
+
+Chapter~\ref{ch:migration} established \emph{what} organisations must migrate to and \emph{how} hybrid deployment works in practice. But the algorithms we have studied throughout this book---ML-KEM\index{ML-KEM}, ML-DSA\index{ML-DSA}, SLH-DSA\index{SLH-DSA}---did not become deployable the moment NIST selected them. They became deployable when NIST published them as \emph{Federal Information Processing Standards}\index{FIPS} (FIPS), documents that carry the force of law within the United States federal government and exert gravitational pull on every other jurisdiction's choices. Understanding what a FIPS document actually says---and, just as importantly, what it deliberately omits---is the first step toward understanding the entire standards ecosystem.
+
+We take FIPS~203\index{FIPS!203}~\cite{FIPS203} as our case study, since ML-KEM is both the most widely deployed PQC primitive and the one readers of Chapters~\ref{ch:lwe-encryption}--\ref{ch:lattice-signatures} know best.
+
+\subsection{Structure of the Document}
+\label{subsec:fips-structure}
+
+A FIPS publication follows a rigid template inherited from decades of federal standardisation. FIPS~203 opens with a \emph{scope} statement delimiting what the standard covers (a key-encapsulation mechanism based on Module-LWE) and what it does not (key management, protocol integration, side-channel countermeasures). Next come \emph{normative references}---other standards that are incorporated by reference and therefore carry the same binding force. For FIPS~203, the normative references include SHA-3 (FIPS~202) and the approved random number generation standard (SP~800-90A). After these front matter sections, the document proceeds to \emph{definitions and notation}, then to the algorithmic \emph{specification} itself, and finally to \emph{security considerations}---an informative section that discusses threat models, parameter selection rationale, and known limitations.
+
+The distinction between \emph{normative}\index{normative} and \emph{informative}\index{informative} content is not mere editorial convention; it is a compliance boundary. Normative sections use the language of RFC~2119~\cite{RFC8446}: ``SHALL,'' ``MUST,'' ``MUST NOT.'' An implementation that violates a normative requirement is \emph{non-conforming}---it cannot be validated under the Cryptographic Module Validation Program (CMVP)\index{CMVP}. Informative sections use ``SHOULD,'' ``MAY,'' and ordinary prose. They provide rationale, worked examples, and implementation guidance, but deviating from them does not constitute non-compliance.
+
+Consider a concrete example. FIPS~203, Section~3.3, states that the decapsulation algorithm ``SHALL'' return a shared secret derived from the ciphertext via implicit rejection when the re-encryption check fails. This is normative: an implementation that returns an error code instead of a pseudorandom value is non-conforming, because it leaks information about the private key through a timing side channel. By contrast, the security considerations section \emph{recommends} constant-time implementation of the comparison step, but an implementation that uses a variable-time comparison (inadvisable as it may be) is not technically non-conforming with respect to FIPS~203 itself---though it will fail FIPS~140-3 validation for a different reason. When reading any standard, the first skill to develop is distinguishing these two registers and understanding which penalties attach to violations of each.
+
+\subsection{What FIPS 203 Specifies}
+\label{subsec:fips203-specifies}
+
+The core of FIPS~203 is a complete algorithmic specification\index{FIPS!algorithmic specification}: the three parameter sets (ML-KEM-512, ML-KEM-768, ML-KEM-1024), the key generation algorithm, encapsulation, decapsulation, and the encoding formats for public keys, private keys, and ciphertexts. Every constant is fixed. Every polynomial operation is defined over $\Rq = \Z_q[X]/(X^{256}+1)$ with $q = 3329$, exactly as we saw in Chapter~\ref{ch:lwe-encryption}. The document also specifies the Known Answer Tests\index{KAT} (KATs)---deterministic test vectors that an implementation must reproduce bit-for-bit to be considered correct.
+
+What FIPS~203 does \emph{not} specify is equally important. It says nothing about which hardware platform to use, which programming language to write the implementation in, how to protect against timing attacks or power analysis, how to manage the lifecycle of keys (generation, storage, rotation, destruction), or how to integrate ML-KEM into a protocol like TLS or IPsec. These omissions are deliberate: a FIPS defines a cryptographic primitive in isolation, leaving the surrounding infrastructure to other standards. Side-channel resistance belongs to FIPS~140-3~\cite{FIPS140-3} and the CMVP validation process. Protocol integration belongs to the IETF. Key management belongs to NIST SP~800-57. This separation of concerns is architecturally clean, but it means that ``FIPS~203 compliant'' is a far narrower claim than most people assume.
+
+Table~\ref{tab:fips203-scope} makes this boundary explicit. The left column lists what FIPS~203 normatively specifies; the right column lists what it delegates to other documents.
+
+\begin{table}[t]
+\caption{What FIPS 203 specifies and what it delegates}
+\label{tab:fips203-scope}
+\begin{tabular}{p{5.5cm}p{5.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Specified in FIPS 203} & \textbf{Delegated elsewhere} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Parameter sets (512, 768, 1024) & Platform and language \\
+Key generation algorithm & Side-channel countermeasures \\
+Encapsulation / decapsulation & Key lifecycle management \\
+Public key and ciphertext encoding & Protocol integration (TLS, SSH, \ldots) \\
+Known Answer Test vectors & Random number generation source \\
+Implicit rejection requirement & Hardware security module requirements \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+\subsection{From Kyber to ML-KEM}
+\label{subsec:kyber-to-mlkem}
+
+The relationship between the original CRYSTALS-Kyber submission\index{Kyber} and the final FIPS~203 standard rewards close examination, because it illustrates how the standardisation process transforms an academic algorithm into an industrial specification. The mathematical core is unchanged---Module-LWE with the Fujisaki--Okamoto transform---but the details differ in ways that break interoperability.
+
+NIST renamed Kyber to ML-KEM (Module-Lattice-Based Key-Encapsulation Mechanism) to avoid trademark issues and to establish a naming convention where the acronym describes the mathematical structure. More substantively, FIPS~203 modified the key derivation to include explicit domain separation, changed the hash used in the decapsulation check from SHA3-256 to SHAKE-256, and altered the encoding of the implicit rejection path. The seed expansion procedure was also restructured: where Kyber Round~3 derived the matrix $\mathbf{A}$ and the noise vectors from a single 32-byte seed, FIPS~203 separates the randomness into distinct domains, reducing the risk of related-seed attacks in multi-user settings.
+
+The result is that a correct Kyber Round~3 implementation and a correct FIPS~203 implementation produce different outputs from the same inputs. They are not interoperable at the wire level. Any organisation that deployed ``Kyber'' during the transition period---and several major cloud providers did, to get ahead of the harvest-now-decrypt-later threat---must re-implement to match FIPS~203 exactly. This is a practical lesson in the cost of early adoption: the security benefit of deploying pre-standard PQC was real, but so was the technical debt incurred when the standard diverged from the submission.
+
+\subsection{FIPS 204 and FIPS 205: Parallel Structure, Different Primitives}
+\label{subsec:fips204-fips205}
+
+FIPS~204\index{FIPS!204}~\cite{FIPS204} (ML-DSA, the standardised form of CRYSTALS-Dilithium) and FIPS~205\index{FIPS!205}~\cite{FIPS205} (SLH-DSA, the standardised form of SPHINCS+) follow the same documentary structure: scope, normative references, definitions, algorithmic specification, parameter sets, KATs, and security considerations. The reader who can navigate FIPS~203 can navigate the other two without difficulty.
+
+The differences reflect the different nature of the primitives. FIPS~204 specifies a digital signature scheme based on Module-LWE, with three parameter sets (ML-DSA-44, ML-DSA-65, ML-DSA-87) and both deterministic and hedged signing modes. The hedged mode incorporates additional randomness into the signing process, providing resilience against fault-injection attacks that could exploit the deterministic mode's reproducibility---a concern we explored in Chapter~\ref{ch:hardware-security}. FIPS~205 specifies a hash-based signature scheme whose security rests entirely on the properties of the underlying hash function, as we studied in Chapter~\ref{ch:hash-based}. SLH-DSA offers twelve parameter sets (three security levels times two speed/size tradeoffs times two hash function choices), making it the most parameter-rich of the three standards. Its signatures are also the largest---roughly 8 to 50 kilobytes depending on the parameter set---which explains why it is positioned as a conservative fallback rather than a primary deployment choice.
+
+Table~\ref{tab:fips-comparison} compares the three published FIPS standards along the dimensions that matter most for deployment decisions: key and signature sizes, computational cost, and the nature of the underlying hardness assumption.
+
+\begin{table}[t]
+\caption{Comparison of FIPS 203, 204, and 205 at the 128-bit security level}
+\label{tab:fips-comparison}
+\begin{tabular}{p{2.8cm}p{2.5cm}p{2.5cm}p{3.5cm}}
+\hline\noalign{\smallskip}
+ & \textbf{FIPS 203} & \textbf{FIPS 204} & \textbf{FIPS 205} \\
+ & \textbf{ML-KEM-768} & \textbf{ML-DSA-65} & \textbf{SLH-DSA-128f} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Primitive & KEM & Signature & Signature \\
+Public key & 1,184~B & 1,952~B & 32~B \\
+Secret key & 2,400~B & 4,032~B & 64~B \\
+Ciphertext / Sig. & 1,088~B & 3,293~B & 17,088~B \\
+Hardness basis & Module-LWE & Module-LWE & Hash function \\
+Parameter sets & 3 & 3 & 12 \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The size differences are consequential for protocol integration. ML-KEM-768's ciphertext fits comfortably in a single TLS record, but SLH-DSA-128f's 17~KB signature does not---a certificate chain containing three SLH-DSA certificates would exceed 50~KB, roughly ten times the size of a classical certificate chain. These numbers explain why ML-DSA, despite its larger keys, is the preferred signature algorithm for most protocol contexts: its signatures are large compared to classical ECDSA but small compared to SLH-DSA.
+
+A fourth standard, FIPS~206 (FN-DSA, based on the FALCON submission), was under development at the time of writing. FN-DSA uses the NTRU lattice and produces compact signatures (under 1,300~bytes at the 128-bit security level), but its signing algorithm requires high-precision floating-point arithmetic, which complicates both constant-time implementation and hardware deployment. The standardisation of FN-DSA was expected to complete in 2025, adding a second lattice-based signature option alongside ML-DSA.
+
+\subsection{Citing a FIPS in Practice}
+\label{subsec:citing-fips}
+
+A compliance document that claims ``we use FIPS~203'' is incomplete. A proper citation must specify the parameter set (e.g., ML-KEM-768), the CMVP validation certificate number of the cryptographic module used, and the version of the FIPS consulted (since standards are occasionally revised). The canonical citation format is: ``ML-KEM-768 as specified in FIPS~203 (August 2024), implemented by [Module Name], CMVP Certificate \#XXXX.'' This level of precision may seem bureaucratic, but it is what auditors look for, and its absence is what causes compliance findings.
+
+\subsection{The Standardisation Timeline}
+\label{subsec:nist-timeline}
+
+The path from academic submission to published FIPS took eight years. NIST issued its call for PQC submissions in December 2016. The first round (2017--2019) evaluated 69~candidates across all primitive types. The second round (2019--2020) narrowed the field to 26~\cite{NISTIR8309}. The third round (2020--2022) selected four algorithms for standardisation: CRYSTALS-Kyber, CRYSTALS-Dilithium, FALCON, and SPHINCS+. Draft FIPS documents were published for public comment in August 2023, and the final standards---FIPS~203, 204, and 205---were published in August 2024.
+
+This timeline matters because it defines the ``clock zero'' for the entire downstream supply chain. Every IETF draft, every vendor implementation, every CMVP validation, and every regulatory mandate is referenced against the FIPS publication date. An algorithm that was mathematically understood in 2018 did not become legally deployable in the US federal government until 2024. Understanding this lag---and the reasons for it (public comment periods, patent reviews, interagency coordination)---helps explain why the overall PQC transition spans decades rather than years.
+
+With the anatomy of a single FIPS understood, the natural question is: how does an algorithm specified in a FIPS become part of a protocol that runs on the internet? That question leads us from NIST to the IETF.
+
+
+%% ================================================================
+\section{The IETF Pipeline: From Draft to Deployment}
+\label{sec:ietf-pipeline}
+
+NIST standardises algorithms. It does not standardise protocols. The organisation that defines how cryptographic algorithms are used inside TLS, SSH, IPsec, S/MIME, and every other internet protocol is the \emph{Internet Engineering Task Force}\index{IETF} (IETF)---a volunteer-driven, consensus-based body that has governed the technical architecture of the internet since 1986. If NIST is the authority that blesses an algorithm, the IETF is the authority that gives it a job.
+
+\subsection{How the IETF Works}
+\label{subsec:ietf-process}
+
+The IETF operates through \emph{working groups}\index{IETF!working group}, each chartered to address a specific technical area. Anyone can join a working group, attend its meetings (held three times a year and online continuously), and contribute to its documents. This openness is both a strength---the resulting protocols undergo extraordinary scrutiny---and a source of slowness, since consensus must be reached among participants with diverse and sometimes conflicting interests.
+
+The document lifecycle proceeds through well-defined stages. An individual or group publishes an \emph{Internet-Draft} (I-D)\index{Internet-Draft}, which is a working document with a six-month expiry. If a working group adopts it, the draft enters a revision cycle driven by mailing-list discussion, interoperability testing, and formal review. When the working group reaches consensus, the draft is submitted to the \emph{Internet Engineering Steering Group} (IESG) for approval. If approved, it is published as a \emph{Request for Comments} (RFC)\index{RFC}---despite the name, an RFC is a finished, permanent document. RFCs progress through maturity levels: Proposed Standard, then (optionally) Internet Standard. Most deployed protocols, including TLS~1.3~\cite{RFC8446}, remain at the Proposed Standard level indefinitely, which is entirely normal and does not indicate immaturity.
+
+The timeline from initial draft to published RFC is typically two to four years for non-controversial specifications. For specifications that involve fundamental changes to widely deployed protocols---which PQC integration certainly qualifies as---the process can take longer, especially when interoperability testing reveals unexpected interactions with existing implementations. The IETF's informal motto, ``rough consensus and running code,'' captures its pragmatism: a specification is not considered ready until multiple independent implementations have demonstrated interoperability.
+
+\subsection{PQC Working Groups}
+\label{subsec:pqc-working-groups}
+
+The post-quantum transition touches nearly every protocol the IETF maintains, so the work is distributed across multiple working groups\index{IETF!PQC working groups} rather than concentrated in a single ``PQC working group.'' This distributed approach reflects the IETF's design philosophy---each protocol is maintained by the people who understand it best---but it means that PQC integration proceeds at different speeds for different protocols.
+
+The \textbf{pquip}\index{IETF!pquip} (Post-Quantum Use in Protocols) working group provides cross-cutting guidance: how to handle larger key sizes without breaking existing message formats, how to define hybrid constructions in a way that is consistent across protocols, and how to manage the deprecation of classical algorithms. PQUIP does not produce protocol specifications itself; it produces guidance documents that the protocol-specific working groups consume.
+
+The \textbf{tls}\index{IETF!tls} working group handles TLS~1.3 extensions for PQC key exchange and authentication. The \textbf{lamps}\index{IETF!lamps} (Limited Additional Mechanisms for PKIX and SMIME) working group handles the encoding of PQC algorithms in X.509 certificates, certificate revocation lists, and S/MIME messages. The \textbf{ipsecme}\index{IETF!ipsecme} working group handles IKEv2 extensions for PQC key exchange. The \textbf{sshm}\index{IETF!sshm} working group handles SSH. Each group works at its own pace, with its own draft documents, and its own timeline---and coordination between groups is informal, which occasionally produces inconsistencies in how hybrid constructions are specified across different protocols.
+
+\subsection{Case Study: ML-KEM in TLS 1.3}
+\label{subsec:mlkem-tls}
+
+The most visible PQC deployment to date is the integration of ML-KEM into TLS~1.3\index{TLS!PQC integration}, the protocol that secures most web traffic. Tracing how this happened reveals the IETF pipeline in action.
+
+TLS~1.3 negotiates cryptographic parameters through a mechanism called \emph{NamedGroup}\index{NamedGroup}: the client includes a \texttt{supported\_groups} extension in its \texttt{ClientHello} listing the key-exchange groups it supports (e.g., \texttt{x25519}, \texttt{secp256r1}), along with \texttt{key\_share} entries containing the actual public key material for the groups it expects the server to select. The server chooses one group and responds with its own key share. Adding a new algorithm to TLS~1.3 requires registering a new NamedGroup code point with IANA (the Internet Assigned Numbers Authority) and defining the wire format for the corresponding key share. This is architecturally simple---TLS~1.3 was designed for exactly this kind of extensibility---but practically fraught, because the key shares must fit within the existing handshake message structure, and PQC key shares are an order of magnitude larger than classical ones.
+
+The initial deployment used a \emph{hybrid} key share\index{hybrid key exchange!TLS}: the concatenation of an X25519 ephemeral Diffie--Hellman share and an ML-KEM-768 encapsulation, sent as a single NamedGroup. The wire format is straightforward: the client's \texttt{key\_share} extension contains 32~bytes of X25519 public key followed immediately by 1,184~bytes of ML-KEM-768 encapsulation key, for a total of 1,216~bytes. The server responds with 32~bytes of X25519 public key and 1,088~bytes of ML-KEM-768 ciphertext. Both parties then derive the shared secret by concatenating the X25519 shared secret (32~bytes) and the ML-KEM shared secret (32~bytes) and passing the result through the TLS~1.3 key schedule's HKDF-based key derivation.
+
+Cloudflare and Google Chrome deployed this combination (originally using the Kyber Round~3 specification, later updated to FIPS~203) starting in late 2023, making it the first large-scale PQC deployment on the public internet~\cite{Stebila2020}. The hybrid approach ensures that even if ML-KEM is later found to be insecure, the classical X25519 component maintains confidentiality. This is the same ``belt and suspenders'' logic we analysed formally in Chapter~\ref{ch:migration}.
+
+The engineering challenges were non-trivial. The 1,216-byte client key share is substantially larger than the classical X25519 key share (32~bytes alone). When combined with other \texttt{ClientHello} extensions (server name indication, supported cipher suites, ALPN negotiation), the total message can exceed the typical maximum transmission unit (MTU) of~1,500~bytes, causing IP fragmentation or, worse, silent drops by middleboxes---firewalls, load balancers, and intrusion detection systems that parse TLS headers and assume small \texttt{ClientHello} messages. Measurement studies during the initial deployment found that approximately 0.5\% of network paths failed to complete the handshake due to such middlebox interference. The IETF response was pragmatic: document the fragmentation issue, encourage middlebox vendors to update their parsing logic, and proceed with deployment. Reality, not theoretical cleanliness, drove the timeline.
+
+\begin{svgraybox}
+\textbf{Why hybrid first, pure PQ later.} Three factors favour hybrid deployment as the first step. First, it provides quantum resistance immediately while preserving classical security as a safety net. Second, it exercises the larger message sizes in production, flushing out middlebox bugs before the transition becomes mandatory. Third, it does not require PQ authentication (certificates remain classical), which is the harder half of the transition. Pure PQ key exchange will follow once confidence stabilises; pure PQ authentication will follow last, because it requires the entire certificate ecosystem to move in concert.
+\end{svgraybox}
+
+Pure post-quantum key exchange (ML-KEM without a classical component) is expected to follow once deployment experience accumulates and confidence in the FIPS~203 specification stabilises. The IETF working group has registered NamedGroup identifiers for pure ML-KEM-512, ML-KEM-768, and ML-KEM-1024, but adoption will lag hybrid deployment by several years.
+
+\subsection{PQ Certificates, SSH, IPsec, and S/MIME}
+\label{subsec:pq-protocols}
+
+Key exchange was the first protocol component to receive PQC treatment because it protects against ``harvest now, decrypt later'' attacks. But a complete transition requires post-quantum authentication as well---signatures in X.509 certificates, SSH host keys, IKEv2 authentication payloads, and S/MIME message signatures.
+
+\emph{PQ X.509 certificates}\index{X.509!PQC} present the most complex encoding challenges. An ML-DSA-65 public key is 1,952~bytes and a signature is 3,293~bytes, compared to 32~bytes and 64~bytes for Ed25519. A single certificate contains at least two signatures (the issuer's signature over the certificate, and the subject's public key), so a single ML-DSA certificate is roughly 7~kilobytes. Certificate chains typically contain three or four certificates (end-entity, intermediate CA, root CA), so the total authentication data in a TLS handshake can exceed 25~kilobytes for ML-DSA alone---more than the entire classical handshake including key exchange.
+
+The IETF \textbf{lamps} working group is defining both \emph{pure} PQ certificates (containing only a PQ signature algorithm) and \emph{composite} certificates (containing both a classical and a PQ signature, validated jointly)~\cite{SiegelThalheim2023}. Composite certificates are larger still---they contain two public keys and two signatures---but they provide the same hybrid security guarantee for authentication that composite KEMs provide for confidentiality. The working group is also addressing the ASN.1 Object Identifiers (OIDs) that identify PQ algorithms within the X.509 structure, because every relying party (browser, operating system, embedded device) must recognise these OIDs to validate a PQ certificate. This OID registration and adoption process is a coordination bottleneck that does not arise for key exchange, where only two endpoints need to agree.
+
+\emph{PQ SSH}\index{SSH!PQC} follows a similar pattern: hybrid key exchange combining X25519 with ML-KEM, specified in drafts within the \textbf{sshm} working group. OpenSSH shipped experimental PQC support (using the earlier ``sntrup761'' NTRU-based algorithm) before FIPS~203 was finalised, demonstrating the tension between the desire for early deployment and the need for stable standards. The update to FIPS~203-based ML-KEM requires a new key exchange identifier, creating a transition within the transition---organisations that deployed sntrup761 must update again.
+
+\emph{PQ IPsec}\index{IPsec!PQC} uses RFC~9370~\cite{RFC9370} and RFC~9242~\cite{RFC9242} to enable multiple key exchanges within a single IKEv2 session, allowing a classical and a post-quantum exchange to run in sequence and combine their shared secrets. The IKEv2 framework is well-suited to this approach because it already supports multiple rounds of key exchange through its \texttt{CREATE\_CHILD\_SA} mechanism; the PQC extension adds a new exchange type rather than modifying the existing handshake structure.
+
+\emph{PQ S/MIME and CMS}\index{S/MIME!PQC} require embedding ML-KEM ciphertext within the Cryptographic Message Syntax (CMS) structure, which is the underlying format for encrypted email and signed documents. Drafts within the \textbf{lamps} working group define the ASN.1 encoding of ML-KEM ciphertexts and composite signatures for CMS. The challenge here is less about message size (email messages are not constrained by MTU) and more about backward compatibility: a PQ-encrypted email must be processable by recipients whose software may not yet support PQC algorithms, which argues for a transition period in which messages carry both classical and PQ encryption layers.
+
+\subsection{Status Overview}
+\label{subsec:ietf-status}
+
+Table~\ref{tab:ietf-status} summarises the state of the most important PQC protocol documents as of early 2026. The pace of standardisation varies significantly across protocol areas, and the pattern reveals a clear logic: protocols that protect confidentiality (key exchange) moved first, because they address the harvest-now-decrypt-later threat. Protocols that protect authentication (signatures, certificates) are moving second, because retrospective forgery is not possible---an attacker cannot go back in time and forge a signature they did not create. This prioritisation is rational, but it means that the authentication side of the transition will lag the confidentiality side by several years.
+
+\begin{table}[t]
+\caption{IETF post-quantum protocol standardisation status (early 2026)}
+\label{tab:ietf-status}
+\begin{tabular}{p{3.2cm}p{3.8cm}p{2cm}p{2.5cm}}
+\hline\noalign{\smallskip}
+\textbf{Protocol area} & \textbf{Key document(s)} & \textbf{Status} & \textbf{Working group} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+TLS 1.3 hybrid KX & Hybrid ML-KEM + X25519 & Deployed & tls \\
+TLS 1.3 pure PQ KX & ML-KEM NamedGroups & RFC & tls \\
+X.509 PQ certs & Composite sigs, pure PQ & Draft & lamps \\
+S/MIME / CMS & ML-KEM in CMS & Draft & lamps \\
+SSH hybrid KX & ML-KEM + X25519 & Draft/impl. & sshm \\
+IKEv2 multiple KX & RFC 9370, RFC 9242 & RFC & ipsecme \\
+General guidance & PQ use in protocols & RFC & pquip \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The IETF pipeline connects algorithms to protocols. But the IETF is not the only standards body with an opinion on post-quantum cryptography, and outside the United States, the standards landscape becomes considerably more complex.
+
+
+%% ================================================================
+\section{Other Standards Bodies}
+\label{sec:other-bodies}
+
+NIST defines algorithms. The IETF defines protocols. But a European government agency procuring a VPN gateway, or a Japanese bank deploying a new certificate infrastructure, cannot simply point to a FIPS number and an RFC. They operate within their own national and regional standards ecosystems, which have their own preferences, timelines, and---in some cases---different algorithm selections entirely\index{standards bodies}.
+
+\subsection{ETSI: Guidance Without Algorithms}
+\label{subsec:etsi}
+
+The \emph{European Telecommunications Standards Institute}\index{ETSI} (ETSI) maintains a dedicated working group on Quantum-Safe Cryptography (QSC)\index{ETSI!QSC}. Unlike NIST, ETSI does not select or standardise algorithms. Instead, it produces \emph{technical reports} and \emph{migration guides} that help European organisations plan the PQC transition. ETSI TR~103~619 provides a framework for assessing quantum risk, including a methodology for determining which systems are most vulnerable to harvest-now-decrypt-later attacks. ETSI TS~103~744 defines a quantum-safe hybrid key exchange for TLS in the European context, specifying how European implementations should combine classical and PQC algorithms during the transition period.
+
+ETSI also operates the Quantum-Safe Cryptography Interoperability Events, where vendors test their PQC implementations against one another---a function analogous to the IETF's ``hackathon'' sessions but focused specifically on European deployment scenarios. The value of ETSI's work lies not in algorithm selection but in the practical guidance and interoperability verification it offers to organisations that must comply with European regulations while using algorithms standardised elsewhere.
+
+\subsection{ISO/IEC: International Harmonisation}
+\label{subsec:iso}
+
+The \emph{International Organization for Standardization}\index{ISO} (ISO), through its joint technical committee with IEC (JTC~1/SC~27), maintains the international standards for cryptographic algorithms: ISO~18033 for encryption, ISO~14888 for digital signatures, and ISO~11770 for key management. These standards have historically incorporated algorithms from national standards bodies---AES originated at NIST but is also ISO~18033-3; RSA signatures are both FIPS~186 and ISO~14888-2---and the same process is underway for PQC. ISO amendments to include ML-KEM in ISO~18033 and ML-DSA in ISO~14888 are in development, which will give the NIST-selected algorithms formal international recognition beyond the jurisdiction of US federal procurement.
+
+The ISO process is slower than NIST's---ISO amendments typically require two to three years from first working draft to publication, because they involve ballot cycles among all participating national bodies---but it carries a different kind of authority. Many countries that do not recognise FIPS documents directly (because they are US national standards) do recognise ISO standards through their national adoption mechanisms. India, for instance, typically adopts ISO standards as Bureau of Indian Standards (BIS) standards with minimal modification. For a global technology vendor, ISO standardisation of ML-KEM means that a single implementation can satisfy procurement requirements in jurisdictions from Brazil to South Korea, without requiring separate national certifications for the algorithm itself. This is the quiet, unglamorous work of international harmonisation, but it is what makes global interoperability possible.
+
+\subsection{Where They Agree and Where They Diverge}
+\label{subsec:agree-diverge}
+
+The relationship among these bodies is cooperative but not frictionless. The general flow is clear: NIST defines the algorithms, the IETF defines the protocols, ETSI provides European deployment guidance, and ISO provides international harmonisation. Table~\ref{tab:standards-bodies} summarises this division of labour.
+
+\begin{table}[t]
+\caption{Standards bodies and their roles in the PQC transition}
+\label{tab:standards-bodies}
+\begin{tabular}{p{2.2cm}p{3cm}p{3.3cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Body} & \textbf{Output type} & \textbf{PQC role} & \textbf{Binding force} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+NIST & FIPS, SP & Algorithm specification & US federal law \\
+IETF & RFC & Protocol specification & Voluntary consensus \\
+ETSI & TR, TS & Migration guidance & EU referenced \\
+ISO/IEC & International Standard & Harmonisation & National adoption \\
+BSI & TR, guidelines & German requirements & German federal \\
+ANSSI & Guidance, avis & French requirements & French federal \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The most significant divergence\index{FrodoKEM} concerns algorithm selection. The German BSI\index{BSI} and, to a lesser extent, the French ANSSI\index{ANSSI} have expressed a preference for FrodoKEM---a KEM based on \emph{unstructured} LWE, without the ring or module structure that ML-KEM relies on. The argument is conservative and rooted in a legitimate scientific concern: the algebraic structure of the polynomial ring $\Z_q[X]/(X^n+1)$ that underlies Module-LWE \emph{might} admit attacks that do not apply to unstructured LWE. No such attack is known, and the best current evidence suggests that Module-LWE is as hard as plain LWE for the parameter ranges used in ML-KEM---but ``no attack is known'' is not the same as ``no attack exists,'' and European agencies with decades-long security horizons prefer to err on the side of caution.
+
+The performance cost of this caution is substantial. FrodoKEM-976 (the parameter set closest to ML-KEM-768 in security level) has public keys of 15,632~bytes and ciphertexts of 15,744~bytes---roughly thirteen times larger than ML-KEM-768. Key generation and encapsulation are correspondingly slower. NIST considered FrodoKEM but did not select it for standardisation, judging the performance gap too large for general deployment. This disagreement is not academic---it means that a European defence contractor might be required to support both ML-KEM (for interoperability with US systems) and FrodoKEM (for compliance with national guidance), at least during the transition period. ISO standardisation of FrodoKEM as an alternative to ML-KEM would help resolve this tension by providing a single international standard that European agencies can reference.
+
+\subsection{China's Parallel Path}
+\label{subsec:china-pqc}
+
+China's PQC standardisation\index{China!PQC standardisation} proceeds independently through the \emph{State Cryptography Administration} (SCA) and the national GM/SM algorithm series. China's Cryptography Law (2020) requires that commercial cryptographic products used within China employ algorithms approved by the SCA, creating a regulatory framework that is parallel to---and largely separate from---the NIST/IETF ecosystem.
+
+For post-quantum algorithms, China's national competition selected different lattice-based constructions (notably Aigis-enc and Aigis-sig, based on Module-LWE but with different parameter choices, polynomial rings, and design decisions than ML-KEM and ML-DSA) and different hash-based signatures. The mathematical foundations are similar---Module-LWE in both cases---but the implementations are not interoperable. A Chinese ML-KEM-equivalent and the NIST ML-KEM produce different ciphertexts, use different encodings, and have different OIDs.
+
+The resulting ecosystem is largely disjoint from the NIST/IETF pipeline: Chinese commercial cryptographic products must use SCA-approved algorithms, and international products sold in China may need to support both algorithm families. This creates a practical challenge for multinational organisations. A global bank, for instance, might need its TLS infrastructure to negotiate ML-KEM when connecting to US counterparties and Aigis-enc when connecting to Chinese counterparties---requiring either algorithm-switching logic or entirely separate protocol stacks for different markets. No current standard addresses this cross-jurisdictional interoperability problem, and it is unclear whether any future standard will, since the divergence is driven by policy choices rather than technical constraints.
+
+The existence of multiple standards bodies with overlapping but non-identical mandates creates an environment where compliance is not a single checkbox but a matrix. The next section maps out the regulatory mandates that turn these standards into legal obligations.
+
+
+%% ================================================================
+\section{Regulatory Mandates by Jurisdiction}
+\label{sec:regulatory-mandates}
+
+Standards bodies define what is available. Regulators define what is \emph{required}\index{regulatory mandates}. The distinction matters because an organisation that merely adopts a recommended algorithm is in a different legal position from one that implements a mandated algorithm by a mandated date. In the post-quantum transition, the gap between ``recommended'' and ``required'' is closing rapidly, but at different speeds in different jurisdictions.
+
+\subsection{United States: CNSA 2.0 and Federal Mandates}
+\label{subsec:us-mandates}
+
+The United States federal government's PQC timeline is defined by two complementary authorities: the NSA's \emph{Commercial National Security Algorithm Suite 2.0}\index{CNSA 2.0}~\cite{CNSA2.0} (CNSA~2.0) and the Office of Management and Budget's Memorandum M-23-02\index{OMB M-23-02}~\cite{OMB-M-23-02}, which implements the requirements of National Security Memorandum~10~\cite{NSPM-10}.
+
+CNSA~2.0 establishes a phased timeline for the transition of National Security Systems (NSS)---the networks and devices that carry classified information. The milestones are concrete and worth listing in full, because they define the pace that every downstream vendor and integrator must match:
+
+\begin{table}[t]
+\caption{CNSA 2.0 transition milestones for National Security Systems}
+\label{tab:cnsa-timeline}
+\begin{tabular}{p{1.5cm}p{4cm}p{6cm}}
+\hline\noalign{\smallskip}
+\textbf{Year} & \textbf{Requirement} & \textbf{Algorithms} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+2025 & Software/firmware signing: PQC preferred & ML-DSA-65 or ML-DSA-87 \\
+2026 & Web servers/browsers: PQC for TLS & ML-KEM-768, ML-DSA \\
+2027 & Network equipment: PQC for VPN & ML-KEM-1024, ML-DSA-87 \\
+2030 & Key establishment: PQC mandatory & ML-KEM-768 or ML-KEM-1024 \\
+2033 & All uses: PQC mandatory & ML-KEM, ML-DSA, SLH-DSA \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+These dates are not aspirational targets; they are compliance deadlines enforced through the acquisition process. A vendor that cannot demonstrate PQC capability by the relevant date will not receive contracts for NSS components. The specificity of the algorithm requirements is notable: CNSA~2.0 does not merely say ``use post-quantum cryptography'' but names the exact FIPS standards and parameter sets that must be used, removing ambiguity at the cost of flexibility.
+
+OMB M-23-02 extends PQC requirements to all federal agencies, not just those handling classified information. It requires each agency to submit a cryptographic inventory---a catalogue of every system, protocol, and library using public-key cryptography---and a migration plan with milestones. The inventory requirement alone has been transformative: many agencies discovered that they did not know what cryptographic algorithms their systems used, let alone where to begin migrating. NIST IR~8547~\cite{NISTIR8547} provides the technical guidance that agencies use to build these inventories and migration plans.
+
+The interplay between CNSA~2.0 and OMB M-23-02 creates a two-track system. National Security Systems are governed by NSA guidance and subject to the strict CNSA~2.0 timeline. Non-NSS federal systems are governed by OMB and NIST, with milestones that are somewhat more flexible but nonetheless binding through the Federal Information Security Modernization Act (FISMA) audit process. Private-sector organisations are not directly bound by either, but the gravitational effect is substantial: vendors serving the federal government must meet these timelines, and the resulting products and configurations propagate into commercial markets. A bank that uses the same VPN appliance as a federal agency will receive PQC-capable firmware whether or not its own regulator mandates it.
+
+\subsection{European Union: A Multi-Layered Framework}
+\label{subsec:eu-mandates}
+
+The European Union's approach to PQC regulation is characteristically multi-layered, combining EU-wide legislation with national guidance from member states.
+
+The \emph{Cyber Resilience Act}\index{Cyber Resilience Act} (CRA)~\cite{EUCyberResilienceAct}, adopted in 2024, establishes horizontal cybersecurity requirements for all products with digital elements sold in the EU market. The CRA does not name specific algorithms, but it requires that products implement ``state of the art'' security measures and provide security updates throughout their lifecycle. As PQC algorithms become the acknowledged state of the art---and the CRA's implementing acts are expected to reference them explicitly---products using only classical cryptography will face increasing difficulty demonstrating compliance.
+
+The \emph{eIDAS~2.0}\index{eIDAS 2.0} regulation~\cite{eIDAS2} governs electronic identification and trust services, including qualified electronic signatures with legal equivalence to handwritten signatures. The PQC implications of eIDAS~2.0 are profound and often underappreciated. A qualified electronic signature under eIDAS has the same legal standing as a handwritten signature in every EU member state. If the signature algorithm is later broken, the legal validity of the signature is called into question. This creates a unique requirement: signatures must remain verifiable not just for the lifetime of the signing certificate (typically one to three years) but for the legal retention period of the signed document, which can be decades.
+
+The transition to PQC signatures affects the entire European trust services infrastructure: certificate authorities must issue PQ certificates, signature creation devices (including smart cards and hardware tokens) must implement PQ signing algorithms, validation services must verify PQ signatures, and the EU Digital Identity Wallet must support PQ authentication. Because qualified signatures have legal force, the transition must be coordinated---a signature created with a PQC algorithm must be verifiable by all relying parties, which requires the entire ecosystem to move in concert. A premature deployment of PQ signatures (before validators support them) would produce legally invalid documents; a delayed deployment (after classical algorithms become insecure) would produce forgeable documents. The timing window is narrow.
+
+The \emph{European Union Agency for Cybersecurity}\index{ENISA} (ENISA)~\cite{ENISA-PQC2022} provides overarching guidance on the PQC transition, recommending hybrid approaches during the transition period and urging member states to begin cryptographic inventories. ENISA's role is advisory rather than regulatory, but its recommendations carry significant weight in shaping national policies.
+
+At the national level, two member states provide particularly detailed guidance.
+
+The French ANSSI~\cite{ANSSI-PQC2022} has been historically conservative, publishing a position paper in 2022 that explicitly recommended against deploying PQC algorithms as the sole cryptographic protection. ANSSI's position is that PQC algorithms have not yet accumulated sufficient cryptanalytic scrutiny to justify abandoning classical algorithms, and that hybrid constructions should be mandatory until at least 2030. This is a stronger position than NIST's (which permits pure PQC deployment) and creates a compliance asymmetry: an implementation that satisfies CNSA~2.0 (which allows pure ML-KEM from 2030) may not satisfy ANSSI's requirements if the French guidance remains in effect.
+
+The German BSI~\cite{BSI-TR-02102,BSI-TR-03116} publishes specific technical requirements for TLS configurations (TR-03116) and algorithm recommendations (TR-02102) that include PQC options. TR-02102 is updated annually and serves as the de facto algorithm approval list for German federal IT systems. The BSI's inclusion of FrodoKEM alongside the NIST-selected algorithms, as discussed in Sect.~\ref{subsec:agree-diverge}, reflects a consistent institutional preference for conservative security margins over performance optimisation.
+
+\subsection{United Kingdom and Asia-Pacific}
+\label{subsec:uk-apac}
+
+The UK's \emph{National Cyber Security Centre}\index{NCSC} (NCSC) has published guidance recommending that organisations begin planning for PQC migration, with particular emphasis on protecting data that must remain confidential for decades. The NCSC aligns broadly with the NIST algorithm selections but has not set mandatory timelines comparable to CNSA~2.0. Post-Brexit, the UK's regulatory framework for cryptography operates independently of the EU's, though in practice the technical recommendations remain closely aligned. The NCSC's approach is characteristically pragmatic: it provides sector-specific guidance (separate documents for telecommunications, financial services, and government) rather than a single universal timeline.
+
+In the Asia-Pacific region, Japan's CRYPTREC\index{CRYPTREC}~\cite{CRYPTREC2023} committee evaluates cryptographic algorithms for government use and maintains three lists: the ``e-Government Recommended Ciphers List'' (algorithms recommended for active use), the ``Candidate Recommended Ciphers List'' (algorithms under evaluation), and the ``Monitoring Ciphers List'' (algorithms that remain acceptable but are approaching end of life). The NIST PQC algorithms are expected to enter the Candidate list first, then move to the Recommended list after sufficient analysis---a process that typically takes two to three years. South Korea's KCMA\index{KCMA} (Korean Cryptographic Module Accreditation) program is developing PQC validation criteria aligned with NIST standards, and the Korean government has announced plans for a domestic PQC pilot deployment in critical infrastructure by 2027. Australia's ASD\index{ASD} (Australian Signals Directorate) has issued guidance recommending PQC for systems protecting information classified SECRET and above, with a timeline broadly aligned with CNSA~2.0---reflecting Australia's close intelligence partnership with the United States through the Five Eyes alliance.
+
+\subsection{Convergence and Divergence}
+\label{subsec:convergence-divergence}
+
+Table~\ref{tab:regulatory-timeline} maps the major jurisdictions against their PQC timelines and algorithm requirements. The picture that emerges is one of broad convergence on algorithms---ML-KEM and ML-DSA are near-universal choices---with divergence on timelines, the role of hybrid mandates, and supplementary algorithm preferences.
+
+\begin{table}[t]
+\caption{PQC regulatory timelines by jurisdiction}
+\label{tab:regulatory-timeline}
+\begin{tabular}{p{2.2cm}p{2.5cm}p{2.8cm}p{2cm}p{2cm}}
+\hline\noalign{\smallskip}
+\textbf{Jurisdiction} & \textbf{KEM mandate} & \textbf{Signature mandate} & \textbf{Hybrid req.} & \textbf{Extras} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+US (CNSA 2.0) & 2030 & 2025 (pref.) / 2033 & Optional & --- \\
+EU (CRA) & ``State of art'' & ``State of art'' & Recommended & FrodoKEM (BSI) \\
+France (ANSSI) & TBD & TBD & Mandatory & Conservative \\
+Germany (BSI) & 2030 (est.) & 2030 (est.) & Recommended & FrodoKEM \\
+UK (NCSC) & Guidance only & Guidance only & Recommended & --- \\
+Japan & In evaluation & In evaluation & TBD & --- \\
+China & Own timeline & Own timeline & Separate & SM/Aigis \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The most dangerous gap is between jurisdictions with firm deadlines and those with only recommendations. An organisation operating globally must satisfy the most demanding jurisdiction it serves, but ``most demanding'' is not always obvious: a firm 2030 deadline (CNSA~2.0) is in some sense easier to plan for than an open-ended ``state of the art'' requirement (CRA) that could be interpreted retroactively by a court or regulator.
+
+\subsection{Industry-Specific Considerations}
+\label{subsec:industry-specific}
+
+Beyond national and regional mandates, several industries face sector-specific PQC requirements that add additional layers of compliance complexity.
+
+\emph{Financial services.}\index{financial services!PQC} The payment card industry (PCI DSS) requires ``strong cryptography'' but does not yet specify PQC algorithms. However, the PCI Security Standards Council has signalled that future versions will address the quantum threat, and the long lifecycle of payment terminals (often 7--10~years) means that terminals deployed today may need PQC capability before they are retired. The SWIFT network, which handles interbank messaging, has begun evaluating PQC for its proprietary protocols and has published guidance recommending that member banks inventory their cryptographic dependencies.
+
+\emph{Healthcare.}\index{healthcare!PQC} Protected health information (PHI) under HIPAA in the US and patient data under GDPR in the EU must remain confidential for the lifetime of the patient---potentially 80~years or more. This is the canonical harvest-now-decrypt-later scenario: encrypted health records transmitted today could be collected by an adversary and decrypted decades hence. Healthcare organisations face particularly strong incentives to adopt PQC for data in transit, even before regulatory mandates require it.
+
+\emph{Critical infrastructure.}\index{critical infrastructure!PQC} Power grids, water systems, and transportation networks increasingly rely on encrypted communications for supervisory control and data acquisition (SCADA) systems. These systems often run on embedded hardware with limited computational resources and long replacement cycles (15--20~years for grid equipment). PQC migration in this sector is constrained not by standards availability but by the physical inability to update deployed hardware---a challenge that regulatory mandates alone cannot solve.
+
+The convergence on ML-KEM and ML-DSA as the primary algorithms is genuinely encouraging---it means that a single implementation can satisfy most jurisdictions, with FrodoKEM as a supplementary requirement in some European contexts. The divergence on timelines is manageable through phased migration plans. The divergence on China's algorithms is the most structurally problematic, because it requires organisations to implement, test, and maintain an entirely separate algorithm family for one market. Whether this divergence narrows over time (through ISO harmonisation or bilateral agreements) or widens (through further regulatory decoupling) is a geopolitical question beyond the scope of this book, but one that every global organisation must monitor.
+
+Knowing what the regulations require brings us to the practical question: what does an organisation actually need to \emph{produce} to demonstrate compliance?
+
+
+%% ================================================================
+\section{Writing a PQC Compliance Policy}
+\label{sec:compliance-policy}
+
+A regulation tells an organisation \emph{what} it must do. A compliance policy tells the organisation \emph{how} it will do it, \emph{when} each step will happen, and how it will prove that the steps were completed\index{compliance policy}. This section outlines the structure of such a policy---not because this book is a compliance manual, but because understanding what compliance requires reveals where the gaps in the current standards ecosystem actually bite.
+
+\subsection{The Cryptographic Inventory}
+\label{subsec:crypto-inventory}
+
+Every PQC compliance effort begins with the same question: what cryptographic algorithms does the organisation currently use, and where?\index{cryptographic inventory} This sounds simple. It is not. A typical enterprise uses cryptography in hundreds of places---TLS termination, database encryption, code signing, VPN tunnels, authentication tokens, hardware security modules, embedded firmware, and third-party SaaS products whose cryptographic internals are opaque.
+
+A useful inventory records, for each system: the protocol (e.g., TLS~1.2), the algorithm and key length (e.g., ECDHE-P256 + AES-128-GCM), the certificate chain (issuing CA, expiry date, signature algorithm), the cryptographic library (e.g., OpenSSL~3.1), and the hardware module if applicable (e.g., HSM model and CMVP certificate number).
+
+The challenge is that much of this information is not centralised. The TLS configuration lives in the web server's config files. The certificate metadata lives in the CA's database. The library version lives in the build system's dependency manifest. The HSM model lives in the procurement system. No single team owns the complete picture, and assembling it requires collaboration across infrastructure, security, development, and procurement teams. Organisations that have already implemented a Software Bill of Materials (SBOM) process will find the cryptographic inventory easier, because the tooling and organisational habits are transferable.
+
+The inventory is not a one-time exercise; it must be maintained as a living document, because systems change and new deployments introduce new cryptographic dependencies.
+
+The emerging concept of a \emph{Cryptographic Bill of Materials}\index{CBOM} (CBOM) formalises this inventory into a machine-readable format, analogous to the Software Bill of Materials (SBOM) that supply-chain security practices already require. A CBOM lists every cryptographic algorithm, key, certificate, and library in a system, enabling automated scanning and policy enforcement. Where a manual inventory answers ``what cryptography do we use?'', a CBOM answers the same question in a form that machines can parse, compare against policy, and flag when violations occur.
+
+Several tools support CBOM generation and analysis. Certificate lifecycle management platforms (Venafi, Keyfactor, Sectigo) scan networks for X.509 certificates and extract their algorithm and key-length metadata. Static analysis tools scan source code and binary dependencies for calls to cryptographic libraries and can identify which algorithms are in use even when configuration is embedded in code. IBM's CBOM prototype extends the CycloneDX SBOM format with cryptographic properties, enabling integration with existing supply-chain security workflows. The format is not yet standardised by any standards body, but the concept is gaining traction rapidly---OMB M-23-02 effectively requires CBOM-like capability without using the term, and the EU CRA's security update requirements will likely drive adoption in Europe.
+
+\subsection{Risk Classification and Prioritisation}
+\label{subsec:risk-classification}
+
+Not all systems need to migrate at the same time. The cryptographic inventory enables a \emph{risk classification} that prioritises migration based on three factors: the sensitivity of the data the system protects, the system's exposure to harvest-now-decrypt-later attacks (which depends on whether it uses key exchange for confidentiality), and the difficulty of migrating the system (which depends on hardware constraints, vendor support, and interoperability requirements).
+
+Systems protecting long-lived secrets (e.g., health records, classified intelligence, trade secrets with decade-long value) and using ephemeral key exchange face the highest risk from harvest-now-decrypt-later and should migrate first. Systems using only authentication (e.g., code signing) face lower immediate risk because a quantum attacker cannot retroactively forge a signature they did not compute at the time of signing---though this reasoning breaks down for signatures that must remain valid for decades, such as those on long-term contracts or archival documents. Systems embedded in hardware with no firmware update capability may require physical replacement, making them the most difficult---and potentially the most expensive---to migrate.
+
+A useful framework combines these three factors into a simple priority matrix. We assign each system a score of 1--3 on each dimension (data sensitivity, exposure to harvest-now-decrypt-later, migration difficulty) and prioritise by the product of the first two factors, breaking ties by the inverse of migration difficulty (easier systems first within each risk tier). This is not a formal risk model---it is a triage tool that ensures the highest-risk, easiest-to-migrate systems move first, while high-risk, hard-to-migrate systems receive early planning attention even if migration itself comes later.
+
+\subsection{Policy Structure and Compliance Evidence}
+\label{subsec:policy-structure}
+
+A PQC compliance policy document typically contains six core sections:
+
+\begin{enumerate}
+\item \textbf{Scope.} Which systems, data classifications, and business units are covered. A phased approach is common: critical systems in Phase~1, important systems in Phase~2, remaining systems in Phase~3.
+\item \textbf{Timeline.} Migration milestones aligned with the applicable regulatory mandates (e.g., CNSA~2.0 milestones for NSS systems, CRA compliance dates for EU-market products). Each milestone should specify both a target date and a ``must not exceed'' date.
+\item \textbf{Approved algorithms.} The PQC algorithms and parameter sets the organisation will deploy, with justification for each choice. For example: ``ML-KEM-768 for all TLS key exchange; ML-DSA-65 for code signing; SLH-DSA-128s as a contingency signature algorithm.''
+\item \textbf{Exceptions.} Criteria for systems that cannot migrate on schedule, with compensating controls (e.g., ``System X will continue using ECDH-P384 until hardware replacement in Q3~2028; compensating control: network segmentation and enhanced monitoring'').
+\item \textbf{Testing.} Requirements for validating PQC deployments, including unit tests against KAT vectors, interoperability testing with external counterparties, and performance regression testing to ensure that the larger key sizes do not violate latency budgets.
+\item \textbf{Rollback.} The procedure for reverting to a classical or hybrid configuration within a defined time window should a critical vulnerability be discovered.
+\end{enumerate}
+
+Compliance evidence---the artefacts that prove to an auditor that the policy is being followed---includes CMVP validation certificates for cryptographic modules, periodic inventory updates showing migration progress against milestones, test reports demonstrating interoperability, and exception logs with risk assessments for deferred migrations.
+
+The rollback plan deserves special attention. PQC algorithms are young, and the history of cryptography is littered with algorithms that were considered secure at the time of deployment and were later broken (MD5, SHA-1, RC4, Dual~EC~DRBG). A prudent compliance policy specifies, for each PQC deployment, the procedure for reverting to a classical or hybrid configuration within a defined time window (e.g., 48~hours) should a critical vulnerability be discovered in the PQC algorithm or its implementation. Hybrid deployments make this reversion straightforward; pure PQC deployments require more careful planning.
+
+The difference between an organisation that is migrating and one that is \emph{compliant} lies entirely in this evidence trail. Migration is a technical activity. Compliance is a documentation activity that proves the technical activity is happening on schedule, within policy, and under governance.
+
+\begin{svgraybox}
+\textbf{The compliance paradox.} The organisations best positioned to migrate quickly---large technology companies with dedicated cryptography teams---are often not subject to the strictest regulatory mandates. The organisations under the most regulatory pressure---government agencies, financial institutions, healthcare providers---often have the most legacy systems and the least in-house cryptographic expertise. Standards and regulations define the destination; they do not pave the road.
+\end{svgraybox}
+
+With the practical mechanics of compliance in hand, we can now step back and examine how all these pieces---algorithms, protocols, standards bodies, regulations, and compliance processes---fit together as a system.
+
+
+%% ================================================================
+\section{The Interplay of Standards Bodies}
+\label{sec:interplay}
+
+The post-quantum transition is often discussed as if it were a single, coordinated effort. It is not\index{standards supply chain}. It is the emergent result of dozens of independent organisations---each with its own mandate, pace, and incentives---producing documents that must somehow compose into a coherent whole. Understanding this system, including its failure modes, is essential for anyone who must operate within it.
+
+\subsection{The Standards Supply Chain}
+\label{subsec:supply-chain}
+
+The flow from algorithm to deployment forms a supply chain with well-defined stages. NIST specifies algorithms (FIPS~203--205). The IETF embeds those algorithms into protocols (TLS, SSH, IPsec, X.509). Vendors implement those protocols in libraries and products (OpenSSL, BoringSSL, hardware security modules). Regulators mandate the use of those products by specific dates (CNSA~2.0, CRA). And finally, organisations demonstrate compliance through inventories, policies, and audit evidence.
+
+Each link depends on the one before it. The IETF cannot finalise TLS extensions for ML-KEM until FIPS~203 is published. Vendors cannot ship validated modules until the IETF wire formats are stable. Regulators cannot enforce mandates for products that do not exist. And organisations cannot comply with mandates for which the tools are not available. A delay at any stage propagates downstream---which is exactly what happened when the NIST standardisation process, originally expected to conclude by 2022, extended to August 2024. That two-year delay compressed every downstream timeline, leaving less margin between protocol specification and regulatory deadlines.
+
+The supply chain also reveals where responsibility gaps exist. No single body is responsible for ensuring that the entire chain works end to end. NIST does not test whether its algorithms integrate cleanly into TLS. The IETF does not validate whether its wire formats survive real-world middleboxes at scale. Regulators do not verify whether the CMVP validation backlog permits vendors to ship products before the mandate dates. Each body does its own job well; the integration testing falls to vendors and early adopters, which is why the Cloudflare/Chrome deployment of hybrid TLS was so important---it was, in effect, a system-level integration test of the entire supply chain.
+
+\subsection{Feedback Loops}
+\label{subsec:feedback-loops}
+
+The supply chain is not strictly linear. Deployment experience feeds back to earlier stages, and these feedback loops have already shaped the PQC standards in measurable ways.
+
+The TLS handshake fragmentation issues discovered during early ML-KEM deployment led to IETF discussions about optimising key share formats and updating guidance for middlebox behaviour. Google's measurement of the hybrid TLS deployment found that certain corporate proxy servers dropped connections when the \texttt{ClientHello} exceeded 1,200~bytes---a problem that affected enough traffic to require workarounds in the Chrome implementation before the middlebox vendors shipped fixes.
+
+Side-channel vulnerabilities found in early ML-KEM implementations---including timing leaks in the polynomial comparison during decapsulation and power analysis attacks on the NTT computation---informed NIST's guidance in SP~800-227 on implementation security. These were not flaws in the algorithm; they were flaws in how the algorithm was implemented, precisely the kind of issue that FIPS~203 deliberately leaves to other documents.
+
+Algorithm performance measurements on real hardware influenced NIST's decision to retain ML-KEM-512 as a parameter set despite its lower security margin, because embedded and IoT devices cannot afford the computational cost of ML-KEM-768. These feedback loops are essential: a standard that cannot be implemented efficiently on real hardware is a standard that will not be adopted, regardless of its theoretical elegance.
+
+\subsection{The Speed Mismatch}
+\label{subsec:speed-mismatch}
+
+The most consequential structural problem in the PQC transition is a speed mismatch across the layers of the supply chain. Algorithms were standardised in August 2024. Protocol specifications will be largely complete by 2026--2027. Validated cryptographic module implementations will follow in 2027--2029 (the CMVP validation process alone takes 12--18 months). Regulatory mandates take effect in 2030--2033. Full deployment across the installed base of enterprise and government systems is unlikely before 2035.
+
+This sequence spans more than a decade. Consider the implication through the lens of Mosca's inequality, which we introduced in Chapter~\ref{ch:migration}: if the shelf life of the data ($x$) plus the migration time ($y$) exceeds the time until a cryptographically relevant quantum computer exists ($z$), then the data is at risk \emph{now}, regardless of when the standards process completes. For data with a 20-year shelf life (health records, intelligence, long-term contracts), if $z$ is 15~years and $y$ is 5~years, the inequality is already satisfied: $x + y = 25 > 15 = z$. The standards timeline is compatible with this arithmetic only if organisations begin migrating as soon as protocols are specified, not when they are mandated.
+
+During this transition period, the quantum computing threat continues to advance, the harvest-now-decrypt-later window continues to grow, and every year of delay increases the volume of encrypted data that a future quantum adversary could retroactively compromise. The standards process is thorough but slow, and speed is the one thing the threat does not grant.
+
+\subsection{Crypto Agility as an Architectural Requirement}
+\label{subsec:crypto-agility}
+
+The lesson from this speed mismatch is that \emph{crypto agility}\index{crypto agility}---the ability to change cryptographic algorithms without redesigning the surrounding system---must be an architectural requirement, not an afterthought. A system designed with crypto agility can adopt a new algorithm in weeks when a standard is published; a system without it requires months or years of re-engineering.
+
+Crypto agility means: algorithm identifiers are negotiated at runtime (as TLS already does with its cipher suite mechanism), key formats are abstracted behind generic interfaces so that application code does not depend on specific key sizes, certificate processing can handle multiple signature algorithms simultaneously (essential during the hybrid transition), and configuration is externalised rather than compiled into the application binary.
+
+These are software engineering practices, not cryptographic ones, but their absence is the primary bottleneck in the PQC transition. A system that hard-codes ``ECDSA-P256'' as a string literal in forty places across its codebase will require forty changes to support ML-DSA. A system that abstracts ``signing algorithm'' behind a configuration parameter requires one change to a configuration file. The irony is stark: the hardest part of deploying post-quantum cryptography is not the mathematics---it is the software engineering discipline that should have been in place decades ago.
+
+\subsection{The Risk of Inaction}
+\label{subsec:risk-inaction}
+
+The proliferation of standards bodies, working groups, drafts, and deadlines creates a paradoxical risk: \emph{standards fatigue}\index{standards fatigue}. An organisation facing simultaneous requirements from CNSA~2.0, the CRA, eIDAS~2.0, BSI technical requirements, and its own industry regulators may conclude that the landscape is too uncertain and the right strategy is to wait until everything settles.
+
+This is the worst possible response, and the reasoning is straightforward. The fundamental decision---whether to begin PQC migration---does not depend on any draft that is still in flux. The algorithms are standardised (FIPS~203--205, August 2024). The primary protocol integration (hybrid TLS) is deployed and stable. The regulatory direction is unambiguous across every jurisdiction: PQC is coming, the only variables are timing and specifics. Waiting for the last IETF draft to be finalised or the last ISO amendment to be published before beginning the migration is like waiting for the weather forecast to be perfect before starting to build a roof.
+
+The organisations that will navigate this transition successfully are those that begin with what is known---deploy hybrid TLS now, start the cryptographic inventory now, engage with vendors now---while monitoring the edges that are still in motion. The organisations that will struggle are those that treat the complexity of the standards landscape as a reason for inaction rather than a reason for early engagement.
+
+Standards define the floor of cryptographic security, not the ceiling. They specify the minimum an organisation must do, not the most it can do. An organisation that merely meets the standard is an organisation that has optimised for compliance at the expense of resilience. The post-quantum transition demands both.
+
+Chapter~\ref{ch:advanced-primitives} explores cryptographic primitives that go beyond what any current standard requires---fully homomorphic encryption, functional encryption, and other constructions that may define the next generation of standards. But the infrastructure for deploying even today's standards is far from complete. The gap between what is standardised and what is deployed remains the central challenge of the post-quantum transition, and closing it will require not just better algorithms but better engineering, better governance, and a willingness to act before every last uncertainty is resolved.
+
+The history of cryptographic transitions offers both cautionary and encouraging precedents. The migration from DES to AES took roughly a decade from standard publication (2001) to near-universal adoption in deployed systems. The migration from SHA-1 to SHA-256 in X.509 certificates, driven by browser vendors' deprecation deadlines, took approximately five years once the deadlines were announced. The PQC transition is larger in scope than either---it touches key exchange, signatures, and the entire certificate ecosystem simultaneously---but the standards infrastructure and deployment mechanisms are also more mature. Whether the transition completes before a cryptographically relevant quantum computer arrives remains an open question, and the answer depends less on the standards bodies than on the organisations that must implement what the standards specify.
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
+\begin{prob}
+\label{prob:fips203-unspecified}
+Read Section~3 (``Specification'') of FIPS~203~\cite{FIPS203}. List at least five aspects of a complete ML-KEM implementation that the specification leaves unspecified (i.e., that are not covered by any normative requirement in the document). For each, identify which other standard or guidance document addresses that aspect.
+\end{prob}
+
+\begin{prob}
+\label{prob:tls-handshake-map}
+Consider a TLS~1.3 handshake using the hybrid key exchange \texttt{X25519MLKEM768}. Draw a message-sequence diagram showing the \texttt{ClientHello}, \texttt{ServerHello}, and \texttt{Finished} messages. For each cryptographic operation in the handshake (key generation, encapsulation, key derivation, signature verification), identify the precise normative document that specifies it (FIPS number, RFC number, or NIST SP number). How many distinct standards does a single handshake depend on?
+\end{prob}
+
+\begin{prob}
+\label{prob:cnsa-timeline}
+A US federal agency operates three systems: (a)~a classified intelligence database using AES-256 and ECDH-P384 for key exchange, (b)~a public-facing web portal using TLS~1.2 with RSA-2048 certificates, and (c)~a firmware signing infrastructure using ECDSA-P256. Using the CNSA~2.0 timeline, determine the mandatory migration deadline for each system. Draft a one-page migration timeline that identifies the critical path and the highest-risk system.
+\end{prob}
+
+\begin{prob}
+\label{prob:anssi-bsi-comparison}
+Compare the ANSSI (France) and BSI (Germany) recommendations for post-quantum key encapsulation as of their most recent published guidance~\cite{ANSSI-PQC2022, BSI-TR-02102}. Where do they agree? Where do they diverge? If an organisation must comply with both (e.g., a Franco-German defence contractor), what is the minimal set of algorithms it must support?
+\end{prob}
+
+\begin{prob}
+\label{prob:cbom-design}
+Design a CBOM (Cryptographic Bill of Materials) schema for a web application that uses TLS~1.3 for external connections, mTLS for microservice-to-microservice communication, AES-256-GCM for database encryption at rest, and Ed25519 for API authentication tokens. The schema should include fields for: algorithm identifier, key length, protocol context, library name and version, CMVP certificate number (if applicable), and PQC migration status. Extend the schema to track the planned PQC replacement for each entry.
+\end{prob}
+
