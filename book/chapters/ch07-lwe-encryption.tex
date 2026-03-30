@@ -1,97 +1,507 @@
 \chapter{Learning With Errors and Lattice-Based Encryption}
 \label{ch:lwe-encryption}
 
-\abstract*{The Learning With Errors (LWE) problem is the computational foundation of the most widely deployed post-quantum schemes. This chapter develops LWE from its definition through its hardness guarantees, introduces the structured variants Ring-LWE and Module-LWE that enable practical efficiency, and culminates in a complete description of ML-KEM (CRYSTALS-Kyber)---the NIST standard for post-quantum key encapsulation.}
+\abstract*{The Learning With Errors (LWE) problem transforms the geometric hardness of lattice problems into a practical cryptographic tool: solving noisy systems of linear equations over finite fields.  This chapter develops LWE from its definition through its hardness guarantees, introduces the structured variants Ring-LWE and Module-LWE that enable practical efficiency, presents the Fujisaki--Okamoto transform that upgrades chosen-plaintext security to chosen-ciphertext security, and culminates in a complete description of ML-KEM---the NIST standard for post-quantum key encapsulation.}
+
+\abstract{The Learning With Errors (LWE) problem transforms the geometric hardness of lattice problems into a practical cryptographic tool: solving noisy systems of linear equations over finite fields.  This chapter develops LWE from its definition through its hardness guarantees, introduces the structured variants Ring-LWE and Module-LWE that enable practical efficiency, presents the Fujisaki--Okamoto transform that upgrades chosen-plaintext security to chosen-ciphertext security, and culminates in a complete description of ML-KEM---the NIST standard for post-quantum key encapsulation.}
 
 % =============================================================
-% SOURCE: notes.tex §4.2–4.3, §4.4.2 (lines 4955–6252)
-% REUSE: ~55%. Add Regev's reduction sketch, FO transform,
-%        complete ML-KEM spec with NTT.
+% Adapted from notes.tex §4.2–4.3, §4.4.2 (lines 4955–6144).
+% New material: §7.6 (FO transform), expanded §7.7 (ML-KEM).
 % =============================================================
+
 
 \section{The LWE Problem}
 \label{sec:lwe-definition}
 
-% TODO: Adapt from notes.tex §4.2.1
-% - Search-LWE and Decision-LWE: formal definitions
-% - The "noisy linear equations" interpretation
-% - Parameters: n (dimension), q (modulus), χ (error distribution)
-% - The physics analogy: signal + thermal noise
-% - Cite: Regev 2005
+Every physicist knows how to solve systems of linear equations.  The Learning With Errors problem adds a single twist: small noise in the right-hand side.  This transforms a polynomial-time computation into a problem believed to be exponentially hard, even for quantum computers~\cite{Regev2009}.
 
+\begin{definition}[Learning With Errors --- Search Version]
+\label{def:lwe-search}
+\index{LWE!search}
+Let $n, q \in \N$ with $q \geq 2$, and let $\chi$ be a probability distribution over~$\Zq$ (the \emph{error distribution}\index{LWE!error distribution}).  The \emph{search-\lwe{}} problem is: given access to arbitrarily many independent samples
+\begin{equation}
+\label{eq:lwe-sample}
+(\mathbf{a}_i,\; b_i = \ip{\mathbf{a}_i}{\mathbf{s}} + e_i \bmod q), \qquad \mathbf{a}_i \getsr \Zq^n,\quad e_i \leftarrow \chi,
+\end{equation}
+recover the secret vector $\mathbf{s} \in \Zq^n$.
+\end{definition}
+
+Without the error terms ($e_i = 0$), the secret is recovered by Gaussian elimination on $n$ samples.  With errors drawn from a distribution of standard deviation $\sigma \ll q$, the problem becomes qualitatively different: the noise is too small to destroy the linear structure, yet large enough to prevent direct algebraic solution.
+
+\begin{definition}[Learning With Errors --- Decision Version]
+\label{def:lwe-decision}
+\index{LWE!decision}
+Distinguish between the following two distributions over $\Zq^n \times \Zq$:
+\begin{enumerate}
+\item \lwe{} samples: $(\mathbf{a}, \ip{\mathbf{a}}{\mathbf{s}} + e \bmod q)$ with $\mathbf{a}\getsr\Zq^n$, $e\leftarrow\chi$.
+\item Uniform samples: $(\mathbf{a}, u)$ with $\mathbf{a}\getsr\Zq^n$, $u\getsr\Zq$.
+\end{enumerate}
+\end{definition}
+
+\begin{theorem}[Search--Decision Equivalence~\cite{Regev2009}]
+\label{thm:search-decision}
+\index{LWE!search-decision equivalence}
+For prime~$q$ and Gaussian error distribution with parameter $\sigma \geq 2\sqrt{n}$, search-\lwe{} and decision-\lwe{} are polynomial-time equivalent.
+\end{theorem}
+
+This equivalence is essential for cryptographic applications, which typically rely on the \emph{indistinguishability} guarantee of the decision version.
+
+
+\subsection{Parameters}
+\label{subsec:lwe-params}
+
+\lwe{} security depends on three parameters in tension:
+
+\begin{table}[t]
+\caption{\lwe{} parameter tradeoffs}
+\label{tab:lwe-params}
+\begin{tabular}{p{2cm}p{3cm}p{6cm}}
+\hline\noalign{\smallskip}
+\textbf{Parameter} & \textbf{Typical range} & \textbf{Effect of increase} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+$n$ (dimension) & 512--1024 & More security, larger keys \\
+$q$ (modulus)    & $2^{12}$--$2^{15}$ & Easier implementation, slightly weaker security \\
+$\sigma$ (noise) & 1.6--6.4  & More security, higher decryption failure rate \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The noise-to-modulus ratio $\alpha = \sigma/q$ is the key quantity: too small and the problem becomes easy (the noise can be rounded away); too large and decryption fails.  Cryptographic parameters sit in a narrow sweet spot where the noise is large enough for security yet small enough for correctness.
+
+
+\subsection{The Error Distribution}
+\label{subsec:error-distribution}
+
+\begin{definition}[Discrete Gaussian Distribution]
+\label{def:discrete-gaussian}
+\index{discrete Gaussian}
+The \emph{discrete Gaussian} $D_{\Z,\sigma}$ over the integers with parameter $\sigma > 0$ is the distribution assigning to each $x \in \Z$ a probability proportional to $\exp(-x^2 / 2\sigma^2)$.  It is supported on integers in $\{x : |x| \leq B\}$ with negligible tail probability for $B = \Theta(\sigma\sqrt{\log n})$.
+\end{definition}
+
+In the physics of thermal noise, $\sigma$ plays the role of temperature: higher $\sigma$ means more noise, stronger security, but also more decryption errors.  The NIST standards use a \emph{centred binomial distribution}\index{centred binomial distribution} $\beta_\eta$ (sampling $\sum_{i=1}^{\eta}(a_i - b_i)$ for uniform bits $a_i, b_i$) as a practical substitute that is easier to implement in constant time.
+
+
+%% ================================================================
 \section{Hardness of LWE}
 \label{sec:lwe-hardness}
 
-% TODO: Adapt from notes.tex §4.2.2, expand significantly
-% - Regev's quantum reduction: GapSVP → LWE (proof sketch)
-% - Classical reductions: Peikert 2009, Brakerski et al. 2013
-% - Decision-LWE ≈ Search-LWE equivalence
-% - Concrete hardness: the primal and dual attacks
-% - Cite: Regev 2009, Peikert 2009, BLPRS 2013
+\lwe{} enjoys a security guarantee unmatched in classical cryptography: solving random \lwe{} instances is as hard as solving worst-case lattice problems.
 
+\subsection{Regev's Quantum Reduction}
+\label{subsec:regev-reduction}
+
+\begin{theorem}[Regev~\cite{Regev2009}]
+\label{thm:regev}
+\index{Regev's reduction}
+For appropriate parameters ($q \leq \poly(n)$, $\sigma \geq 2\sqrt{n}$), there is a \emph{quantum} polynomial-time reduction from $\tilde{\bigO}(n/\alpha)$-\gapsvp{} to decision-\lwe{}$(n, q, D_{\Z,\sigma})$ with $\alpha = \sigma/q$.  That is, if decision-\lwe{} can be solved efficiently, then a quantum algorithm can solve \gapsvp{} on every $n$-dimensional lattice.
+\end{theorem}
+
+The qualifier ``quantum'' refers to the \emph{reduction}, not the attacker.  Even a purely classical \lwe{} solver would, via this quantum reduction, yield a quantum algorithm for worst-case lattice problems.
+
+\begin{svgraybox}
+\textbf{Reduction intuition for physicists.}
+Regev's reduction exploits the duality between a lattice $\lat$ and its dual $\lat^*$ via the quantum Fourier transform---precisely the position--momentum duality familiar from quantum mechanics.
+\begin{enumerate}
+\item Start with an arbitrary target lattice $\lat$ (a worst-case instance of \gapsvp{}).
+\item Use Gaussian sampling on $\lat$ to produce states encoding the dual lattice $\lat^*$.
+\item Apply the quantum Fourier transform to convert dual-lattice information into \lwe{} samples.
+\item Feed these samples to the \lwe{} oracle.
+\item Use the oracle's output to extract short vectors in $\lat$, solving \gapsvp{}.
+\end{enumerate}
+The noise level~$\sigma$ maps to the approximation factor~$\gamma$: more noise means a weaker (larger $\gamma$) lattice guarantee, but stronger \lwe{} security.
+\end{svgraybox}
+
+A full proof sketch appears in Appendix~\ref{app:regev-reduction}.
+
+
+\subsection{Classical Reductions}
+\label{subsec:classical-reductions}
+
+Peikert~(2009) and Brakerski et~al.~(2013) proved purely classical reductions from \gapsvp{} to \lwe{}, at the cost of a larger approximation factor or requiring a super-polynomial modulus.  For cryptographic practice, the quantum reduction remains the tightest and most commonly cited.
+
+
+\subsection{Concrete Hardness}
+\label{subsec:lwe-concrete}
+
+The best known attacks on \lwe{} reduce to lattice problems via the \emph{primal} and \emph{dual} attack strategies:
+
+\begin{itemize}
+\item \textbf{Primal attack\index{primal attack}:} Embed the \lwe{} instance into a lattice and run BKZ to find the short error vector.
+\item \textbf{Dual attack\index{dual attack}:} Find a short vector in the dual lattice to distinguish \lwe{} from uniform.
+\end{itemize}
+
+Both attacks require BKZ with block size $\beta$, giving security $\approx 0.292\,\beta$ bits (classical) or $\approx 0.265\,\beta$ bits (quantum), as established in Chap.~\ref{ch:lattice-theory}.
+
+
+%% ================================================================
 \section{LWE-Based Encryption}
 \label{sec:lwe-encryption}
 
-% TODO: Adapt from notes.tex §4.2.3
-% - Regev's encryption scheme: construction, correctness, IND-CPA security
-% - Dual Regev encryption
-% - From bits to bytes: encoding and error tolerance
+Regev's 2005 encryption scheme~\cite{Regev2009} remains the template for all modern \lwe{}-based constructions.  It encrypts a single bit $\mu \in \{0,1\}$.
 
+\begin{definition}[Regev's Encryption Scheme]
+\label{def:regev-encryption}
+\index{Regev's encryption}
+Fix parameters $(n, q, m, \chi)$ with $m = \bigO(n\log q)$.
+\begin{itemize}
+\item $\KeyGen$: Sample $\mathbf{s}\getsr\Zq^n$.  For $i=1,\ldots,m$: sample $\mathbf{a}_i\getsr\Zq^n$, $e_i\leftarrow\chi$, compute $b_i = \ip{\mathbf{a}_i}{\mathbf{s}} + e_i \bmod q$.  Set $\mathsf{pk} = (\mathbf{A}, \mathbf{b})$ and $\mathsf{sk} = \mathbf{s}$.
+\item $\Enc(\mathsf{pk}, \mu)$: Choose a random subset $S\subseteq[m]$.  Output
+\begin{equation}
+\mathbf{c} = \Bigl(\sum_{i\in S}\mathbf{a}_i,\;\;\sum_{i\in S}b_i + \mu\cdot\lfloor q/2\rceil\Bigr) \bmod q.
+\end{equation}
+\item $\Dec(\mathsf{sk}, (\mathbf{a}', b'))$: Compute $v = b' - \ip{\mathbf{a}'}{\mathbf{s}} \bmod q$.  Output $0$ if $|v| < q/4$, else output $1$.
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[Correctness]
+\label{thm:regev-correct}
+Let $(\mathbf{a}', b')$ be a ciphertext encrypting $\mu$.  Then
+\begin{equation}
+v = b' - \ip{\mathbf{a}'}{\mathbf{s}} = \sum_{i\in S} e_i + \mu\cdot\lfloor q/2\rceil.
+\end{equation}
+Decryption succeeds whenever $\abs{\sum_{i\in S} e_i} < q/4$.
+\end{theorem}
+
+\begin{theorem}[Security]
+\label{thm:regev-security}
+If decision-\lwe{}$(n,q,\chi)$ is hard, Regev's scheme is IND-CPA secure\index{IND-CPA}.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The public key $(\mathbf{A}, \mathbf{b})$ consists of \lwe{} samples.  By the decision-\lwe{} assumption, these are indistinguishable from uniform.  If $\mathbf{b}$ is uniform, then the ciphertext carries no information about $\mu$, so no adversary can distinguish encryptions of $0$ from encryptions of $1$.
+\end{proof}
+
+Regev's scheme demonstrates feasibility but is not practical: public keys are $\bigO(n^2 \log q)$ bits.  The route to practical schemes proceeds through two steps: structured lattices (Sect.~\ref{sec:ring-lwe}--\ref{sec:module-lwe}) and the Fujisaki--Okamoto transform (Sect.~\ref{sec:fo-transform}).
+
+
+%% ================================================================
 \section{Ring-LWE: Efficiency Through Structure}
 \label{sec:ring-lwe}
 
-% TODO: Adapt from notes.tex §4.3.1–4.3.2
-% - Polynomial rings R_q = Z_q[x]/(x^n + 1)
-% - Ring-LWE definition: structured version of LWE
-% - Hardness: reduction from ideal lattice problems
-% - The Number Theoretic Transform (NTT): fast polynomial multiplication
-% - Security considerations: does structure weaken security?
-% - Cite: LPR 2010/2013
+Plain \lwe{} requires storing a random matrix $\mathbf{A}\in\Zq^{n\times m}$, yielding megabyte-sized public keys.  \rlwe{}\index{Ring-LWE} replaces this unstructured matrix with multiplication in a polynomial ring, compressing keys by a factor of~$n$.
 
+\subsection{The Polynomial Ring $\Rq$}
+\label{subsec:polynomial-ring}
+
+\begin{definition}[The Cyclotomic Ring]
+\label{def:rq}
+\index{cyclotomic ring}
+Let $n$ be a power of~$2$.  Define
+\begin{equation}
+R = \Z[X]/(X^n + 1), \qquad \Rq = \Zq[X]/(X^n + 1).
+\end{equation}
+Elements of $\Rq$ are polynomials of degree $< n$ with coefficients in $\Zq$.
+\end{definition}
+
+The polynomial $X^n + 1$ is the $2n$-th cyclotomic polynomial, irreducible over~$\Z$ when $n$ is a power of~$2$.  This choice is motivated by three requirements:
+\begin{enumerate}
+\item \textbf{Security:} Ideal lattices in cyclotomic rings admit worst-case to average-case reductions~\cite{LPR2010}.
+\item \textbf{Fast arithmetic:} The Number Theoretic Transform\index{NTT} (NTT) computes polynomial multiplication in $\bigO(n \log n)$ operations when $q \equiv 1 \pmod{2n}$.
+\item \textbf{Negacyclic structure:} Multiplication by a ring element corresponds to a negacyclic matrix\index{negacyclic matrix}, so a single polynomial encodes an $n\times n$ structured matrix:
+\begin{equation}
+\label{eq:negacyclic}
+a(X)\cdot b(X) \;\longleftrightarrow\;
+\begin{pmatrix}
+a_0 & -a_{n-1} & \cdots & -a_1 \\
+a_1 & a_0 & \cdots & -a_2 \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{n-1} & a_{n-2} & \cdots & a_0
+\end{pmatrix}
+\begin{pmatrix} b_0 \\ b_1 \\ \vdots \\ b_{n-1} \end{pmatrix}.
+\end{equation}
+\end{enumerate}
+
+
+\subsection{Ring-LWE Definition}
+\label{subsec:rlwe-def}
+
+\begin{definition}[Ring Learning With Errors~\cite{LPR2010}]
+\label{def:rlwe}
+\index{Ring-LWE!definition}
+Let $\Rq = \Zq[X]/(X^n+1)$ and $\chi$ be an error distribution over $R$.
+Given samples
+\begin{equation}
+(a_i,\; b_i = a_i\cdot s + e_i) \in \Rq \times \Rq, \qquad a_i \getsr \Rq,\quad e_i \leftarrow \chi,
+\end{equation}
+the search problem is to recover $s \in \Rq$; the decision problem is to distinguish these from uniform pairs $(a_i, u_i)$.
+\end{definition}
+
+Each \rlwe{} sample provides $n$ scalar \lwe{} equations (one per coefficient), so a single sample suffices for encryption.  This compresses public keys from $\bigO(n^2)$ to $\bigO(n)$ elements.
+
+\begin{theorem}[\rlwe{} Hardness~\cite{LPR2010, LPR2013}]
+\label{thm:rlwe-hard}
+\index{Ring-LWE!hardness}
+For the cyclotomic ring $\Rq$ and appropriate parameters, solving \rlwe{} is at least as hard as solving $\gamma$-\svp{} on \emph{ideal lattices}\index{ideal lattice} in the worst case, where $\gamma = \poly(n)$.
+\end{theorem}
+
+
+\subsection{The Number Theoretic Transform}
+\label{subsec:ntt}
+
+The NTT\index{NTT} is the finite-field analogue of the FFT\index{FFT}.  For $q$ prime with $q \equiv 1 \pmod{2n}$, a primitive $2n$-th root of unity $\omega \in \Zq$ exists, and every $a(X) \in \Rq$ can be represented in the \emph{NTT domain}:
+\begin{equation}
+\hat{a}_j = a(\omega^{2j+1}) \bmod q, \qquad j = 0, 1, \ldots, n-1.
+\end{equation}
+In NTT domain, polynomial multiplication becomes component-wise: $\widehat{a\cdot b}_j = \hat{a}_j \cdot \hat{b}_j \bmod q$.  The forward and inverse transforms each cost $\bigO(n \log n)$ multiplications modulo~$q$.
+
+\begin{example}[ML-KEM's NTT Parameters]
+\label{ex:kyber-ntt}
+ML-KEM uses $n = 256$ and $q = 3329$.  Since $3329 = 13\cdot 256 + 1 \equiv 1 \pmod{512}$, the NTT exists with root $\omega = 17$.  A polynomial multiplication costs $256 \cdot 9 \approx 2300$ multiply-add operations---roughly $100\times$ faster than na\"ive $\bigO(n^2)$ multiplication.
+\end{example}
+
+
+\subsection{Security of Structured Variants}
+\label{subsec:ring-security}
+
+Adding algebraic structure raises a natural concern: does the structure enable new attacks?\index{Ring-LWE!security}
+
+After 15 years of intensive cryptanalysis, the answer is nuanced:
+\begin{itemize}
+\item No polynomial-time (classical or quantum) algorithm is known that exploits the ring structure.
+\item The best concrete attacks on \rlwe{} and \mlwe{} achieve only marginal improvements over generic lattice attacks.
+\item Sub-field attacks~(2016) apply only when parameters are poorly chosen.
+\end{itemize}
+
+The cryptographic community's pragmatic response to residual concerns about ideal lattice structure is Module-\lwe{}.
+
+
+%% ================================================================
 \section{Module-LWE: The Middle Ground}
 \label{sec:module-lwe}
 
-% TODO: Adapt from notes.tex §4.3 (module discussion)
-% - Module-LWE: vectors of ring elements
-% - Interpolation between LWE and Ring-LWE
-% - Parameter flexibility: adjusting module rank vs ring dimension
-% - Why NIST chose Module-LWE for ML-KEM
-% - Cite: LS 2015, Albrecht-Deo 2017
+\begin{definition}[Module Learning With Errors]
+\label{def:mlwe}
+\index{Module-LWE}
+Work over $\Rq^k$ (vectors of $k$ ring elements) for a small integer $k$:
+\begin{equation}
+(\mathbf{A},\; \mathbf{b} = \mathbf{A}\mathbf{s} + \mathbf{e}) \in \Rq^{k\times k}\times\Rq^k, \qquad \mathbf{A}\getsr\Rq^{k\times k},\quad \mathbf{s},\mathbf{e}\leftarrow\chi^k.
+\end{equation}
+\end{definition}
 
-\section{The Fujisaki-Okamoto Transform}
+\mlwe{} interpolates between plain \lwe{} ($k = n$, no ring structure) and \rlwe{} ($k = 1$, maximum structure).  For $k = 2,3,4$ it retains most of the efficiency of \rlwe{} while relying on a weaker structural assumption.  NIST selected \mlwe{} as the foundation for both ML-KEM and ML-DSA.
+
+\begin{table}[t]
+\caption{Key size comparison across \lwe{} variants ($\approx$128-bit quantum security)}
+\label{tab:lwe-sizes}
+\begin{tabular}{p{3cm}p{2.5cm}p{2.5cm}p{3cm}}
+\hline\noalign{\smallskip}
+\textbf{Variant} & \textbf{Public key} & \textbf{Ciphertext} & \textbf{Parameters} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Plain \lwe{}     & $\sim 1.6$ MB & $\sim 2$ KB & $n \approx 500$ \\
+Module-\lwe{}    & 1,184 B      & 1,088 B     & $n=256$, $k=3$ \\
+Ring-\lwe{}      & $\sim 800$ B & $\sim 768$ B & $n \approx 512$ \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+The parameter~$k$ also provides a convenient ``knob'' for scaling security: ML-KEM-512 uses $k=2$, ML-KEM-768 uses $k=3$, and ML-KEM-1024 uses $k=4$, all with the same ring dimension $n = 256$.
+
+
+%% ================================================================
+\section{The Fujisaki--Okamoto Transform}
 \label{sec:fo-transform}
 
-% TODO: New section (critical for understanding ML-KEM)
-% - The CPA-to-CCA2 compiler
-% - Construction: re-encryption check
-% - Security proof sketch in ROM and QROM
-% - Implicit vs explicit rejection
-% - Cite: Fujisaki-Okamoto 1999, Hofheinz et al. 2017
+Regev's encryption scheme (and its Ring/Module variants) achieve only IND-CPA security: they are secure against passive eavesdroppers.  Real-world applications require IND-CCA2 security\index{IND-CCA2} (resistance to chosen-ciphertext attacks), where the adversary can submit ciphertexts for decryption.
 
+The Fujisaki--Okamoto (FO) transform\index{Fujisaki--Okamoto transform}~\cite{FujisakiOkamoto1999} is a generic compiler that upgrades any IND-CPA encryption scheme into an IND-CCA2 key encapsulation mechanism (KEM)\index{KEM}.
+
+\subsection{Construction}
+\label{subsec:fo-construction}
+
+Given an IND-CPA-secure public-key encryption scheme $\Pi = (\KeyGen, \Enc, \Dec)$:
+
+\begin{definition}[FO-Transformed KEM]
+\label{def:fo-kem}
+\begin{itemize}
+\item $\KeyGen'$: Run $(\mathsf{pk}, \mathsf{sk}') \leftarrow \KeyGen$.  Set $\mathsf{sk} = (\mathsf{sk}', \mathsf{pk}, s)$ where $s\getsr\{0,1\}^{256}$ is a ``failure secret.''
+\item $\Encaps(\mathsf{pk})$: Sample a random message $m\getsr\{0,1\}^\ell$.  Compute the shared key $K = H(m, \mathsf{pk})$ and the randomness $r = G(m, \mathsf{pk})$.  Encrypt: $c = \Enc(\mathsf{pk}, m; r)$.  Return $(K, c)$.
+\item $\Decaps(\mathsf{sk}, c)$: Decrypt $m' = \Dec(\mathsf{sk}', c)$.  Recompute $r' = G(m', \mathsf{pk})$ and $c' = \Enc(\mathsf{pk}, m'; r')$.  If $c' = c$, return $K = H(m', \mathsf{pk})$.  Otherwise, return $K = H(s, c)$ (\emph{implicit rejection}\index{implicit rejection}).
+\end{itemize}
+\end{definition}
+
+The re-encryption check ($c' = c$) is the key insight: it detects any ciphertext that was not honestly generated, preventing an adversary from learning useful information through decryption queries.  Implicit rejection (returning a pseudorandom key instead of an error symbol) prevents timing side channels.
+
+\begin{theorem}[FO Security~\cite{FujisakiOkamoto1999}]
+\label{thm:fo-security}
+In the (quantum) random oracle model, if~$\Pi$ is IND-CPA secure and $\delta$-correct (decryption failure probability $\leq \delta$), then the FO-transformed KEM is IND-CCA2 secure with security loss proportional to~$\delta$.
+\end{theorem}
+
+This is why the decryption failure probability of ML-KEM is engineered to be astronomically small ($< 2^{-140}$): the FO security proof requires it.
+
+
+%% ================================================================
 \section{ML-KEM (CRYSTALS-Kyber)}
 \label{sec:ml-kem}
 
-% TODO: Adapt from notes.tex §4.4.2, expand to full specification
-% - KeyGen, Encaps, Decaps: complete algorithms
-% - Parameter sets: ML-KEM-512, ML-KEM-768, ML-KEM-1024
-% - NTT-based implementation
-% - Compression and decompression
-% - Decryption failure probability
-% - Security levels and parameter rationale
-% - Cite: FIPS 203, Bos et al. (Kyber paper)
+ML-KEM\index{ML-KEM} (Module-Lattice-Based Key-Encapsulation Mechanism), standardised as FIPS~203~\cite{FIPS203}, instantiates the framework above: \mlwe{} encryption plus the FO transform.
 
-%% Exercises
+\subsection{Construction}
+\label{subsec:mlkem-construction}
+
+\begin{algorithm}[t]
+\caption{ML-KEM.$\KeyGen$}
+\label{alg:mlkem-keygen}
+\begin{algorithmic}[1]
+\Require Parameters $(n=256,\; k,\; q=3329,\; \eta_1,\; \eta_2)$
+\Ensure Public key $\mathsf{pk}$, secret key $\mathsf{sk}$
+\State $\rho, \sigma \leftarrow \{0,1\}^{256}$ \Comment{Seed for $\mathbf{A}$ and noise}
+\State $\mathbf{A} \gets \mathrm{Sam}(\rho) \in \Rq^{k\times k}$ \Comment{Expand seed to matrix via XOF}
+\State $(\mathbf{s}, \mathbf{e}) \leftarrow \beta_{\eta_1}^k \times \beta_{\eta_1}^k$ \Comment{Sample small secrets from $\mathrm{CBD}_{\eta_1}$}
+\State $\hat{\mathbf{s}} \gets \mathrm{NTT}(\mathbf{s})$, \quad $\hat{\mathbf{e}} \gets \mathrm{NTT}(\mathbf{e})$
+\State $\hat{\mathbf{t}} \gets \hat{\mathbf{A}} \circ \hat{\mathbf{s}} + \hat{\mathbf{e}}$ \Comment{Polynomial mult.\ in NTT domain}
+\State $\mathsf{pk} \gets (\hat{\mathbf{t}}, \rho)$, \enspace $\mathsf{sk} \gets (\hat{\mathbf{s}}, \mathsf{pk}, H(\mathsf{pk}), z)$ with $z\getsr\{0,1\}^{256}$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{ML-KEM.$\Encaps$}
+\label{alg:mlkem-encaps}
+\begin{algorithmic}[1]
+\Require Public key $\mathsf{pk} = (\hat{\mathbf{t}}, \rho)$
+\Ensure Shared key $K \in \{0,1\}^{256}$, ciphertext $c$
+\State $m \getsr \{0,1\}^{256}$
+\State $(K, r) \gets G(m \,\|\, H(\mathsf{pk}))$ \Comment{Derive key and randomness}
+\State $\mathbf{A} \gets \mathrm{Sam}(\rho)$
+\State $(\mathbf{r}, \mathbf{e}_1, e_2) \leftarrow \beta_{\eta_1}^k \times \beta_{\eta_2}^k \times \beta_{\eta_2}$ \Comment{Encryption noise}
+\State $\mathbf{u} \gets \mathrm{NTT}^{-1}(\hat{\mathbf{A}}^T \circ \mathrm{NTT}(\mathbf{r})) + \mathbf{e}_1$ \Comment{First ciphertext component}
+\State $v \gets \mathrm{NTT}^{-1}(\hat{\mathbf{t}}^T \circ \mathrm{NTT}(\mathbf{r})) + e_2 + \lceil q/2 \rfloor\cdot \mathrm{Decompress}(m)$
+\State $c \gets (\mathrm{Compress}_{d_u}(\mathbf{u}),\; \mathrm{Compress}_{d_v}(v))$
+\State \Return $(K, c)$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{ML-KEM.$\Decaps$}
+\label{alg:mlkem-decaps}
+\begin{algorithmic}[1]
+\Require Secret key $\mathsf{sk} = (\hat{\mathbf{s}}, \mathsf{pk}, h, z)$, ciphertext $c$
+\Ensure Shared key $K \in \{0,1\}^{256}$
+\State $(\mathbf{u}, v) \gets \mathrm{Decompress}(c)$
+\State $m' \gets \mathrm{Compress}_1\bigl(v - \mathrm{NTT}^{-1}(\hat{\mathbf{s}}^T \circ \mathrm{NTT}(\mathbf{u}))\bigr)$ \Comment{Decrypt}
+\State $(K', r') \gets G(m' \| h)$
+\State $c' \gets \mathrm{Enc}(\mathsf{pk}, m'; r')$ \Comment{FO re-encryption check}
+\If{$c' = c$}
+  \State \Return $K'$ \Comment{Valid ciphertext}
+\Else
+  \State \Return $H(z \| c)$ \Comment{Implicit rejection}
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\noindent\textbf{Compression\index{ML-KEM!compression}.} The functions $\mathrm{Compress}_d$ and $\mathrm{Decompress}_d$ round coefficients from $\Zq$ to $d$-bit values ($d < \lceil \log_2 q \rceil$), reducing ciphertext size at the cost of introducing small rounding errors.  These errors are absorbed by the noise margin designed into the parameters.
+
+
+\subsection{Parameter Sets}
+\label{subsec:mlkem-params}
+
+\begin{table}[t]
+\caption{ML-KEM parameter sets~\cite{FIPS203}}
+\label{tab:mlkem-params}
+\begin{tabular}{p{2.5cm}p{0.5cm}p{0.5cm}p{0.5cm}p{0.8cm}p{0.8cm}p{1.2cm}p{1.2cm}p{1.8cm}}
+\hline\noalign{\smallskip}
+\textbf{Param.\ set} & $k$ & $\eta_1$ & $\eta_2$ & $d_u$ & $d_v$ & \textbf{PK (B)} & \textbf{CT (B)} & \textbf{NIST Level} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+ML-KEM-512   & 2 & 3 & 2 & 10 & 4  & 800   & 768   & I (AES-128) \\
+ML-KEM-768   & 3 & 2 & 2 & 10 & 4  & 1,184 & 1,088 & III (AES-192) \\
+ML-KEM-1024  & 4 & 2 & 2 & 11 & 5  & 1,568 & 1,568 & V (AES-256) \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+All three parameter sets share $n = 256$ and $q = 3329$.  The choice $q = 3329 = 13\cdot 256 + 1$ satisfies $q \equiv 1 \pmod{512}$ (enabling the NTT), fits in 12~bits, and is the smallest prime meeting the correctness requirement $q > 12\,\eta\sqrt{n}$.  Security is scaled via $k$, the module rank.
+
+
+\subsection{Performance}
+\label{subsec:mlkem-performance}
+
+\begin{table}[t]
+\caption{ML-KEM-768 performance vs.\ classical algorithms (Intel Core i7, AVX2)}
+\label{tab:mlkem-perf}
+\begin{tabular}{p{3cm}p{2cm}p{2cm}p{2cm}}
+\hline\noalign{\smallskip}
+\textbf{Operation} & \textbf{ML-KEM-768} & \textbf{X25519} & \textbf{RSA-2048} \\
+\noalign{\smallskip}\svhline\noalign{\smallskip}
+Key generation   & 35 $\mu$s  & 45 $\mu$s  & $\sim$100 ms \\
+Encapsulation    & 44 $\mu$s  & 45 $\mu$s  & 0.05 ms \\
+Decapsulation    & 40 $\mu$s  & 45 $\mu$s  & 2 ms \\
+Public key       & 1,184 B    & 32 B       & 256 B \\
+Ciphertext       & 1,088 B    & 32 B       & 256 B \\
+\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}
+
+ML-KEM matches or outperforms X25519 in computation speed.  The $\sim 30\times$ increase in public key and ciphertext size is the main cost of post-quantum security, but remains practical for all standard protocols including TLS (Chap.~\ref{ch:migration}).
+
+
+\subsection{Decryption Failure Probability}
+\label{subsec:failure-prob}
+
+The rounding in compression and the error terms can occasionally cause decryption failure\index{ML-KEM!decryption failure} (the decrypted message differs from the encrypted one).  The parameters are chosen so that the failure probability is at most $2^{-140}$ for ML-KEM-768---far below $2^{-128}$, as required by the FO security proof (Theorem~\ref{thm:fo-security}).
+
+This extraordinarily low failure rate is not merely a convenience; it is a \emph{security} requirement.  An adversary who can provoke decryption failures can mount a \emph{failure-boosting attack}\index{failure-boosting attack} to recover the secret key.
+
+
+%% ================================================================
+\section*{Problems}
+\addcontentsline{toc}{section}{Problems}
+
 \begin{prob}
-\label{prob:ch07-lwe}
-Consider LWE with $n = 4$, $q = 23$, and uniform ternary errors $e_i \in \{-1, 0, 1\}$. Given the secret $\mathbf{s} = (3, 7, 11, 15)^\top$ and random vectors $\mathbf{a}_i$, construct 6 LWE samples $(\mathbf{a}_i, b_i = \ip{\mathbf{a}_i}{\mathbf{s}} + e_i \bmod q)$. Verify that recovering $\mathbf{s}$ from these samples is non-trivial even at this small scale.
+\label{prob:ch07-lwe-instance}
+Consider \lwe{} with $n = 4$, $q = 23$, and uniform ternary errors $e_i \in \{-1, 0, 1\}$.  Let $\mathbf{s} = (3, 7, 11, 15)^T$.
+\begin{enumerate}
+\item[(a)] Construct 6 \lwe{} samples $(\mathbf{a}_i, b_i)$ using randomly chosen vectors $\mathbf{a}_i$.
+\item[(b)] Verify that the system $\mathbf{A}\mathbf{s} + \mathbf{e} \equiv \mathbf{b} \pmod{23}$ is consistent with your errors.
+\item[(c)] Attempt to recover $\mathbf{s}$ from the samples using only Gaussian elimination (ignoring the noise).  Why does this fail?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch07-regev-enc}
+\textbf{Regev encryption by hand.}\\
+Let $n = 2$, $q = 17$, $\mathbf{s} = (3, 5)^T$.  Given the public key samples:
+\[
+(\mathbf{a}_1, b_1) = ((7, 11), 2),\quad
+(\mathbf{a}_2, b_2) = ((13, 4), 15),\quad
+(\mathbf{a}_3, b_3) = ((1, 9), 14),
+\]
+encrypt $\mu = 1$ using the subset $S = \{1, 3\}$.  Then decrypt and verify correctness.
 \end{prob}
 
 \begin{prob}
 \label{prob:ch07-ntt}
-Implement the Number Theoretic Transform for $n = 8$ and $q = 17$. Verify that polynomial multiplication via NTT matches na\"ive multiplication in $\Zq[x]/(x^8 + 1)$. What are the conditions on $q$ for the NTT to exist?
+\textbf{NTT computation.}\\
+For $n = 4$ and $q = 17$, verify that $\omega = 2$ is a primitive $8$-th root of unity modulo~$17$.  Compute the NTT of the polynomial $a(X) = 1 + 3X + 5X^2 + 7X^3$ using the evaluation representation $\hat{a}_j = a(\omega^{2j+1}) \bmod 17$ for $j = 0,1,2,3$.
+\end{prob}
+
+\begin{prob}
+\label{prob:ch07-ring-mult}
+Compute the product of $a(X) = 3 + 2X + 5X^2 + X^3$ and $b(X) = 1 + 4X + 2X^2 + 3X^3$ in $\Rq = \Z_{17}[X]/(X^4+1)$.  Write out the corresponding negacyclic matrix multiplication and verify that both methods give the same result.
 \end{prob}
 
 \begin{prob}
 \label{prob:ch07-fo}
-Explain why a CPA-secure encryption scheme is insufficient for use as a KEM in practice. Describe the Fujisaki-Okamoto transform and explain how it achieves CCA2 security. What is the role of the re-encryption check?
+\textbf{Fujisaki--Okamoto transform.}
+\begin{enumerate}
+\item[(a)] Explain why a CPA-secure encryption scheme is insufficient for use as a KEM in TLS.  Give a concrete attack scenario.
+\item[(b)] Describe the role of the re-encryption check in the FO transform.  What happens if an adversary submits a malformed ciphertext?
+\item[(c)] Why does ML-KEM use implicit rejection (returning a pseudorandom key) rather than explicit rejection (returning an error)?  What side channel does this prevent?
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch07-params}
+\textbf{ML-KEM parameter analysis.}\\
+ML-KEM-768 uses $n = 256$, $k = 3$, $q = 3329$, $\eta_1 = 2$, $d_u = 10$, $d_v = 4$.
+\begin{enumerate}
+\item[(a)] Compute the public key size in bytes: $k \cdot n \cdot 12/8 + 32$ (polynomial coefficients at 12 bits each, plus a 32-byte seed).  Verify it matches 1,184~B.
+\item[(b)] Compute the ciphertext size: $k \cdot n \cdot d_u / 8 + n \cdot d_v / 8$.  Verify it matches 1,088~B.
+\item[(c)] The decryption noise has magnitude at most $\eta_1 \cdot k \cdot \eta_1 + \eta_2$.  For correctness, this must be less than $\lfloor q/4 \rfloor$.  Verify that this condition holds with a wide margin.
+\end{enumerate}
+\end{prob}
+
+\begin{prob}
+\label{prob:ch07-security}
+\textbf{Research-level.}\\
+Regev's original reduction from \gapsvp{} to \lwe{} is \emph{quantum}.  Discuss the implications: does this mean that the security of ML-KEM depends on a quantum assumption?  What is the status of purely classical reductions, and what tradeoffs do they involve?  (Hint: compare the approximation factors achieved by quantum vs.\ classical reductions.)
 \end{prob}
