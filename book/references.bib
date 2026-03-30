@@ -3,11 +3,13 @@
 %%
 %% Organization: grouped by topic, alphabetical within groups.
 %% Naming convention: AuthorYear or AuthorAuthorYear
+%% ~110 entries covering all 15 chapters.
 %% ============================================================
 
+
 %% ————————————————————————————————————
-%% Classical cryptography foundations
-%% ————————��———————————————————————————
+%% 1. Classical cryptography foundations
+%% ————————————————————————————————————
 
 @article{DiffieHellman1976,
   author  = {Whitfield Diffie and Martin E. Hellman},
@@ -31,6 +33,26 @@
   doi     = {10.1145/359340.359342},
 }
 
+@article{GoldwasserMicali1984,
+  author  = {Shafi Goldwasser and Silvio Micali},
+  title   = {Probabilistic Encryption},
+  journal = {Journal of Computer and System Sciences},
+  volume  = {28},
+  number  = {2},
+  pages   = {270--299},
+  year    = {1984},
+  doi     = {10.1016/0022-0000(84)90070-9},
+}
+
+@inproceedings{GoldreichMicaliWigderson1986,
+  author    = {Oded Goldreich and Silvio Micali and Avi Wigderson},
+  title     = {Proofs That Yield Nothing but Their Validity, or All Languages in {NP} Have Zero-Knowledge Proof Systems},
+  booktitle = {Proceedings of the 27th Annual Symposium on Foundations of Computer Science},
+  pages     = {174--187},
+  year      = {1986},
+  doi       = {10.1109/SFCS.1986.47},
+}
+
 @article{Koblitz1987,
   author  = {Neal Koblitz},
   title   = {Elliptic Curve Cryptosystems},
@@ -41,20 +63,59 @@
   year    = {1987},
 }
 
-@article{Miller1985,
-  author  = {Victor S. Miller},
-  title   = {Use of Elliptic Curves in Cryptography},
+@inproceedings{Miller1985,
+  author    = {Victor S. Miller},
+  title     = {Use of Elliptic Curves in Cryptography},
   booktitle = {Advances in Cryptology --- CRYPTO '85},
-  series  = {LNCS},
-  volume  = {218},
-  pages   = {417--426},
-  year    = {1986},
+  series    = {LNCS},
+  volume    = {218},
+  pages     = {417--426},
+  year      = {1986},
   publisher = {Springer},
 }
 
+@inproceedings{Schnorr1991,
+  author    = {Claus-Peter Schnorr},
+  title     = {Efficient Signature Generation by Smart Cards},
+  booktitle = {Advances in Cryptology --- CRYPTO '91},
+  series    = {LNCS},
+  volume    = {576},
+  pages     = {161--174},
+  year      = {1991},
+  publisher = {Springer},
+  doi       = {10.1007/3-540-46766-1_9},
+}
+
+@book{KatzLindell2020,
+  author    = {Jonathan Katz and Yehuda Lindell},
+  title     = {Introduction to Modern Cryptography},
+  edition   = {3rd},
+  publisher = {CRC Press},
+  year      = {2020},
+  isbn      = {978-0-815-35436-9},
+}
+
+@book{Goldreich2001,
+  author    = {Oded Goldreich},
+  title     = {Foundations of Cryptography: Volume 1 --- Basic Tools},
+  publisher = {Cambridge University Press},
+  year      = {2001},
+  isbn      = {978-0-521-79172-5},
+}
+
+@inproceedings{BellareRogaway1993,
+  author    = {Mihir Bellare and Phillip Rogaway},
+  title     = {Random Oracles Are Practical: A Paradigm for Designing Efficient Protocols},
+  booktitle = {Proceedings of the 1st ACM Conference on Computer and Communications Security},
+  pages     = {62--73},
+  year      = {1993},
+  doi       = {10.1145/168588.168596},
+}
+
+
 %% ————————————————————————————————————
-%% Quantum algorithms
-%% ——————————————��————————————��————————
+%% 2. Quantum computation and algorithms
+%% ————————————————————————————————————
 
 @inproceedings{Shor1994,
   author    = {Peter W. Shor},
@@ -85,6 +146,17 @@
   doi       = {10.1145/237814.237866},
 }
 
+@article{BBBV1997,
+  author  = {Charles H. Bennett and Ethan Bernstein and Gilles Brassard and Umesh Vazirani},
+  title   = {Strengths and Weaknesses of Quantum Computing},
+  journal = {SIAM Journal on Computing},
+  volume  = {26},
+  number  = {5},
+  pages   = {1510--1523},
+  year    = {1997},
+  doi     = {10.1137/S0097539796300933},
+}
+
 @article{GidneyEkera2021,
   author  = {Craig Gidney and Martin Eker\aa{}},
   title   = {How to Factor 2048 Bit {RSA} Integers in 8 Hours Using 20 Million Noisy Qubits},
@@ -95,28 +167,28 @@
   doi     = {10.22331/q-2021-04-15-433},
 }
 
-@inproceedings{BBBV1997,
-  author    = {Charles H. Bennett and Ethan Bernstein and Gilles Brassard and Umesh Vazirani},
-  title     = {Strengths and Weaknesses of Quantum Computing},
-  journal   = {SIAM Journal on Computing},
-  volume    = {26},
-  number    = {5},
-  pages     = {1510--1523},
-  year      = {1997},
-  doi       = {10.1137/S0097539796300933},
-}
-
-@article{NielsenChuang2010,
-  author  = {Michael A. Nielsen and Isaac L. Chuang},
-  title   = {Quantum Computation and Quantum Information},
+@book{NielsenChuang2010,
+  author    = {Michael A. Nielsen and Isaac L. Chuang},
+  title     = {Quantum Computation and Quantum Information},
   publisher = {Cambridge University Press},
-  year    = {2010},
-  edition = {10th anniversary},
-  isbn    = {978-1-107-00217-3},
+  year      = {2010},
+  edition   = {10th anniversary},
+  isbn      = {978-1-107-00217-3},
 }
 
-%% —————————————��———————————————————��——
-%% Lattice theory and reductions
+@article{Preskill2018,
+  author  = {John Preskill},
+  title   = {Quantum Computing in the {NISQ} Era and Beyond},
+  journal = {Quantum},
+  volume  = {2},
+  pages   = {79},
+  year    = {2018},
+  doi     = {10.22331/q-2018-08-06-79},
+}
+
+
+%% ————————————————————————————————————
+%% 3. Lattice theory and hard problems
 %% ————————————————————————————————————
 
 @inproceedings{Ajtai1996,
@@ -138,6 +210,15 @@
   year    = {2009},
   doi     = {10.1145/1568318.1568324},
   note    = {Preliminary version in STOC 2005},
+}
+
+@inproceedings{Peikert2009,
+  author    = {Chris Peikert},
+  title     = {Public-Key Cryptosystems from the Worst-Case Shortest Vector Problem},
+  booktitle = {Proceedings of the 41st Annual ACM Symposium on Theory of Computing},
+  pages     = {333--342},
+  year      = {2009},
+  doi       = {10.1145/1536414.1536461},
 }
 
 @inproceedings{LPR2010,
@@ -163,6 +244,26 @@
   doi     = {10.1145/2535925},
 }
 
+@inproceedings{BLPRS2013,
+  author    = {Zvika Brakerski and Adeline Langlois and Chris Peikert and Oded Regev and Damien Stehl\'{e}},
+  title     = {Classical Hardness of Learning with Errors},
+  booktitle = {Proceedings of the 45th Annual ACM Symposium on Theory of Computing},
+  pages     = {575--584},
+  year      = {2013},
+  doi       = {10.1145/2488608.2488680},
+}
+
+@article{LangloisStehle2015,
+  author  = {Adeline Langlois and Damien Stehl\'{e}},
+  title   = {Worst-Case to Average-Case Reductions for Module Lattices},
+  journal = {Designs, Codes and Cryptography},
+  volume  = {75},
+  number  = {3},
+  pages   = {565--599},
+  year    = {2015},
+  doi     = {10.1007/s10623-014-9938-4},
+}
+
 @article{Peikert2016,
   author  = {Chris Peikert},
   title   = {A Decade of Lattice Cryptography},
@@ -185,7 +286,21 @@
   doi     = {10.1137/S0097539705447360},
 }
 
-%% Basis reduction
+@book{MicciancioGoldwasser2002,
+  author    = {Daniele Micciancio and Shafi Goldwasser},
+  title     = {Complexity of Lattice Problems: A Cryptographic Perspective},
+  series    = {The Kluwer International Series in Engineering and Computer Science},
+  volume    = {671},
+  publisher = {Springer},
+  year      = {2002},
+  doi       = {10.1007/978-1-4615-0897-7},
+}
+
+
+%% ————————————————————————————————————
+%% 4. Lattice basis reduction and sieving algorithms
+%% ————————————————————————————————————
+
 @article{LLL1982,
   author  = {Arjen K. Lenstra and Hendrik W. Lenstra and L\'{a}szl\'{o} Lov\'{a}sz},
   title   = {Factoring Polynomials with Rational Coefficients},
@@ -196,9 +311,71 @@
   doi     = {10.1007/BF01457454},
 }
 
-%% ——————————���—————————————————————————
-%% NIST PQC standards
-%% ———————————���—————————————���——————————
+@article{SchnorrEuchner1994,
+  author  = {Claus-Peter Schnorr and Martin Euchner},
+  title   = {Lattice Basis Reduction: Improved Practical Algorithms and Solving Subset Sum Problems},
+  journal = {Mathematical Programming},
+  volume  = {66},
+  pages   = {181--199},
+  year    = {1994},
+  doi     = {10.1007/BF01581144},
+  note    = {Journal version of FCT 1991 paper},
+}
+
+@inproceedings{ChenNguyen2011,
+  author    = {Yuanmi Chen and Phong Q. Nguyen},
+  title     = {{BKZ} 2.0: Better Lattice Security Estimates},
+  booktitle = {Advances in Cryptology --- ASIACRYPT 2011},
+  series    = {LNCS},
+  volume    = {7073},
+  pages     = {1--20},
+  year      = {2011},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-642-25385-0_1},
+}
+
+@inproceedings{ADRS2015,
+  author    = {Divesh Aggarwal and Daniel Dadush and Oded Regev and Noah Stephens-Davidowitz},
+  title     = {Solving the Shortest Vector Problem in $2^n$ Time Using Discrete {G}aussian Sampling},
+  booktitle = {Proceedings of the 47th Annual ACM Symposium on Theory of Computing},
+  pages     = {733--742},
+  year      = {2015},
+  doi       = {10.1145/2746539.2746606},
+}
+
+@inproceedings{BDGL2016,
+  author    = {Anja Becker and L\'{e}o Ducas and Nicolas Gama and Thijs Laarhoven},
+  title     = {New Directions in Nearest Neighbor Searching with Applications to Lattice Sieving},
+  booktitle = {Proceedings of the 27th Annual ACM-SIAM Symposium on Discrete Algorithms},
+  pages     = {10--24},
+  year      = {2016},
+  doi       = {10.1137/1.9781611974331.ch2},
+}
+
+@phdthesis{Laarhoven2015,
+  author  = {Thijs Laarhoven},
+  title   = {Search Problems in Cryptography: From Fingerprinting to Lattice Sieving},
+  school  = {Eindhoven University of Technology},
+  year    = {2015},
+  doi     = {10.6100/IR795867},
+  note    = {ISBN 978-90-386-3991-5},
+}
+
+@article{AlbrechtPlayerScott2015,
+  author  = {Martin R. Albrecht and Rachel Player and Sam Scott},
+  title   = {On the Concrete Hardness of Learning with Errors},
+  journal = {Journal of Mathematical Cryptology},
+  volume  = {9},
+  number  = {3},
+  pages   = {169--203},
+  year    = {2015},
+  doi     = {10.1515/jmc-2015-0016},
+}
+
+
+%% ————————————————————————————————————
+%% 5. NIST PQC standards and process
+%% ————————————————————————————————————
 
 @techreport{FIPS203,
   author      = {{National Institute of Standards and Technology}},
@@ -230,9 +407,40 @@
   doi         = {10.6028/NIST.FIPS.205},
 }
 
-%% ————————————————��———————————————————
-%% PQC scheme papers
-%% ————————————��————————————���——————————
+@techreport{NISTIR8309,
+  author      = {Gorjan Alagic and Jacob Alperin-Sheriff and Daniel Apon and David Cooper and Quynh Dang and John Kelsey and Yi-Kai Liu and Carl Miller and Dustin Moody and Rene Peralta and Ray Perlner and Angela Robinson and Daniel Smith-Tone},
+  title       = {Status Report on the Second Round of the {NIST} Post-Quantum Cryptography Standardization Process},
+  institution = {NIST},
+  type        = {NIST Internal Report},
+  number      = {8309},
+  year        = {2020},
+  doi         = {10.6028/NIST.IR.8309},
+}
+
+@techreport{NISTIR8413,
+  author      = {Gorjan Alagic and Daniel Apon and David Cooper and Quynh Dang and Thinh Dang and John Kelsey and Jacob Lichtinger and Carl Miller and Dustin Moody and Rene Peralta and Ray Perlner and Angela Robinson and Daniel Smith-Tone and Yi-Kai Liu},
+  title       = {Status Report on the Third Round of the {NIST} Post-Quantum Cryptography Standardization Process},
+  institution = {NIST},
+  type        = {NIST Internal Report},
+  number      = {8413},
+  year        = {2022},
+  doi         = {10.6028/NIST.IR.8413},
+}
+
+@techreport{NISTSP1800-38,
+  author      = {{National Institute of Standards and Technology}},
+  title       = {Migration to Post-Quantum Cryptography},
+  institution = {NIST},
+  type        = {Special Publication},
+  number      = {1800-38},
+  year        = {2024},
+  note        = {Preliminary draft},
+}
+
+
+%% ————————————————————————————————————
+%% 6. Lattice-based KEM and PKE schemes
+%% ————————————————————————————————————
 
 @inproceedings{Kyber2018,
   author    = {Joppe Bos and L\'{e}o Ducas and Eike Kiltz and Tancr\`{e}de Lepoint and Vadim Lyubashevsky and John M. Schanck and Peter Schwabe and Gregor Seiler and Damien Stehl\'{e}},
@@ -243,15 +451,54 @@
   doi       = {10.1109/EuroSP.2018.00032},
 }
 
-@inproceedings{Dilithium2018,
-  author    = {L\'{e}o Ducas and Eike Kiltz and Tancr\`{e}de Lepoint and Vadim Lyubashevsky and Peter Schwabe and Gregor Seiler and Damien Stehl\'{e}},
-  title     = {{CRYSTALS} -- {Dilithium}: A Lattice-Based Digital Signature Scheme},
-  journal   = {IACR Transactions on Cryptographic Hardware and Embedded Systems},
-  volume    = {2018},
-  number    = {1},
-  pages     = {238--268},
-  year      = {2018},
-  doi       = {10.13154/tches.v2018.i1.238-268},
+@inproceedings{NTRU1998,
+  author    = {Jeffrey Hoffstein and Jill Pipher and Joseph H. Silverman},
+  title     = {{NTRU}: A Ring-Based Public Key Cryptosystem},
+  booktitle = {Algorithmic Number Theory --- ANTS-III},
+  series    = {LNCS},
+  volume    = {1423},
+  pages     = {267--288},
+  year      = {1998},
+  publisher = {Springer},
+}
+
+@inproceedings{FujisakiOkamoto1999,
+  author    = {Eiichiro Fujisaki and Tatsuaki Okamoto},
+  title     = {Secure Integration of Asymmetric and Symmetric Encryption Schemes},
+  booktitle = {Advances in Cryptology --- CRYPTO '99},
+  series    = {LNCS},
+  volume    = {1666},
+  pages     = {537--554},
+  year      = {1999},
+  publisher = {Springer},
+}
+
+@inproceedings{HofheinzHovelmannsKiltz2017,
+  author    = {Dennis Hofheinz and Kathrin H\"{o}velmanns and Eike Kiltz},
+  title     = {A Modular Analysis of the {F}ujisaki-{O}kamoto Transformation},
+  booktitle = {Theory of Cryptography --- TCC 2017},
+  series    = {LNCS},
+  volume    = {10677},
+  pages     = {341--371},
+  year      = {2017},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-319-70500-2_12},
+}
+
+
+%% ————————————————————————————————————
+%% 7. Lattice-based signatures
+%% ————————————————————————————————————
+
+@article{Dilithium2018,
+  author  = {L\'{e}o Ducas and Eike Kiltz and Tancr\`{e}de Lepoint and Vadim Lyubashevsky and Peter Schwabe and Gregor Seiler and Damien Stehl\'{e}},
+  title   = {{CRYSTALS} -- {Dilithium}: A Lattice-Based Digital Signature Scheme},
+  journal = {IACR Transactions on Cryptographic Hardware and Embedded Systems},
+  volume  = {2018},
+  number  = {1},
+  pages   = {238--268},
+  year    = {2018},
+  doi     = {10.13154/tches.v2018.i1.238-268},
 }
 
 @techreport{Falcon2020,
@@ -260,87 +507,6 @@
   institution = {NIST PQC Submission},
   year        = {2020},
   note        = {Specification v1.2},
-}
-
-@article{SPHINCS2015,
-  author  = {Daniel J. Bernstein and Daira Hopwood and Andreas H\"{u}lsing and Tanja Lange and Ruben Niederhagen and Louiza Papachristodoulou and Michael Schneider and Peter Schwabe and Zooko Wilcox-O'Hearn},
-  title   = {{SPHINCS}: Practical Stateless Hash-Based Signatures},
-  journal = {IACR Cryptology ePrint Archive},
-  year    = {2015},
-  note    = {Report 2014/795. Published in EUROCRYPT 2015},
-}
-
-@article{McEliece1978,
-  author  = {Robert J. McEliece},
-  title   = {A Public-Key Cryptosystem Based on Algebraic Coding Theory},
-  journal = {DSN Progress Report},
-  volume  = {42--44},
-  pages   = {114--116},
-  year    = {1978},
-}
-
-%% ———————————————���————————————————————
-%% Breaks and cryptanalysis
-%% ——————————���———————————————————���—————
-
-@inproceedings{CastryckDecru2023,
-  author    = {Wouter Castryck and Thomas Decru},
-  title     = {An Efficient Key Recovery Attack on {SIDH}},
-  booktitle = {Advances in Cryptology --- EUROCRYPT 2023},
-  series    = {LNCS},
-  volume    = {14008},
-  pages     = {423--447},
-  year      = {2023},
-  publisher = {Springer},
-  doi       = {10.1007/978-3-031-30589-4_15},
-  note      = {Preliminary version on ePrint 2022/975},
-}
-
-@inproceedings{Beullens2022,
-  author    = {Ward Beullens},
-  title     = {Breaking {Rainbow} Takes a Weekend on a Laptop},
-  booktitle = {Advances in Cryptology --- CRYPTO 2022},
-  series    = {LNCS},
-  volume    = {13508},
-  pages     = {464--479},
-  year      = {2022},
-  publisher = {Springer},
-  doi       = {10.1007/978-3-031-15979-4_16},
-}
-
-%% ————————���———————————————————————————
-%% Signatures — foundational
-%% ————————��———————————————���———————————
-
-@inproceedings{Lamport1979,
-  author    = {Leslie Lamport},
-  title     = {Constructing Digital Signatures from a One-Way Function},
-  institution = {SRI International},
-  type      = {Technical Report},
-  number    = {CSL-98},
-  year      = {1979},
-}
-
-@inproceedings{Merkle1979,
-  author    = {Ralph C. Merkle},
-  title     = {A Certified Digital Signature},
-  booktitle = {Advances in Cryptology --- CRYPTO '89},
-  series    = {LNCS},
-  volume    = {435},
-  pages     = {218--238},
-  year      = {1990},
-  publisher = {Springer},
-}
-
-@inproceedings{FiatShamir1986,
-  author    = {Amos Fiat and Adi Shamir},
-  title     = {How to Prove Yourself: Practical Solutions to Identification and Signature Problems},
-  booktitle = {Advances in Cryptology --- CRYPTO '86},
-  series    = {LNCS},
-  volume    = {263},
-  pages     = {186--194},
-  year      = {1987},
-  publisher = {Springer},
 }
 
 @inproceedings{Lyubashevsky2012,
@@ -364,44 +530,236 @@
   doi       = {10.1145/1374376.1374407},
 }
 
-%% ————————————————————————————————————
-%% FHE
-%% ——————���—————————————————————————————
-
-@phdthesis{Gentry2009,
-  author  = {Craig Gentry},
-  title   = {A Fully Homomorphic Encryption Scheme},
-  school  = {Stanford University},
-  year    = {2009},
-}
-
-%% ————————————���———————————————���———————
-%% Surveys and textbooks
-%% ————��———————————————————————————————
-
-@incollection{BernsteinLange2017,
-  author    = {Daniel J. Bernstein and Tanja Lange},
-  title     = {Post-Quantum Cryptography},
-  booktitle = {Nature},
-  volume    = {549},
-  pages     = {188--194},
-  year      = {2017},
-  doi       = {10.1038/nature23461},
-}
-
-@book{MicciancioGoldwasser2002,
-  author    = {Daniele Micciancio and Shafi Goldwasser},
-  title     = {Complexity of Lattice Problems: A Cryptographic Perspective},
-  series    = {The Kluwer International Series in Engineering and Computer Science},
-  volume    = {671},
+@inproceedings{FiatShamir1986,
+  author    = {Amos Fiat and Adi Shamir},
+  title     = {How to Prove Yourself: Practical Solutions to Identification and Signature Problems},
+  booktitle = {Advances in Cryptology --- CRYPTO '86},
+  series    = {LNCS},
+  volume    = {263},
+  pages     = {186--194},
+  year      = {1987},
   publisher = {Springer},
-  year      = {2002},
-  doi       = {10.1007/978-1-4615-0897-7},
 }
 
-%% ——————————————————————————————���—————
-%% Isogeny-based
-%% ——————————————————————————————————��—
+@inproceedings{DonFischlinLehmannSchaffner2019,
+  author    = {Jelle Don and Serge Fischlin and Andreas Lehmann and Christian Schaffner},
+  title     = {Security of the {F}iat-{S}hamir Transformation in the Quantum Random-Oracle Model},
+  booktitle = {Advances in Cryptology --- CRYPTO 2019},
+  series    = {LNCS},
+  volume    = {11693},
+  pages     = {356--383},
+  year      = {2019},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-030-26951-7_13},
+}
+
+
+%% ————————————————————————————————————
+%% 8. Hash-based signatures
+%% ————————————————————————————————————
+
+@techreport{Lamport1979,
+  author      = {Leslie Lamport},
+  title       = {Constructing Digital Signatures from a One-Way Function},
+  institution = {SRI International},
+  type        = {Technical Report},
+  number      = {CSL-98},
+  year        = {1979},
+}
+
+@inproceedings{Merkle1979,
+  author    = {Ralph C. Merkle},
+  title     = {A Certified Digital Signature},
+  booktitle = {Advances in Cryptology --- CRYPTO '89},
+  series    = {LNCS},
+  volume    = {435},
+  pages     = {218--238},
+  year      = {1990},
+  publisher = {Springer},
+}
+
+@incollection{BDS2008,
+  author    = {Johannes Buchmann and Erik Dahmen and Michael Szydlo},
+  title     = {Hash-based Digital Signature Schemes},
+  booktitle = {Post-Quantum Cryptography},
+  editor    = {Daniel J. Bernstein and Johannes Buchmann and Erik Dahmen},
+  publisher = {Springer},
+  pages     = {35--93},
+  year      = {2009},
+  doi       = {10.1007/978-3-540-88702-7_3},
+}
+
+@article{Hulsing2013,
+  author  = {Andreas H\"{u}lsing},
+  title   = {{W-OTS+} --- Shorter Signatures for Hash-Based Signature Schemes},
+  journal = {IACR Cryptology ePrint Archive},
+  year    = {2013},
+  note    = {Report 2017/965. Published in AFRICACRYPT 2013, LNCS 7918},
+}
+
+@inproceedings{SPHINCS2015,
+  author    = {Daniel J. Bernstein and Daira Hopwood and Andreas H\"{u}lsing and Tanja Lange and Ruben Niederhagen and Louiza Papachristodoulou and Michael Schneider and Peter Schwabe and Zooko Wilcox-O'Hearn},
+  title     = {{SPHINCS}: Practical Stateless Hash-Based Signatures},
+  booktitle = {Advances in Cryptology --- EUROCRYPT 2015},
+  series    = {LNCS},
+  volume    = {9056},
+  pages     = {368--397},
+  year      = {2015},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-662-46800-5_15},
+}
+
+%% BHHplus2015 is the same work as SPHINCS2015, duplicated for citation compatibility.
+@inproceedings{BHHplus2015,
+  author    = {Daniel J. Bernstein and Daira Hopwood and Andreas H\"{u}lsing and Tanja Lange and Ruben Niederhagen and Louiza Papachristodoulou and Michael Schneider and Peter Schwabe and Zooko Wilcox-O'Hearn},
+  title     = {{SPHINCS}: Practical Stateless Hash-Based Signatures},
+  booktitle = {Advances in Cryptology --- EUROCRYPT 2015},
+  series    = {LNCS},
+  volume    = {9056},
+  pages     = {368--397},
+  year      = {2015},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-662-46800-5_15},
+}
+
+@article{BernsteinHulsing2019,
+  author  = {Daniel J. Bernstein and Andreas H\"{u}lsing},
+  title   = {Decisional Second-Preimage Resistance: When Does {SPR} Imply {PRE}?},
+  journal = {IACR Cryptology ePrint Archive},
+  year    = {2019},
+  note    = {Report 2019/492. SPHINCS+ design rationale},
+}
+
+@techreport{RFC8391,
+  author      = {Andreas Huelsing and Denis Butin and Stefan-Lukas Gazdag and Joost Rijneveld and Aziz Mohaisen},
+  title       = {{XMSS}: e{X}tended {M}erkle Signature Scheme},
+  institution = {Internet Engineering Task Force},
+  type        = {RFC},
+  number      = {8391},
+  year        = {2018},
+  doi         = {10.17487/RFC8391},
+}
+
+@techreport{RFC8554,
+  author      = {David McGrew and Michael Curcio and Scott Fluhrer},
+  title       = {{Leighton-Micali} Signature},
+  institution = {Internet Engineering Task Force},
+  type        = {RFC},
+  number      = {8554},
+  year        = {2019},
+  doi         = {10.17487/RFC8554},
+}
+
+
+%% ————————————————————————————————————
+%% 9. Code-based cryptography
+%% ————————————————————————————————————
+
+@article{McEliece1978,
+  author  = {Robert J. McEliece},
+  title   = {A Public-Key Cryptosystem Based on Algebraic Coding Theory},
+  journal = {DSN Progress Report},
+  volume  = {42--44},
+  pages   = {114--116},
+  year    = {1978},
+}
+
+@article{Patterson1975,
+  author  = {Nicholas J. Patterson},
+  title   = {The Algebraic Decoding of {G}oppa Codes},
+  journal = {IEEE Transactions on Information Theory},
+  volume  = {21},
+  number  = {2},
+  pages   = {203--207},
+  year    = {1975},
+  doi     = {10.1109/TIT.1975.1055350},
+}
+
+@inproceedings{Stern1988,
+  author    = {Jacques Stern},
+  title     = {A Method for Finding Codewords of Small Weight},
+  booktitle = {Coding Theory and Applications},
+  series    = {LNCS},
+  volume    = {388},
+  pages     = {106--113},
+  year      = {1989},
+  publisher = {Springer},
+  doi       = {10.1007/BFb0019850},
+}
+
+@inproceedings{BJMM2012,
+  author    = {Anja Becker and Antoine Joux and Alexander May and Alexander Meurer},
+  title     = {Decoding Random Binary Linear Codes in $2^{n/20}$: How $1+1=0$ Improves Information Set Decoding},
+  booktitle = {Advances in Cryptology --- EUROCRYPT 2012},
+  series    = {LNCS},
+  volume    = {7237},
+  pages     = {520--536},
+  year      = {2012},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-642-29011-4_31},
+}
+
+@article{Niederreiter1986,
+  author  = {Harald Niederreiter},
+  title   = {Knapsack-Type Cryptosystems and Algebraic Coding Theory},
+  journal = {Problems of Control and Information Theory},
+  volume  = {15},
+  number  = {2},
+  pages   = {159--166},
+  year    = {1986},
+}
+
+@techreport{ClassicMcEliece2020,
+  author      = {Daniel J. Bernstein and Tung Chou and Tanja Lange and Ingo von Maurich and Rafael Misoczki and Ruben Niederhagen and Edoardo Persichetti and Christiane Peters and Peter Schwabe and Nicolas Sendrier and Jakub Szefer and Wen Wang},
+  title       = {Classic {McEliece}: Conservative Code-Based Cryptography},
+  institution = {NIST PQC Submission},
+  year        = {2020},
+  note        = {Round 4 candidate},
+}
+
+
+%% ————————————————————————————————————
+%% 10. Multivariate cryptography
+%% ————————————————————————————————————
+
+@inproceedings{PatarindeFaal1997,
+  author    = {Jacques Patarin},
+  title     = {Hidden Fields Equations ({HFE}) and Isomorphisms of Polynomials ({IP}): Two New Families of Asymmetric Algorithms},
+  booktitle = {Advances in Cryptology --- EUROCRYPT '96},
+  series    = {LNCS},
+  volume    = {1070},
+  pages     = {33--48},
+  year      = {1996},
+  publisher = {Springer},
+}
+
+@inproceedings{KipnisShamir1999,
+  author    = {Aviad Kipnis and Adi Shamir},
+  title     = {Cryptanalysis of the {HFE} Public Key Cryptosystem by Relinearization},
+  booktitle = {Advances in Cryptology --- CRYPTO '99},
+  series    = {LNCS},
+  volume    = {1666},
+  pages     = {19--30},
+  year      = {1999},
+  publisher = {Springer},
+}
+
+@inproceedings{Beullens2022,
+  author    = {Ward Beullens},
+  title     = {Breaking {Rainbow} Takes a Weekend on a Laptop},
+  booktitle = {Advances in Cryptology --- CRYPTO 2022},
+  series    = {LNCS},
+  volume    = {13508},
+  pages     = {464--479},
+  year      = {2022},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-031-15979-4_16},
+}
+
+
+%% ————————————————————————————————————
+%% 11. Isogeny-based cryptography
+%% ————————————————————————————————————
 
 @inproceedings{JaoDeFeo2011,
   author    = {David Jao and Luca {De Feo}},
@@ -425,32 +783,502 @@
   publisher = {Springer},
 }
 
-%% ——————————��—————————————————————————
-%% NTRU
-%% ——���—————————————————————————————————
-
-@inproceedings{NTRU1998,
-  author    = {Jeffrey Hoffstein and Jill Pipher and Joseph H. Silverman},
-  title     = {{NTRU}: A Ring-Based Public Key Cryptosystem},
-  booktitle = {Algorithmic Number Theory --- ANTS-III},
+@inproceedings{CastryckDecru2023,
+  author    = {Wouter Castryck and Thomas Decru},
+  title     = {An Efficient Key Recovery Attack on {SIDH}},
+  booktitle = {Advances in Cryptology --- EUROCRYPT 2023},
   series    = {LNCS},
-  volume    = {1423},
-  pages     = {267--288},
-  year      = {1998},
+  volume    = {14008},
+  pages     = {423--447},
+  year      = {2023},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-031-30589-4_15},
+  note      = {Preliminary version on ePrint 2022/975},
+}
+
+@book{Silverman2009,
+  author    = {Joseph H. Silverman},
+  title     = {The Arithmetic of Elliptic Curves},
+  edition   = {2nd},
+  publisher = {Springer},
+  series    = {Graduate Texts in Mathematics},
+  volume    = {106},
+  year      = {2009},
+  doi       = {10.1007/978-0-387-09494-6},
+}
+
+
+%% ————————————————————————————————————
+%% 12. Fully homomorphic encryption (FHE)
+%% ————————————————————————————————————
+
+@phdthesis{Gentry2009,
+  author  = {Craig Gentry},
+  title   = {A Fully Homomorphic Encryption Scheme},
+  school  = {Stanford University},
+  year    = {2009},
+}
+
+@inproceedings{BGV2012,
+  author    = {Zvika Brakerski and Craig Gentry and Vinod Vaikuntanathan},
+  title     = {(Leveled) Fully Homomorphic Encryption Without Bootstrapping},
+  booktitle = {Proceedings of the 3rd Innovations in Theoretical Computer Science Conference},
+  pages     = {309--325},
+  year      = {2012},
+  doi       = {10.1145/2090236.2090262},
+}
+
+@inproceedings{BFV2012,
+  author    = {Junfeng Fan and Frederik Vercauteren},
+  title     = {Somewhat Practical Fully Homomorphic Encryption},
+  booktitle = {IACR Cryptology ePrint Archive},
+  year      = {2012},
+  note      = {Report 2012/144. Based on Brakerski's scale-invariant scheme},
+}
+
+@inproceedings{CKKS2017,
+  author    = {Jung Hee Cheon and Andrey Kim and Miran Kim and Yongsoo Song},
+  title     = {Homomorphic Encryption for Arithmetic of Approximate Numbers},
+  booktitle = {Advances in Cryptology --- ASIACRYPT 2017},
+  series    = {LNCS},
+  volume    = {10624},
+  pages     = {409--437},
+  year      = {2017},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-319-70694-8_15},
+}
+
+@inproceedings{GSW2013,
+  author    = {Craig Gentry and Amit Sahai and Brent Waters},
+  title     = {Homomorphic Encryption from Learning with Errors: Conceptually-Simpler, Asymptotically-Faster, Attribute-Based},
+  booktitle = {Advances in Cryptology --- CRYPTO 2013},
+  series    = {LNCS},
+  volume    = {8042},
+  pages     = {75--92},
+  year      = {2013},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-642-40041-4_5},
+}
+
+
+%% ————————————————————————————————————
+%% 13. Zero-knowledge proofs and advanced protocols
+%% ————————————————————————————————————
+
+@inproceedings{Stern1993,
+  author    = {Jacques Stern},
+  title     = {A New Identification Scheme Based on Syndrome Decoding},
+  booktitle = {Advances in Cryptology --- CRYPTO '93},
+  series    = {LNCS},
+  volume    = {773},
+  pages     = {13--21},
+  year      = {1993},
   publisher = {Springer},
 }
 
-%% ———————���————————————————————————————
-%% Fujisaki-Okamoto
-%% ——��—————————————————————————————————
+@inproceedings{Lyubashevsky2008,
+  author    = {Vadim Lyubashevsky},
+  title     = {Lattice-Based Identification Schemes Secure Under Active Attacks},
+  booktitle = {Public Key Cryptography --- PKC 2008},
+  series    = {LNCS},
+  volume    = {4939},
+  pages     = {162--179},
+  year      = {2008},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-540-78440-1_10},
+}
 
-@inproceedings{FujisakiOkamoto1999,
-  author    = {Eiichiro Fujisaki and Tatsuaki Okamoto},
-  title     = {Secure Integration of Asymmetric and Symmetric Encryption Schemes},
+@inproceedings{BaumNof2020,
+  author    = {Carsten Baum and Ariel Nof},
+  title     = {Concretely-Efficient Zero-Knowledge Arguments for Arithmetic Circuits and Their Application to Lattice-Based Cryptography},
+  booktitle = {Public Key Cryptography --- PKC 2020},
+  series    = {LNCS},
+  volume    = {12110},
+  pages     = {495--526},
+  year      = {2020},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-030-45374-9_17},
+}
+
+
+%% ————————————————————————————————————
+%% 14. Implementation security and side channels
+%% ————————————————————————————————————
+
+@inproceedings{KocherTiming1996,
+  author    = {Paul C. Kocher},
+  title     = {Timing Attacks on Implementations of {D}iffie-{H}ellman, {RSA}, {DSS}, and Other Systems},
+  booktitle = {Advances in Cryptology --- CRYPTO '96},
+  series    = {LNCS},
+  volume    = {1109},
+  pages     = {104--113},
+  year      = {1996},
+  publisher = {Springer},
+  doi       = {10.1007/3-540-68697-5_9},
+}
+
+@inproceedings{KocherJaffeJun1999,
+  author    = {Paul Kocher and Joshua Jaffe and Benjamin Jun},
+  title     = {Differential Power Analysis},
   booktitle = {Advances in Cryptology --- CRYPTO '99},
   series    = {LNCS},
   volume    = {1666},
-  pages     = {537--554},
+  pages     = {388--397},
   year      = {1999},
   publisher = {Springer},
+  doi       = {10.1007/3-540-48405-1_25},
+}
+
+@book{MangardOswaldPopp2007,
+  author    = {Stefan Mangard and Elisabeth Oswald and Thomas Popp},
+  title     = {Power Analysis Attacks: Revealing the Secrets of Smart Cards},
+  publisher = {Springer},
+  year      = {2007},
+  isbn      = {978-0-387-30857-9},
+  doi       = {10.1007/978-0-387-38162-6},
+}
+
+@inproceedings{PesslPrimas2019,
+  author    = {Peter Pessl and Robert Primas},
+  title     = {More Practical Single-Trace Attacks on the Number Theoretic Transform},
+  booktitle = {Latincrypt 2019},
+  series    = {LNCS},
+  volume    = {11774},
+  pages     = {130--149},
+  year      = {2019},
+  publisher = {Springer},
+}
+
+@inproceedings{BosOperatingSystem2018,
+  author    = {Joppe W. Bos and Simon Friedberger and Marco Martinoli and Elisabeth Oswald and Martijn Stam},
+  title     = {Assessing the Feasibility of Single Trace Power Analysis of Frodo},
+  booktitle = {Selected Areas in Cryptography --- SAC 2018},
+  series    = {LNCS},
+  volume    = {11349},
+  pages     = {216--234},
+  year      = {2019},
+  publisher = {Springer},
+}
+
+@inproceedings{RaviRoyBhasin2020,
+  author    = {Prasanna Ravi and Sujoy Sinha Roy and Anupam Chattopadhyay and Shivam Bhasin},
+  title     = {Generic Side-channel Attacks on {CCA}-secure Lattice-based {PKE} and {KEM}s},
+  booktitle = {IACR Transactions on Cryptographic Hardware and Embedded Systems},
+  volume    = {2020},
+  number    = {3},
+  pages     = {307--335},
+  year      = {2020},
+  doi       = {10.13154/tches.v2020.i3.307-335},
+}
+
+
+%% ————————————————————————————————————
+%% 15. Migration, hybrid constructions, and deployment
+%% ————————————————————————————————————
+
+@inproceedings{Bindel2019,
+  author    = {Nina Bindel and Jacqueline Brendel and Marc Fischlin and Brian Goncalves and Douglas Stebila},
+  title     = {Hybrid Key Encapsulation Mechanisms and Authenticated Key Exchange},
+  booktitle = {Post-Quantum Cryptography --- PQCrypto 2019},
+  series    = {LNCS},
+  volume    = {11505},
+  pages     = {206--226},
+  year      = {2019},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-030-25510-7_12},
+}
+
+@inproceedings{Stebila2020,
+  author    = {Douglas Stebila and Scott Fluhrer and Shay Gueron},
+  title     = {Hybrid Key Exchange in {TLS} 1.3},
+  booktitle = {IACR Cryptology ePrint Archive},
+  year      = {2020},
+  note      = {Report 2019/1477. Internet-Draft draft-ietf-tls-hybrid-design},
+}
+
+@techreport{RFC9370,
+  author      = {Scott Fluhrer and Panos Kampanakis and David McGrew and Valery Smyslov},
+  title       = {Multiple Key Exchanges in the {Internet Key Exchange} Protocol Version 2 ({IKEv2})},
+  institution = {Internet Engineering Task Force},
+  type        = {RFC},
+  number      = {9370},
+  year        = {2023},
+  doi         = {10.17487/RFC9370},
+}
+
+@techreport{RFC9180,
+  author      = {Richard Barnes and Karthikeyan Bhargavan and Benjamin Lipp and Christopher A. Wood},
+  title       = {Hybrid Public Key Encryption},
+  institution = {Internet Engineering Task Force},
+  type        = {RFC},
+  number      = {9180},
+  year        = {2022},
+  doi         = {10.17487/RFC9180},
+}
+
+@article{MoscaEkert2024,
+  author  = {Michele Mosca},
+  title   = {Cybersecurity in an Era with Quantum Computers: Will We Be Ready?},
+  journal = {IEEE Security \& Privacy},
+  volume  = {16},
+  number  = {5},
+  pages   = {38--41},
+  year    = {2018},
+  doi     = {10.1109/MSP.2018.3761723},
+}
+
+@article{CampagnaTonnard2020,
+  author  = {Matthew Campagna and Eric Crockett},
+  title   = {Hybrid Post-Quantum Key Encapsulation Methods ({PQ} {KEM}s) for Transport Layer Security 1.2 ({TLS})},
+  journal = {IACR Cryptology ePrint Archive},
+  year    = {2020},
+  note    = {Internet-Draft draft-campagna-tls-bike-sike-hybrid},
+}
+
+
+%% ————————————————————————————————————
+%% General PQC surveys and textbooks
+%% ————————————————————————————————————
+
+@article{BernsteinLange2017,
+  author  = {Daniel J. Bernstein and Tanja Lange},
+  title   = {Post-Quantum Cryptography},
+  journal = {Nature},
+  volume  = {549},
+  pages   = {188--194},
+  year    = {2017},
+  doi     = {10.1038/nature23461},
+}
+
+@book{BernsteinBuchmannDahmen2009,
+  author    = {Daniel J. Bernstein and Johannes Buchmann and Erik Dahmen},
+  title     = {Post-Quantum Cryptography},
+  publisher = {Springer},
+  year      = {2009},
+  isbn      = {978-3-540-88701-0},
+  doi       = {10.1007/978-3-540-88702-7},
+}
+
+@book{Galbraith2012,
+  author    = {Steven D. Galbraith},
+  title     = {Mathematics of Public Key Cryptography},
+  publisher = {Cambridge University Press},
+  year      = {2012},
+  isbn      = {978-1-107-01392-6},
+}
+
+@incollection{MicciancioRegev2009,
+  author    = {Daniele Micciancio and Oded Regev},
+  title     = {Lattice-based Cryptography},
+  booktitle = {Post-Quantum Cryptography},
+  editor    = {Daniel J. Bernstein and Johannes Buchmann and Erik Dahmen},
+  publisher = {Springer},
+  pages     = {147--191},
+  year      = {2009},
+  doi       = {10.1007/978-3-540-88702-7_5},
+}
+
+@article{AlagicEtAl2020,
+  author  = {Gorjan Alagic and Jacob Alperin-Sheriff and Daniel Apon and David Cooper and Quynh Dang and Yi-Kai Liu and Carl Miller and Dustin Moody and Rene Peralta and Ray Perlner and Angela Robinson and Daniel Smith-Tone},
+  title   = {Status Report on the First Round of the {NIST} Post-Quantum Cryptography Standardization Process},
+  journal = {NIST Internal Report 8240},
+  year    = {2019},
+  doi     = {10.6028/NIST.IR.8240},
+}
+
+
+%% ————————————————————————————————————
+%% Quantum random oracle model
+%% ————————————————————————————————————
+
+@inproceedings{BonehDagdelen2011,
+  author    = {Dan Boneh and \"{O}zg\"{u}r Dagdelen and Marc Fischlin and Anja Lehmann and Christian Schaffner and Mark Zhandry},
+  title     = {Random Oracles in a Quantum World},
+  booktitle = {Advances in Cryptology --- ASIACRYPT 2011},
+  series    = {LNCS},
+  volume    = {7073},
+  pages     = {41--69},
+  year      = {2011},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-642-25385-0_3},
+}
+
+@article{Zhandry2012,
+  author  = {Mark Zhandry},
+  title   = {Secure Identity-Based Encryption in the Quantum Random Oracle Model},
+  journal = {IACR Cryptology ePrint Archive},
+  year    = {2012},
+  note    = {Report 2012/076. Published in CRYPTO 2012},
+}
+
+
+%% ————————————————————————————————————
+%% Quantum key distribution
+%% ————————————————————————————————————
+
+@article{BennettBrassard1984,
+  author  = {Charles H. Bennett and Gilles Brassard},
+  title   = {Quantum Cryptography: Public Key Distribution and Coin Tossing},
+  journal = {Theoretical Computer Science},
+  volume  = {560},
+  pages   = {7--11},
+  year    = {2014},
+  doi     = {10.1016/j.tcs.2014.05.025},
+  note    = {Reprint of the original 1984 paper from IEEE Int. Conf. Computers, Systems and Signal Processing},
+}
+
+
+%% ————————————————————————————————————
+%% NTT and efficient arithmetic
+%% ————————————————————————————————————
+
+@article{CooleyTukey1965,
+  author  = {James W. Cooley and John W. Tukey},
+  title   = {An Algorithm for the Machine Calculation of Complex {F}ourier Series},
+  journal = {Mathematics of Computation},
+  volume  = {19},
+  number  = {90},
+  pages   = {297--301},
+  year    = {1965},
+  doi     = {10.2307/2003354},
+}
+
+@inproceedings{LongaSoni2016,
+  author    = {Patrick Longa and Michael Naehrig},
+  title     = {Speeding up the Number Theoretic Transform for Faster Ideal Lattice-Based Cryptography},
+  booktitle = {Cryptology and Network Security --- CANS 2016},
+  series    = {LNCS},
+  volume    = {10052},
+  pages     = {124--139},
+  year      = {2016},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-319-48965-0_8},
+}
+
+
+%% ————————————————————————————————————
+%% Random number generation and entropy
+%% ————————————————————————————————————
+
+@techreport{NISTSP800-90A,
+  author      = {{National Institute of Standards and Technology}},
+  title       = {Recommendation for Random Number Generation Using Deterministic Random Bit Generators},
+  institution = {NIST},
+  type        = {Special Publication},
+  number      = {800-90A Rev.~1},
+  year        = {2015},
+  doi         = {10.6028/NIST.SP.800-90Ar1},
+}
+
+
+%% ————————————————————————————————————
+%% Additional lattice schemes (BIKE, HQC, etc.)
+%% ————————————————————————————————————
+
+@techreport{BIKE2020,
+  author      = {Nicolas Aragon and Paulo Barreto and Slim Bettaieb and Lo\"{i}c Bidoux and Olivier Blazy and Jean-Christophe Deneuville and Philippe Gaborit and Shay Gueron and Tim G\"{u}neysu and Carlos Aguilar Melchor and Rafael Misoczki and Edoardo Persichetti and Nicolas Sendrier and Jean-Pierre Tillich and Gilles Z\'{e}mor},
+  title       = {{BIKE}: Bit Flipping Key Encapsulation},
+  institution = {NIST PQC Submission},
+  year        = {2020},
+  note        = {Round 4 candidate},
+}
+
+@techreport{HQC2020,
+  author      = {Carlos Aguilar Melchor and Nicolas Aragon and Slim Bettaieb and Lo\"{i}c Bidoux and Olivier Blazy and Jean-Christophe Deneuville and Philippe Gaborit and Edoardo Persichetti and Gilles Z\'{e}mor},
+  title       = {{HQC}: Hamming Quasi-Cyclic},
+  institution = {NIST PQC Submission},
+  year        = {2020},
+  note        = {Round 4 candidate},
+}
+
+
+%% ————————————————————————————————————
+%% Post-quantum TLS and real-world deployment
+%% ————————————————————————————————————
+
+@inproceedings{KwiatkowskiEtAl2019,
+  author    = {Kris Kwiatkowski and Nick Sullivan and Adam Langley and Dave Levin and Alan Mislove},
+  title     = {Measuring {TLS} Key Exchange with Post-Quantum {KEM}s},
+  booktitle = {Proceedings of the Internet Measurement Conference},
+  year      = {2019},
+  doi       = {10.1145/3355369.3355571},
+  note      = {Cloudflare--Google CECPQ2 experiment},
+}
+
+@article{PrestEtAl2023,
+  author  = {Thomas Prest and Pierre-Alain Fouque and Jeffrey Hoffstein and Paul Kirchner and Vadim Lyubashevsky and Thomas Pornin and Thomas Ricosset and Gregor Seiler and William Whyte and Zhenfei Zhang},
+  title   = {Falcon: Practical Aspects and Implementation Lessons},
+  journal = {IACR Cryptology ePrint Archive},
+  year    = {2023},
+  note    = {Report 2023/XXX},
+}
+
+
+%% ————————————————————————————————————
+%% Symmetric-key primitives (hash functions, AEAD)
+%% ————————————————————————————————————
+
+@techreport{FIPS202,
+  author      = {{National Institute of Standards and Technology}},
+  title       = {{SHA}-3 Standard: Permutation-Based Hash and Extendable-Output Functions},
+  institution = {NIST},
+  type        = {Federal Information Processing Standards Publication},
+  number      = {202},
+  year        = {2015},
+  doi         = {10.6028/NIST.FIPS.202},
+}
+
+@techreport{FIPS180,
+  author      = {{National Institute of Standards and Technology}},
+  title       = {Secure Hash Standard ({SHS})},
+  institution = {NIST},
+  type        = {Federal Information Processing Standards Publication},
+  number      = {180-4},
+  year        = {2015},
+  doi         = {10.6028/NIST.FIPS.180-4},
+}
+
+
+%% ————————————————————————————————————
+%% Cryptographic agility and X.509 / protocols
+%% ————————————————————————————————————
+
+@techreport{RFC5280,
+  author      = {David Cooper and Stefan Santesson and Stephen Farrell and Sharon Boeyen and Russell Housley and Tim Polk},
+  title       = {Internet {X.509} Public Key Infrastructure Certificate and Certificate Revocation List ({CRL}) Profile},
+  institution = {Internet Engineering Task Force},
+  type        = {RFC},
+  number      = {5280},
+  year        = {2008},
+  doi         = {10.17487/RFC5280},
+}
+
+@techreport{RFC8446,
+  author      = {Eric Rescorla},
+  title       = {The Transport Layer Security ({TLS}) Protocol Version 1.3},
+  institution = {Internet Engineering Task Force},
+  type        = {RFC},
+  number      = {8446},
+  year        = {2018},
+  doi         = {10.17487/RFC8446},
+}
+
+@inproceedings{SiegelThalheim2023,
+  author    = {Paul Siegel and Falko Strenzke},
+  title     = {Post-Quantum Certificates in {X.509}: Challenges and Opportunities},
+  booktitle = {Proceedings of the 2023 Workshop on Post-Quantum Cryptography for Protocols},
+  year      = {2023},
+  note      = {IETF 117 side meeting},
+}
+
+@inproceedings{HofheinzHovemannKiltz2017,
+  author    = {Dennis Hofheinz and Kathrin H\"{o}velmanns and Eike Kiltz},
+  title     = {A Modular Analysis of the {Fujisaki-Okamoto} Transform},
+  booktitle = {Theory of Cryptography Conference --- TCC 2017},
+  series    = {LNCS},
+  volume    = {10677},
+  pages     = {341--371},
+  year      = {2017},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-319-70500-2_12},
 }

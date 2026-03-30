@@ -6,36 +6,531 @@
 % the narrative flow. Each section references the theorem
 % or lemma it proves.
 
+
+%% ================================================================
 \section{Ajtai's Worst-Case to Average-Case Reduction}
 \label{app:ajtai}
 
-% TODO: Full proof of the reduction from worst-case GapSVP
-% to average-case SIS. Reference: Theorem in §6.4.
-% Cite: Ajtai 1996, Micciancio-Regev 2007
+This section provides a detailed proof sketch of
+\cref{thm:ajtai} (Sect.~\ref{subsec:ajtai}), which
+establishes that solving the Short Integer Solutions problem on
+a random matrix is at least as hard as solving worst-case
+lattice problems.
 
+\begin{theorem}[Ajtai~\cite{Ajtai1996}, Micciancio--Regev~\cite{MicciancioRegev2007}]
+\label{thm:ajtai-app}
+Let $n, m, q$ be integers with $m = \bigO(n \log q)$ and
+$q = \poly(n)$, and let $\beta < q$.  If there exists a
+probabilistic polynomial-time algorithm~$\mathcal{A}$ that,
+given a uniformly random matrix
+$\mathbf{A} \getsr \Zq^{n \times m}$, finds a non-zero
+$\mathbf{x} \in \Z^m$ with $\norm{\mathbf{x}} \leq \beta$ and
+$\mathbf{A}\mathbf{x} = \mathbf{0} \pmod{q}$ with non-negligible
+probability, then there exists a probabilistic polynomial-time
+algorithm that solves $\gamma$-$\sivp$ on every
+$n$-dimensional lattice, where
+$\gamma = \beta \cdot \widetilde{\bigO}(\sqrt{n})$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The reduction receives a worst-case lattice $\lat \subset \R^n$
+(given by some basis $\mathbf{B}$) and must find $n$ linearly
+independent vectors of norm at most
+$\gamma \cdot \lambda_n(\lat)$.  It proceeds in three stages.
+
+\medskip\noindent\textbf{Stage 1: Gaussian sampling on the
+target lattice.}
+Using the iterative Klein/GPV sampler, the reduction draws
+lattice vectors from the discrete Gaussian distribution
+$D_{\lat, s}$ with parameter $s$ chosen above the
+\emph{smoothing parameter}~$\eta_\varepsilon(\lat)$
+(\cref{def:successive-minima}).
+Recall that $\eta_\varepsilon(\lat)$ is the smallest~$s$ such
+that
+$\rho_{1/s}(\lat^* \setminus \{\mathbf{0}\}) \leq \varepsilon$,
+where $\rho_t(\mathbf{x}) = \exp(-\pi \norm{\mathbf{x}}^2 / t^2)$.
+Above the smoothing parameter, the reduction modulo the
+fundamental parallelepiped of $\lat$ produces a distribution
+that is statistically close to uniform over the parallelepiped.
+This property is crucial: it allows the reduction to
+\emph{embed} the target lattice into a random-looking
+$\textsc{SIS}$ instance.
+
+\medskip\noindent\textbf{Stage 2: Constructing a random SIS
+instance.}
+The reduction builds the matrix $\mathbf{A} \in \Zq^{n \times m}$
+column by column.  For each column~$j$:
+\begin{enumerate}
+\item Sample $\mathbf{v}_j \leftarrow D_{\lat, s}$.
+\item Compute
+  $\mathbf{a}_j = \mathbf{B}^{-1} \mathbf{v}_j \bmod q$.
+\end{enumerate}
+Because $s \geq \eta_\varepsilon(\lat)$, the vectors
+$\mathbf{a}_j$ are within statistical distance~$\varepsilon$ of
+uniform over~$\Zq^n$.  Hence $\mathbf{A}$ is
+indistinguishable from a genuinely random matrix, and the
+$\textsc{SIS}$ oracle~$\mathcal{A}$ applies.
+
+\medskip\noindent\textbf{Stage 3: From a SIS solution to short
+lattice vectors.}
+The oracle returns a non-zero $\mathbf{x} \in \Z^m$ with
+$\norm{\mathbf{x}} \leq \beta$ and
+$\mathbf{A}\mathbf{x} = \mathbf{0} \pmod{q}$.
+Unravelling the construction, this means that the vector
+\begin{equation}
+\mathbf{w} \;=\; \sum_{j=1}^{m} x_j \, \mathbf{v}_j
+\end{equation}
+lies in $q \cdot \lat$ (it maps to zero modulo~$q$).
+Since each $\mathbf{v}_j$ is a Gaussian sample of expected norm
+$s\sqrt{n}$ and $\norm{\mathbf{x}} \leq \beta$, a standard
+tail bound gives
+$\norm{\mathbf{w}} \leq \beta \cdot s \cdot \widetilde{\bigO}(\sqrt{n})$.
+The vector $\mathbf{w}/q$ is therefore a lattice vector of
+$\lat$ with norm at most
+$\beta \cdot s \cdot \widetilde{\bigO}(\sqrt{n}) / q$.
+
+Repeating the procedure $n$ times with independent randomness
+(and verifying linear independence, which holds with
+overwhelming probability for $m \gg n$) yields $n$
+independent short vectors in~$\lat$.  Setting the Gaussian
+parameter~$s$ appropriately relative to $\lambda_n(\lat)$
+ensures the resulting vectors have norm at most
+$\gamma \cdot \lambda_n(\lat)$ with
+$\gamma = \beta \cdot \widetilde{\bigO}(\sqrt{n})$, thereby
+solving $\gamma$-$\sivp$.
+\end{proof}
+
+\begin{svgraybox}
+\textbf{Why this matters.}
+Ajtai's reduction is the reason lattice-based cryptography
+stands on firmer theoretical ground than RSA or elliptic-curve
+cryptography.  An efficient SIS solver would imply an
+efficient algorithm for \emph{every} instance of approximate
+$\sivp$---a problem that has resisted attack for decades.
+The reduction is \emph{classical} (no quantum computation
+required), unlike Regev's LWE reduction below.
+\end{svgraybox}
+
+
+%% ================================================================
 \section{Regev's LWE Hardness Reduction}
 \label{app:regev-reduction}
 
-% TODO: Full proof sketch of the quantum reduction from
-% GapSVP to Decision-LWE. Reference: Theorem in §7.2.
-% Cite: Regev 2005/2009
+This section expands on \cref{thm:regev}
+(Sect.~\ref{subsec:regev-reduction}), presenting the main ideas
+of Regev's quantum reduction from worst-case lattice problems
+to the average-case Learning With Errors problem.
 
-\section{Correctness of the Fujisaki-Okamoto Transform}
+\begin{theorem}[Regev~\cite{Regev2009}]
+\label{thm:regev-app}
+Let $n \geq 1$, let $q \leq \poly(n)$ be prime, and let
+$\alpha \in (0,1)$ with $\alpha q \geq 2\sqrt{n}$.  If there
+exists a probabilistic polynomial-time algorithm that solves
+decision-$\lwe(n, q, D_{\Z, \alpha q})$ with non-negligible
+advantage, then there exists a \emph{quantum}
+polynomial-time algorithm that solves
+$\widetilde{\bigO}(n/\alpha)$-$\gapsvp$ on every
+$n$-dimensional lattice.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The reduction receives a worst-case lattice $\lat$ (given by a
+basis~$\mathbf{B}$) and a threshold~$d$, and must decide
+whether $\lambda_1(\lat) \leq d$ or
+$\lambda_1(\lat) > \gamma d$.  It uses an $\lwe$ oracle and
+quantum computation as follows.
+
+\medskip\noindent\textbf{Step 1: Quantum state preparation.}
+For each dual lattice vector
+$\mathbf{w} \in \lat^*$, consider the Gaussian function
+$\rho_r(\mathbf{x} - \mathbf{w}) = \exp(-\pi\norm{\mathbf{x} -
+\mathbf{w}}^2 / r^2)$ centred at~$\mathbf{w}$.  For a suitable
+parameter~$r$, the reduction prepares (on a quantum computer) the
+superposition
+\begin{equation}
+\ket{\psi} \;=\; \sum_{\mathbf{w} \in \lat^*}
+  \rho_r(\mathbf{w})\;\ket{\mathbf{w}}.
+\end{equation}
+This state encodes the dual lattice weighted by a Gaussian
+envelope.  Preparing $\ket{\psi}$ is the step that requires
+quantum computation; it uses Gaussian superposition sampling
+over the lattice, building on the iterative quantum sampler of
+Regev.
+
+\medskip\noindent\textbf{Step 2: Quantum Fourier transform.}
+Apply the quantum Fourier transform (QFT) to $\ket{\psi}$.
+By the Poisson summation formula, the QFT of a Gaussian sum
+over $\lat^*$ is a Gaussian sum over the primal lattice $\lat$
+with reciprocal width:
+\begin{equation}
+\mathrm{QFT}\ket{\psi} \;\propto\;
+  \sum_{\mathbf{v} \in \lat}
+  \rho_{1/r}(\mathbf{v})\;\ket{\mathbf{v}}.
+\end{equation}
+Measuring this state yields a lattice point
+$\mathbf{v} \in \lat$ distributed according to
+$D_{\lat, 1/r}$.
+
+\medskip\noindent\textbf{Step 3: From lattice samples to LWE
+samples.}
+The classical part of the reduction converts each discrete
+Gaussian sample $\mathbf{v} \leftarrow D_{\lat, 1/r}$ into an
+$\lwe$ sample as follows.  Choose
+$\mathbf{a} \getsr \Zq^n$ and compute
+\begin{equation}
+b \;=\; \ip{\mathbf{a}}{\mathbf{v}} + e \pmod{q},
+\end{equation}
+where $e$ is a rounding term arising from the discretisation
+of $\mathbf{v}$ to coordinates modulo~$q$.  The distribution
+of~$e$ is (close to) the discrete Gaussian $D_{\Z, \alpha q}$
+when the lattice sampling parameter~$r$ is set appropriately
+in terms of~$\alpha$.  The pair $(\mathbf{a}, b)$ is therefore
+an $\lwe$ sample with secret determined by the lattice point.
+
+\medskip\noindent\textbf{Step 4: Using the LWE oracle.}
+Feed the constructed $\lwe$ samples to the oracle.  If the
+oracle distinguishes $\lwe$ from uniform, the reduction can
+extract information about the Gaussian width~$1/r$ on $\lat$,
+which is directly related to $\lambda_1(\lat)$.  Specifically:
+\begin{itemize}
+\item If $\lambda_1(\lat)$ is small (the YES case of $\gapsvp$),
+  the Gaussian mass concentrates on short vectors, and the
+  resulting $\lwe$ samples have a detectable structure.
+\item If $\lambda_1(\lat)$ is large (the NO case), the Gaussian
+  over $\lat$ is essentially supported on the origin, the
+  samples carry no information, and the oracle sees uniform
+  pairs.
+\end{itemize}
+The oracle's ability to distinguish the two cases therefore
+solves $\gapsvp$.
+\end{proof}
+
+\medskip\noindent\textbf{Why the reduction is quantum.}
+The quantum step is Step~1: preparing a Gaussian superposition
+over $\lat^*$.  No efficient classical procedure is known for
+sampling from this distribution on an arbitrary lattice.  The
+QFT in Step~2 is the natural quantum analogue of Poisson
+summation and exploits the same position--momentum duality
+familiar from quantum mechanics (see the grey box in
+Sect.~\ref{subsec:regev-reduction}).
+
+Crucially, the \emph{attacker} need not be quantum.  Even a
+purely classical $\lwe$ solver would, via this reduction,
+yield a \emph{quantum} algorithm for $\gapsvp$.  The quantum
+nature is a property of the proof, not of the threat model.
+
+\begin{svgraybox}
+\textbf{Classical alternatives.}
+Peikert~(2009) and Brakerski et~al.~(2013) later established
+purely classical reductions from $\gapsvp$ to $\lwe$, at the
+cost of requiring either a super-polynomial modulus~$q$ or a
+larger approximation factor~$\gamma$.  For the tightest
+parameters used in practice (polynomial~$q$, polynomial~$\gamma$),
+Regev's quantum reduction remains the strongest known result.
+\end{svgraybox}
+
+
+%% ================================================================
+\section{Correctness of the Fujisaki--Okamoto Transform}
 \label{app:fo-correctness}
 
-% TODO: Full security proof of the FO transform in ROM.
-% Reference: Theorem in §7.6.
-% Cite: Fujisaki-Okamoto 1999, Hofheinz et al. 2017
+This section proves \cref{thm:fo-security}
+(Sect.~\ref{sec:fo-transform}): the Fujisaki--Okamoto
+transform upgrades IND-CPA security to IND-CCA2 security in
+the random oracle model, provided the underlying scheme has
+negligible decryption failure probability.
 
+\begin{theorem}[FO Security~\cite{FujisakiOkamoto1999, HofheinzHovemannKiltz2017}]
+\label{thm:fo-app}
+Let $\Pi = (\KeyGen, \Enc, \Dec)$ be an IND-CPA-secure
+public-key encryption scheme with $\delta$-correctness
+(i.e., $\Pr[\Dec(\mathsf{sk}, \Enc(\mathsf{pk}, m; r)) \neq m]
+\leq \delta$ over the randomness of key generation and $r$).
+Let $\Pi' = (\KeyGen', \Encaps, \Decaps)$ be the
+FO-transformed KEM (\cref{def:fo-kem}).  Then in the random
+oracle model, for any IND-CCA2 adversary~$\mathcal{A}$
+making at most $q_D$ decapsulation queries and $q_H$ hash
+queries,
+\begin{equation}
+\mathrm{Adv}^{\mathrm{IND\text{-}CCA2}}_{\Pi'}(\mathcal{A})
+\;\leq\;
+2\,\mathrm{Adv}^{\mathrm{IND\text{-}CPA}}_{\Pi}(\mathcal{B})
+\;+\; q_H \cdot \delta
+\;+\; \frac{q_D}{|\mathcal{M}|},
+\end{equation}
+where $\mathcal{B}$ is an IND-CPA adversary with comparable
+running time and $|\mathcal{M}|$ is the message space size.
+\end{theorem}
+
+\begin{proof}[Proof (game-hopping argument)]
+We proceed through a sequence of games, starting from the real
+IND-CCA2 experiment.  Let $\mathcal{A}$ be an adversary that
+receives a challenge ciphertext $c^*$ encapsulating either the
+real key $K_0^*$ or a random key $K_1^*$.
+
+\medskip\noindent\textbf{Game 0 (Real game).}
+This is the standard IND-CCA2 experiment for the KEM~$\Pi'$.
+The challenger runs $\KeyGen'$, computes
+$(K_0^*, c^*) \leftarrow \Encaps(\mathsf{pk})$, samples
+$K_1^* \getsr \{0,1\}^\ell$, flips a bit~$b$, and gives
+$\mathcal{A}$ the pair $(K_b^*, c^*)$.  The adversary may
+query $\Decaps$ on any ciphertext $c \neq c^*$ and the random
+oracles $H, G$.  Let $W_0$ denote the event that $\mathcal{A}$
+guesses $b$ correctly.
+
+\medskip\noindent\textbf{Game 1 (Decapsulation uses table
+lookup).}
+Modify the decapsulation oracle as follows: instead of
+decrypting~$c$ with $\Dec$, scan the random oracle table for
+any query $m$ such that $G(m, \mathsf{pk})$ produces
+randomness yielding $\Enc(\mathsf{pk}, m; G(m, \mathsf{pk}))
+= c$.  If found, return $K = H(m, \mathsf{pk})$; otherwise
+return $H(s, c)$ (implicit rejection).
+
+Games~0 and~1 differ only when $\mathcal{A}$ submits a
+ciphertext~$c$ that is valid (i.e., $\Dec$ recovers some $m'$
+with $\Enc(\mathsf{pk}, m'; G(m',\mathsf{pk})) = c$) but
+$\mathcal{A}$ never queried $G$ on $m'$.  In the random oracle
+model, $G(m', \mathsf{pk})$ is uniformly random and
+independent of $\mathcal{A}$'s view, so the probability that
+$\Enc(\mathsf{pk}, m'; G(m', \mathsf{pk})) = c$ holds by
+accident is at most $1/|\mathcal{M}|$ per query.  Hence:
+\begin{equation}
+|\Pr[W_1] - \Pr[W_0]| \;\leq\; \frac{q_D}{|\mathcal{M}|}.
+\end{equation}
+
+\medskip\noindent\textbf{Game 2 (Abort on decryption failure
+of $c^*$).}
+Modify the game so that if the message $m^*$ encrypted in the
+challenge ciphertext $c^*$ would cause a decryption failure
+(i.e., $\Dec(\mathsf{sk}', c^*) \neq m^*$), the game aborts.
+This event has probability at most~$\delta$ by the correctness
+assumption, so:
+\begin{equation}
+|\Pr[W_2] - \Pr[W_1]| \;\leq\; \delta.
+\end{equation}
+
+\medskip\noindent\textbf{Game 3 (Replace $K_0^*$ with
+random).}
+Replace the real key
+$K_0^* = H(m^*, \mathsf{pk})$ with a uniformly random value.
+Since $H$ is a random oracle and $m^*$ is chosen uniformly at
+random by $\Encaps$, the value $H(m^*, \mathsf{pk})$ is
+uniformly random unless $\mathcal{A}$ queries $H$ on $m^*$.
+If $\mathcal{A}$ ever queries $H$ on~$m^*$, it has
+effectively recovered the plaintext, which breaks IND-CPA
+security.  Formally, construct an IND-CPA adversary
+$\mathcal{B}$ that simulates Game~2 for $\mathcal{A}$ and
+outputs $1$ if $\mathcal{A}$ queries $H(m^*, \mathsf{pk})$.
+Then:
+\begin{equation}
+|\Pr[W_3] - \Pr[W_2]| \;\leq\;
+  \mathrm{Adv}^{\mathrm{IND\text{-}CPA}}_{\Pi}(\mathcal{B})
+  \;+\; (q_H - 1)\cdot\delta,
+\end{equation}
+where the additional $\delta$ terms account for the possibility
+that $\mathcal{A}$ queries $H$ on a message $m'$ whose
+encryption coincidentally equals $c^*$ due to a decryption
+failure event.
+
+In Game~3, both $K_0^*$ and $K_1^*$ are uniformly random and
+independent of $\mathcal{A}$'s view, so
+$\Pr[W_3] = 1/2$.
+
+\medskip\noindent\textbf{Conclusion.}
+Combining the bounds:
+\begin{align}
+\mathrm{Adv}^{\mathrm{IND\text{-}CCA2}}_{\Pi'}(\mathcal{A})
+&= |2\Pr[W_0] - 1| \\
+&\leq 2\,\mathrm{Adv}^{\mathrm{IND\text{-}CPA}}_{\Pi}(\mathcal{B})
+  + q_H\cdot\delta + \frac{q_D}{|\mathcal{M}|}.
+\end{align}
+For ML-KEM, $\delta < 2^{-140}$ and $|\mathcal{M}| = 2^{256}$,
+making the loss terms negligible.
+\end{proof}
+
+\noindent\textbf{The role of re-encryption.}
+The re-encryption check in $\Decaps$ ($c' \stackrel{?}{=} c$) is
+what makes Game~1 possible: it ensures that any ciphertext
+accepted by $\Decaps$ was honestly generated from a message
+known to the random oracle.  Without re-encryption, an
+adversary could submit malformed ciphertexts that decrypt to
+related messages, gradually extracting the secret key.
+Implicit rejection (returning $H(s, c)$ for invalid ciphertexts)
+ensures that the adversary cannot even detect whether a
+ciphertext was rejected, closing timing side channels.
+
+
+%% ================================================================
 \section{The Rejection Sampling Lemma}
 \label{app:rejection-sampling}
 
-% TODO: Statement and proof of the rejection sampling lemma
-% used in Dilithium's security analysis. Reference: Lemma in §8.3.
-% Cite: Lyubashevsky 2012
+This section proves \cref{thm:rejection-sampling}
+(Sect.~\ref{subsec:rejection-lemma}), the key technical tool
+that ensures lattice signatures based on the Fiat--Shamir-with-aborts
+paradigm do not leak the secret key.
 
+\begin{lemma}[Rejection Sampling~\cite{Lyubashevsky2012}]
+\label{lem:rejection-sampling-app}
+Let $V$ be a finite set of vectors with
+$\norm{\mathbf{v}}_\infty \leq \beta$ for all
+$\mathbf{v} \in V$, and let $h : V \to [0,1]$ be a
+probability function.  Let $\sigma = \omega(\beta\sqrt{\log m})$
+where $m$ is the ambient dimension.  Define
+$M = \exp(12\beta/\sigma + 1/(2\sigma^2))$.  Consider the
+following experiment:
+\begin{enumerate}
+\item Sample $\mathbf{v} \leftarrow h$ and
+  $\mathbf{y} \leftarrow D_\sigma^m$.
+\item Set $\mathbf{z} = \mathbf{y} + \mathbf{v}$.
+\item Output $\mathbf{z}$ with probability
+  $\min\!\bigl(\frac{D_\sigma^m(\mathbf{z})}{M \cdot
+  D_{\mathbf{v},\sigma}^m(\mathbf{z})},\; 1\bigr)$;
+  otherwise restart.
+\end{enumerate}
+Then:
+\begin{enumerate}
+\item[\textup{(a)}] The probability of outputting $\mathbf{z}$
+  (not restarting) in each iteration is at least $1/M$.
+\item[\textup{(b)}] The statistical distance between the
+  distribution of $\mathbf{z}$ (conditioned on output) and
+  $D_\sigma^m$ is at most $2^{-\omega(\log m)} / M$.
+\end{enumerate}
+In particular, the output distribution is (essentially)
+$D_\sigma^m$ regardless of which $\mathbf{v}$ was used.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+The argument is a direct calculation exploiting the rapid
+decay of Gaussians.
+
+\medskip\noindent\textbf{Masking property.}
+For any fixed $\mathbf{v}$ with
+$\norm{\mathbf{v}}_\infty \leq \beta$, the ratio of the
+centred Gaussian to the shifted Gaussian at any point
+$\mathbf{z}$ satisfies
+\begin{equation}
+\frac{D_\sigma^m(\mathbf{z})}{D_{\mathbf{v},\sigma}^m(\mathbf{z})}
+\;=\; \exp\!\left(
+  \frac{-2\ip{\mathbf{z}}{\mathbf{v}} +
+  \norm{\mathbf{v}}^2}{2\sigma^2}\right).
+\end{equation}
+Since $\mathbf{z} = \mathbf{y} + \mathbf{v}$ with
+$\mathbf{y} \leftarrow D_\sigma^m$, the inner product
+$\ip{\mathbf{z}}{\mathbf{v}}$ concentrates around
+$\norm{\mathbf{v}}^2$ (which is at most $m\beta^2$).
+The condition $\sigma = \omega(\beta\sqrt{\log m})$
+ensures that the ratio concentrates in $[1/M, 1]$ with
+overwhelming probability.  Specifically, a Gaussian tail
+bound gives
+\begin{equation}
+\Pr\!\left[
+  \frac{D_\sigma^m(\mathbf{z})}{D_{\mathbf{v},\sigma}^m(\mathbf{z})}
+  < \frac{1}{M}\right]
+\;\leq\; 2^{-\omega(\log m)}.
+\end{equation}
+
+\medskip\noindent\textbf{Acceptance probability.}
+The acceptance probability equals
+$\EE\!\left[\min\!\bigl(
+\frac{D_\sigma^m(\mathbf{z})}{M \cdot D_{\mathbf{v},\sigma}^m(\mathbf{z})}, 1
+\bigr)\right] = \frac{1}{M}$
+(up to the negligible tail), because the expected value of
+$\min(R/M, 1)$ for a ratio $R$ distributed as above is
+$1/M$ by construction of~$M$.
+
+\medskip\noindent\textbf{Output distribution.}
+Conditioned on acceptance, the density of $\mathbf{z}$ is
+proportional to
+$D_{\mathbf{v},\sigma}^m(\mathbf{z}) \cdot
+\frac{D_\sigma^m(\mathbf{z})}{M \cdot D_{\mathbf{v},\sigma}^m(\mathbf{z})}
+= \frac{1}{M} D_\sigma^m(\mathbf{z})$,
+which is exactly $D_\sigma^m$ up to normalisation.  The
+negligible tail where the ratio falls below $1/M$ contributes
+at most $2^{-\omega(\log m)}/M$ statistical distance.
+Since this holds for every $\mathbf{v} \in V$, the output
+distribution is independent of the secret (up to negligible
+error).
+\end{proof}
+
+
+%% ================================================================
 \section{Security of Merkle's Signature Scheme}
 \label{app:merkle-security}
 
-% TODO: Proof that Merkle signatures are EUF-CMA secure
-% given a secure OTS. Reference: Theorem in §10.2.
+This section proves \cref{thm:merkle-security}
+(Sect.~\ref{sec:merkle}): the Merkle tree construction yields
+an existentially unforgeable many-time signature scheme from
+any secure one-time signature.
+
+\begin{theorem}[Merkle Tree Security]
+\label{thm:merkle-app}
+Let $\mathrm{OTS}$ be an EU-CMA$_1$-secure one-time signature
+scheme and $H$ a second-preimage-resistant hash function.
+Then the Merkle signature scheme with tree height~$h$
+(supporting $N = 2^h$ signatures) is EU-CMA-secure.
+Concretely, for any forger~$\mathcal{F}$ making at most
+$N$ signing queries:
+\begin{equation}
+\mathrm{Adv}^{\mathrm{EU\text{-}CMA}}_{\mathrm{Merkle}}(\mathcal{F})
+\;\leq\;
+N \cdot \mathrm{Adv}^{\mathrm{EU\text{-}CMA}_1}_{\mathrm{OTS}}(\mathcal{B})
+\;+\; N \cdot \mathrm{Adv}^{\mathrm{SPR}}_{H}(\mathcal{C}),
+\end{equation}
+where $\mathcal{B}$ and $\mathcal{C}$ are efficient
+reductions.
+\end{theorem}
+
+\begin{proof}[Proof (hybrid argument over leaves)]
+Suppose forger~$\mathcal{F}$ outputs a valid forgery
+$(m^*, \sigma^*)$ on a message not previously signed.  The
+forgery contains an authentication path from some leaf~$i^*$
+to the root.  We distinguish two cases.
+
+\medskip\noindent\textbf{Case 1: OTS forgery.}
+The authentication path uses a leaf OTS key pair
+$(\mathsf{sk}_{i^*}, \mathsf{pk}_{i^*})$ that was used in one
+of the $\leq N$ signing queries.  In this case, the forger
+has produced a second valid signature under a one-time key,
+which constitutes an OTS forgery.
+
+To reduce to OTS security, construct $\mathcal{B}$ as follows.
+$\mathcal{B}$ receives an OTS challenge public key
+$\mathsf{pk}^*$ and must produce a forgery.  It guesses a
+random index $i' \getsr \{0, \ldots, N-1\}$, generates all
+other OTS key pairs honestly, and embeds $\mathsf{pk}^*$ at
+leaf~$i'$.  The Merkle tree is built normally.
+When $\mathcal{F}$ requests a signature using leaf~$i'$,
+$\mathcal{B}$ forwards the message to its OTS signing oracle.
+If $\mathcal{F}$'s forgery uses leaf~$i^* = i'$ (which happens
+with probability $\geq 1/N$), $\mathcal{B}$ obtains a valid
+OTS forgery.
+
+\medskip\noindent\textbf{Case 2: Hash collision on the path.}
+The authentication path in the forgery reaches the correct
+root $\mathsf{PK}$ but diverges from the honest tree at some
+internal node.  That is, there exists an internal node where
+the forger's claimed child values
+$(L^*, R^*)$ differ from the honest values $(L, R)$, yet
+$H(L^* \| R^*) = H(L \| R)$.  This is a second-preimage for
+$H$.
+
+Construct $\mathcal{C}$ that embeds its second-preimage
+challenge at a random internal node and simulates the scheme
+for~$\mathcal{F}$.  The guess succeeds with probability at
+least $1/N$ (there are $\leq N$ internal nodes on any
+root-to-leaf path times the number of leaves).
+
+\medskip\noindent\textbf{Combining.}
+Since every forgery falls into one of the two cases, a union
+bound gives the claimed advantage.
+\end{proof}
+
+\noindent\textbf{Tightness.}
+The factor of $N = 2^h$ in the security loss is inherent in
+the guessing step and represents a real cost: a Merkle tree
+supporting $2^{20}$ signatures loses 20~bits of security
+relative to the underlying OTS.  This motivates the use of
+multi-tree constructions (XMSS$^{MT}$, HSS) that split the
+height across layers to reduce the effective loss per layer,
+as discussed in Sect.~\ref{sec:stateful}.

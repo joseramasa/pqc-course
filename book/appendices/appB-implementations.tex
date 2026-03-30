@@ -1,58 +1,360 @@
 \chapter{Reference Implementations}
 \label{app:implementations}
 
-% Python examples using liboqs and standard libraries.
-% Each listing is self-contained and tested.
+This appendix provides self-contained Python examples that illustrate the
+algorithms discussed throughout the book. The educational LWE example uses
+only standard libraries; all remaining examples require \texttt{liboqs-python}
+(\url{https://github.com/open-quantum-safe/liboqs-python}).
+Install it with \texttt{pip install liboqs-python}.
 
-% =============================================================
-% SOURCE: notes.tex Appendix B (lines 10022–10373)
-% REUSE: ~40%. Update APIs, add ML-DSA and SLH-DSA examples.
-% =============================================================
+\medskip
+\noindent\textbf{Warning.} None of these scripts are suitable for production
+use. They are intended solely as pedagogical companions to the main text.
 
+%% ==============================================================
 \section{LWE Encryption (Educational)}
 \label{app:lwe-impl}
 
-% TODO: Adapt from notes.tex §B.1
-% - Simple LWE encryption/decryption in pure Python
-% - Small parameters for illustration (NOT secure)
-% - Demonstrate noise growth and decryption failures
+The following pure-Python script implements a toy LWE encryption scheme with
+parameters $n=16$, $q=97$. These parameters provide \emph{no} security;
+they are chosen so that every intermediate value fits comfortably on screen.
+The code demonstrates the three core operations---key generation, single-bit
+encryption, and decryption---and highlights how noise accumulation can cause
+decryption failures when parameters are too aggressive.
 
+\begin{lstlisting}[language=Python,caption={Toy LWE encryption (NOT secure)}]
+import random
+
+# --- Parameters (educational only) ---
+n = 16    # lattice dimension
+q = 97    # modulus (prime)
+m = 32    # number of public-key samples
+sigma = 2 # noise bound (uniform in [-sigma, sigma])
+
+def sample_error():
+    """Sample small noise uniformly from {-sigma, ..., sigma}."""
+    return random.randint(-sigma, sigma) % q
+
+def keygen():
+    """Return (public_key, secret_key)."""
+    s = [random.randrange(q) for _ in range(n)]        # secret vector
+    A = [[random.randrange(q) for _ in range(n)]
+         for _ in range(m)]                             # random matrix
+    e = [sample_error() for _ in range(m)]              # noise vector
+    b = [(sum(A[i][j]*s[j] for j in range(n)) + e[i]) % q
+         for i in range(m)]                             # b = As + e
+    return (A, b), s
+
+def encrypt(pk, bit):
+    """Encrypt a single bit in {0, 1}."""
+    A, b = pk
+    # Choose a random binary selector vector r
+    r = [random.randint(0, 1) for _ in range(m)]
+    # Sum selected rows of A and corresponding entries of b
+    u = [sum(r[i]*A[i][j] for i in range(m)) % q
+         for j in range(n)]
+    v = sum(r[i]*b[i] for i in range(m)) % q
+    # Encode the bit: add floor(q/2) if bit == 1
+    v = (v + bit * (q // 2)) % q
+    return (u, v)
+
+def decrypt(sk, ct):
+    """Decrypt ciphertext to recover the bit."""
+    u, v = ct
+    s = sk
+    # Compute v - <u, s> mod q
+    d = (v - sum(u[j]*s[j] for j in range(n))) % q
+    # Map to the nearest bit: 0 if close to 0, 1 if close to q/2
+    if d > q // 2:
+        d -= q  # centered representative
+    return 0 if abs(d) < q // 4 else 1
+
+# --- Quick self-test ---
+pk, sk = keygen()
+for bit in (0, 1):
+    ct = encrypt(pk, bit)
+    assert decrypt(sk, ct) == bit, "Decryption failure!"
+print("LWE encrypt/decrypt OK for bits 0 and 1")
+\end{lstlisting}
+
+%% ==============================================================
 \section{ML-KEM with liboqs}
 \label{app:mlkem-impl}
 
-% TODO: Adapt from notes.tex §B.2
-% - Key generation, encapsulation, decapsulation
-% - All three parameter sets
-% - Performance timing
+ML-KEM (FIPS~203) is the NIST standard key-encapsulation mechanism derived
+from CRYSTALS-Kyber. The script below exercises all three parameter sets
+through the \texttt{liboqs} Python bindings, prints object sizes, and
+measures wall-clock time for each operation.
 
+\begin{lstlisting}[language=Python,caption={ML-KEM key encapsulation with liboqs}]
+import oqs
+import time
+
+PARAM_SETS = ["ML-KEM-512", "ML-KEM-768", "ML-KEM-1024"]
+ITERS = 100
+
+for name in PARAM_SETS:
+    kem = oqs.KeyEncapsulation(name)
+
+    # --- Key generation ---
+    t0 = time.perf_counter()
+    for _ in range(ITERS):
+        pk = kem.generate_keypair()
+    kg_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+    # --- Encapsulation ---
+    t0 = time.perf_counter()
+    for _ in range(ITERS):
+        ct, ss_enc = kem.encap_secret(pk)
+    enc_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+    # --- Decapsulation ---
+    t0 = time.perf_counter()
+    for _ in range(ITERS):
+        ss_dec = kem.decap_secret(ct)
+    dec_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+    assert ss_enc == ss_dec, "Shared secrets do not match!"
+
+    print(f"\n=== {name} ===")
+    print(f"  Public key : {len(pk):>5} bytes")
+    print(f"  Ciphertext : {len(ct):>5} bytes")
+    print(f"  Shared sec.: {len(ss_enc):>5} bytes")
+    print(f"  KeyGen     : {kg_ms:>7.3f} ms")
+    print(f"  Encaps     : {enc_ms:>7.3f} ms")
+    print(f"  Decaps     : {dec_ms:>7.3f} ms")
+\end{lstlisting}
+
+%% ==============================================================
 \section{ML-DSA with liboqs}
 \label{app:mldsa-impl}
 
-% TODO: New section
-% - Key generation, signing, verification
-% - All three parameter sets
-% - Signature size demonstration
+ML-DSA (FIPS~204), derived from CRYSTALS-Dilithium, is the primary NIST
+post-quantum signature standard. The code below demonstrates key generation,
+signing, and verification for ML-DSA-65 (the recommended security level)
+and reports sizes and timings.
 
+\begin{lstlisting}[language=Python,caption={ML-DSA digital signatures with liboqs}]
+import oqs
+import time
+
+sig = oqs.Signature("ML-DSA-65")
+message = b"Post-quantum cryptography is here."
+ITERS = 100
+
+# --- Key generation ---
+t0 = time.perf_counter()
+for _ in range(ITERS):
+    pk = sig.generate_keypair()
+kg_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+# --- Signing ---
+t0 = time.perf_counter()
+for _ in range(ITERS):
+    signature = sig.sign(message)
+sign_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+# --- Verification ---
+verifier = oqs.Signature("ML-DSA-65")
+t0 = time.perf_counter()
+for _ in range(ITERS):
+    valid = verifier.verify(message, signature, pk)
+ver_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+assert valid, "Signature verification failed!"
+
+print("=== ML-DSA-65 ===")
+print(f"  Public key : {len(pk):>5} bytes")
+print(f"  Signature  : {len(signature):>5} bytes")
+print(f"  KeyGen     : {kg_ms:>7.3f} ms")
+print(f"  Sign       : {sign_ms:>7.3f} ms")
+print(f"  Verify     : {ver_ms:>7.3f} ms")
+\end{lstlisting}
+
+%% ==============================================================
 \section{SLH-DSA with liboqs}
 \label{app:slhdsa-impl}
 
-% TODO: New section
-% - Small vs fast parameter sets
-% - Signing time comparison
-% - Signature size comparison with ML-DSA
+SLH-DSA (FIPS~205), based on SPHINCS$^+$, is a stateless hash-based
+signature scheme. Its main trade-off is between the ``small'' variants (shorter
+signatures, slower signing) and the ``fast'' variants (larger signatures,
+faster signing). The script below makes this trade-off concrete.
 
+\begin{lstlisting}[language=Python,caption={SLH-DSA: small vs.\ fast parameter comparison}]
+import oqs
+import time
+
+VARIANTS = [
+    ("SLH-DSA-SHA2-128s", "128-bit, small"),
+    ("SLH-DSA-SHA2-128f", "128-bit, fast"),
+]
+message = b"Hash-based signatures need no lattice assumptions."
+ITERS = 10  # SLH-DSA signing is slow; fewer iterations
+
+for name, label in VARIANTS:
+    sig = oqs.Signature(name)
+    pk = sig.generate_keypair()
+
+    # --- Signing ---
+    t0 = time.perf_counter()
+    for _ in range(ITERS):
+        signature = sig.sign(message)
+    sign_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+    # --- Verification ---
+    verifier = oqs.Signature(name)
+    t0 = time.perf_counter()
+    for _ in range(ITERS):
+        valid = verifier.verify(message, signature, pk)
+    ver_ms = (time.perf_counter() - t0) / ITERS * 1000
+
+    assert valid
+    print(f"\n=== {name} ({label}) ===")
+    print(f"  Public key : {len(pk):>6} bytes")
+    print(f"  Signature  : {len(signature):>6} bytes")
+    print(f"  Sign       : {sign_ms:>9.1f} ms")
+    print(f"  Verify     : {ver_ms:>9.1f} ms")
+\end{lstlisting}
+
+%% ==============================================================
 \section{Hybrid TLS with Post-Quantum KEM}
 \label{app:hybrid-tls}
 
-% TODO: New section
-% - Using OpenSSL 3.x with oqs-provider
-% - Setting up a hybrid TLS connection
-% - Capturing and analyzing the handshake
+Deploying post-quantum algorithms in TLS\,1.3 requires an OpenSSL build
+that supports the OQS provider. The following commands assume OpenSSL~3.x
+compiled with the \texttt{oqs-provider} plugin (see
+\url{https://github.com/open-quantum-safe/oqs-provider} for build
+instructions).
 
+\medskip
+\noindent\textbf{Step 1. Generate a hybrid certificate.}
+The example below creates an ML-DSA-65 CA and issues a server certificate
+that uses a hybrid key exchange during the TLS handshake.
+
+\begin{lstlisting}[language=bash,caption={Generate an ML-DSA-65 CA and server certificate}]
+# Generate CA key and self-signed certificate
+openssl req -x509 -new -newkey mldsa65 -keyout ca.key \
+  -out ca.crt -nodes -subj "/CN=PQC Test CA" -days 365
+
+# Generate server key and CSR
+openssl req -new -newkey mldsa65 -keyout server.key \
+  -out server.csr -nodes -subj "/CN=localhost"
+
+# Sign the server certificate with the CA
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+  -CAcreateserial -out server.crt -days 365
+\end{lstlisting}
+
+\noindent\textbf{Step 2. Test a hybrid TLS connection.}
+Use \texttt{s\_server} and \texttt{s\_client} to verify the handshake
+with a hybrid key exchange group (X25519 + ML-KEM-768).
+
+\begin{lstlisting}[language=bash,caption={Hybrid TLS 1.3 handshake test}]
+# Terminal 1 -- start the server
+openssl s_server -cert server.crt -key server.key \
+  -groups x25519_mlkem768 -www -accept 4433
+
+# Terminal 2 -- connect as a client
+openssl s_client -connect localhost:4433 \
+  -groups x25519_mlkem768 -CAfile ca.crt
+\end{lstlisting}
+
+\noindent A successful connection will display the negotiated group
+(\texttt{x25519\_mlkem768}) in the handshake output, confirming that
+both classical and post-quantum key exchange took place.
+
+%% ==============================================================
 \section{Performance Benchmarks}
 \label{app:benchmarks}
 
-% TODO: Adapt from notes.tex §B.3
-% - Benchmark script for all NIST standards
-% - Comparison table: keygen, encaps/sign, decaps/verify times
-% - Comparison with classical algorithms (RSA, ECDSA, X25519)
+The script below benchmarks every NIST-standardised PQC algorithm alongside
+RSA-2048 and ECDSA-P256, printing the results as a formatted table. It
+requires \texttt{liboqs-python} and the \texttt{cryptography} package.
+
+\begin{lstlisting}[language=Python,caption={Comprehensive PQC benchmark script}]
+import oqs, time
+from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding, utils
+from cryptography.hazmat.primitives import hashes, serialization
+
+ITERS = 100
+MSG = b"Benchmark payload for signature schemes."
+
+def bench(fn, n=ITERS):
+    t0 = time.perf_counter()
+    for _ in range(n):
+        result = fn()
+    return (time.perf_counter() - t0) / n * 1000, result
+
+rows = []
+
+# --- ML-KEM ---
+for name in ("ML-KEM-512", "ML-KEM-768", "ML-KEM-1024"):
+    k = oqs.KeyEncapsulation(name)
+    kg, pk = bench(k.generate_keypair)
+    en, (ct, ss) = bench(lambda: k.encap_secret(pk))
+    de, _  = bench(lambda: k.decap_secret(ct))
+    rows.append((name, f"{len(pk)}", f"{len(ct)}",
+                 f"{kg:.3f}", f"{en:.3f}", f"{de:.3f}"))
+
+# --- ML-DSA ---
+for name in ("ML-DSA-44", "ML-DSA-65", "ML-DSA-87"):
+    s = oqs.Signature(name)
+    kg, pk = bench(s.generate_keypair)
+    si, sig = bench(lambda: s.sign(MSG))
+    v = oqs.Signature(name)
+    ve, _ = bench(lambda: v.verify(MSG, sig, pk))
+    rows.append((name, f"{len(pk)}", f"{len(sig)}",
+                 f"{kg:.3f}", f"{si:.3f}", f"{ve:.3f}"))
+
+# --- SLH-DSA (fewer iterations -- signing is slow) ---
+for name in ("SLH-DSA-SHA2-128s", "SLH-DSA-SHA2-128f"):
+    s = oqs.Signature(name)
+    kg, pk = bench(s.generate_keypair, 10)
+    si, sig = bench(lambda: s.sign(MSG), 10)
+    v = oqs.Signature(name)
+    ve, _ = bench(lambda: v.verify(MSG, sig, pk), 10)
+    rows.append((name, f"{len(pk)}", f"{len(sig)}",
+                 f"{kg:.3f}", f"{si:.3f}", f"{ve:.3f}"))
+
+# --- RSA-2048 (sign/verify only) ---
+sk = rsa.generate_private_key(65537, 2048)
+pk_rsa = sk.public_key()
+sig_rsa = sk.sign(MSG, padding.PKCS1v15(), hashes.SHA256())
+kg_r, _ = bench(lambda: rsa.generate_private_key(65537, 2048), 10)
+si_r, _ = bench(lambda: sk.sign(MSG, padding.PKCS1v15(),
+                                hashes.SHA256()))
+ve_r, _ = bench(lambda: pk_rsa.verify(sig_rsa, MSG,
+                                      padding.PKCS1v15(),
+                                      hashes.SHA256()))
+pk_bytes = pk_rsa.public_bytes(serialization.Encoding.DER,
+             serialization.PublicFormat.SubjectPublicKeyInfo)
+rows.append(("RSA-2048", f"{len(pk_bytes)}", f"{len(sig_rsa)}",
+             f"{kg_r:.3f}", f"{si_r:.3f}", f"{ve_r:.3f}"))
+
+# --- ECDSA P-256 ---
+sk_ec = ec.generate_private_key(ec.SECP256R1())
+pk_ec = sk_ec.public_key()
+sig_ec = sk_ec.sign(MSG, ec.ECDSA(hashes.SHA256()))
+kg_e, _ = bench(lambda: ec.generate_private_key(ec.SECP256R1()))
+si_e, _ = bench(lambda: sk_ec.sign(MSG, ec.ECDSA(hashes.SHA256())))
+ve_e, _ = bench(lambda: pk_ec.verify(sig_ec, MSG,
+                                     ec.ECDSA(hashes.SHA256())))
+pk_ec_b = pk_ec.public_bytes(serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+rows.append(("ECDSA-P256", f"{len(pk_ec_b)}", f"{len(sig_ec)}",
+             f"{kg_e:.3f}", f"{si_e:.3f}", f"{ve_e:.3f}"))
+
+# --- Print table ---
+hdr = f"{'Algorithm':<20} {'PK(B)':>7} {'CT/Sig(B)':>9} " \
+      f"{'KG(ms)':>8} {'Op1(ms)':>8} {'Op2(ms)':>8}"
+print(hdr)
+print("-" * len(hdr))
+for r in rows:
+    print(f"{r[0]:<20} {r[1]:>7} {r[2]:>9} "
+          f"{r[3]:>8} {r[4]:>8} {r[5]:>8}")
+\end{lstlisting}
+
+\noindent In the table above, \textbf{Op1} denotes encapsulation (for KEMs)
+or signing (for signatures), and \textbf{Op2} denotes decapsulation or
+verification, respectively. Readers are encouraged to run the script on
+their own hardware and compare results with the figures in the main text.

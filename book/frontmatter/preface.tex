@@ -1,18 +1,41 @@
 \preface
 
-% TODO: Write the preface. Key elements:
-% - Origin of the book (PQC course at Bari)
-% - Why this book exists (no PQC textbook bridges physics and crypto)
-% - Who this book is for (graduate students in quantum tech, physicists entering cybersecurity, CS students with quantum interest)
-% - How to read this book (dependencies between chapters)
-% - Prerequisites assumed
-% - AI disclosure (required by Springer):
-%   "AI-assisted tools were used during the preparation of this manuscript
-%    for editing, formatting, and code generation. The author reviewed and
-%    takes full responsibility for all content."
-% - Acknowledgments
+This book grew out of lecture notes for a seminar on post-quantum cryptography that I teach within the Master of Quantum Science and Technology at the Universit\`{a} degli Studi di Bari Aldo Moro, Italy.  The notes were originally meant to fit a compact course module, but they kept expanding.  My students---most of them physicists by training---asked questions that existing references could not answer in their language.  Why does adding noise to a linear system make it cryptographically hard?  What is the geometric intuition behind lattice reduction?  How does a worst-case to average-case reduction actually work, and why should a physicist care?  The answers to those questions, accumulated over several iterations of the course, became the core of this book.
+
+\medskip
+\noindent\textbf{Why this book exists.}\enspace
+The post-quantum cryptography literature sits uncomfortably between two communities that rarely read each other's textbooks.  Computer science treatments assume no quantum mechanics and develop cryptographic reductions in a formalism that is foreign to physicists.  Quantum information texts, conversely, rarely engage with the practical machinery of public-key cryptography or the details of the NIST standardisation process.  The result is a gap: a graduate student in quantum technologies who wants to understand ML-KEM or SLH-DSA at a mathematical level must assemble knowledge from half a dozen sources written for different audiences with different conventions.  This book stands at the intersection.  It develops the quantum-mechanical context that makes the threat concrete, the algebraic and geometric foundations that underpin the new algorithms, and the cryptographic formalism needed to reason about their security---all within a single, self-contained treatment.
+
+\medskip
+\noindent\textbf{Who this book is for.}\enspace
+The primary audience is graduate students in quantum science and technology programmes who need to understand post-quantum cryptography as part of their professional formation.  The book is also intended for physicists and engineers entering the cybersecurity field, computer science students who wish to engage seriously with the quantum aspects of cryptographic security, and practitioners in industry or government who are responsible for planning and executing post-quantum migration.  Readers will benefit most if they bring curiosity about both the physics and the mathematics; the book aims to reward that curiosity with rigour rather than hand-waving.
+
+\medskip
+\noindent\textbf{Prerequisites.}\enspace
+We assume a working knowledge of linear algebra (vector spaces, norms, inner products), basic abstract algebra (groups, rings, fields, modular arithmetic), discrete probability, and computational complexity at the level of asymptotic notation and the polynomial/exponential distinction.  For the quantum-mechanical content in Part~I, familiarity with Dirac notation, unitary evolution, and measurement is expected.  No prior knowledge of cryptography is assumed; classical cryptographic systems are developed from scratch in Chapter~3.
+
+\medskip
+\noindent\textbf{How to read this book.}\enspace
+The book is organised in three parts.  Part~I (Chapters~1--4, Foundations) should be read sequentially, as each chapter builds on the previous one.  Part~II (Chapters~5--11, Post-Quantum Cryptographic Primitives) begins with three core chapters: Chapter~5 surveys the post-quantum landscape, Chapter~6 develops lattice theory, and Chapter~7 builds lattice-based encryption culminating in ML-KEM.  These three chapters are prerequisites for the rest of Part~II.  After them, Chapters~8--11---covering lattice-based signatures, code-based cryptography, hash-based signatures, and other approaches---can be read in any order according to the reader's interest.  Part~III (Chapters~12--15, Practice and Future) addresses implementation, migration, advanced primitives, and open problems; it assumes familiarity with at least one cryptographic family from Part~II.  A reader focused on the NIST standards can proceed efficiently through Chapters~1--7, then Chapter~8, and then jump to Part~III.  A reader with a background in coding theory may prefer to continue from Chapter~5 directly to Chapter~9.
+
+\medskip
+\noindent\textbf{A note on tools used.}\enspace
+AI-assisted tools were used during the preparation of this manuscript for structural organisation, \LaTeX{} formatting, and code generation.  The author reviewed and takes full responsibility for all technical content, mathematical proofs, and security claims.
+
+\medskip
+\noindent\textbf{Acknowledgments.}\enspace
+% TODO: Acknowledge colleagues at Quside Technologies for discussions on
+%       quantum random number generation and PQC implementation.
+% TODO: Acknowledge the faculty and students of the Master of Quantum Science
+%       and Technology at Bari for their questions, feedback, and patience
+%       with early drafts.
+% TODO: Acknowledge specific collaborators, reviewers, and mentors by name.
+% TODO: Acknowledge Springer editor by name.
+% TODO: Acknowledge family.
+I owe a debt to the students of the Master of Quantum Science and Technology at Bari, whose sharp questions and refusal to accept vague answers shaped every chapter of this book.  I am grateful to my colleagues at Quside Technologies for many conversations on the practical side of quantum-safe security, and for the environment that made writing possible alongside the demands of industry.
+% TODO: Add remaining personal acknowledgments before submission.
 
 \vspace{\baselineskip}
 \begin{flushright}\noindent
-Bari, \today\hfill {\it Jos\'{e} Ram\'{o}n Mart\'{\i}nez Saavedra}
+Bari, Month 2026\hfill {\it Jos\'{e} Ram\'{o}n Mart\'{\i}nez Saavedra}
 \end{flushright}
