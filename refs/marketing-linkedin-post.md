@@ -1,21 +1,23 @@
-# LinkedIn Post (short — fits in feed without "see more" truncation)
+LinkedIn Post (short — fits in feed without “see more” truncation)
 
-Two papers dropped this week that shift the quantum cryptanalysis timeline significantly.
+Two new papers published this week have changed the expected timeline for quantum cryptanalysis.
 
-Cain et al. (with Preskill, Caltech/Oratomic) show Shor's algorithm can run on as few as 10,000 neutral-atom qubits — five orders of magnitude fewer than estimates from just five years ago. Their most time-efficient configurations: ECC-256 in 10 days with ~26K qubits, RSA-2048 in 97 days with ~102K qubits.
+Cain et al. (with Preskill, Caltech/Oratomic) show Shor’s algorithm can run with as few as 10,000 neutral-atom qubits. This is about 100,000 times fewer than estimates from five years ago. Their setups: break ECC-256 in 10 days using about 26,000 qubits, and break RSA-2048 in 97 days with about 102,000 qubits.
 
-Babbush et al. (Google Quantum AI, Ethereum Foundation, Stanford — with Gidney and Boneh) go further: ECC-256 broken in minutes with <500K physical qubits on superconducting hardware. They introduce a sharp distinction between "fast-clock" architectures (superconducting, photonic — minutes) and "slow-clock" (neutral atoms, ion traps — days), with different attack profiles for each.
+Babbush et al. (Google Quantum AI, Ethereum Foundation, Stanford, with Gidney and Boneh) take it further: they show ECC-256 can be broken in minutes with fewer than 500,000 physical qubits on superconducting hardware. They also highlight a clear difference between 'fast-clock' architectures, such as superconducting and photonic systems that operate in minutes, and 'slow-clock' architectures, such as neutral atoms and ion traps, which operate over days. Each type has its own attack profile.
 
-The blockchain implications are immediate: 1.7M BTC in P2PK scripts are permanently exposed, up to 6.9M BTC total when address reuse is included. Ethereum is more exposed than Bitcoin due to its account model and PoS validator key structure. Real-world asset tokenization is projected to exceed $16T by 2030 on these platforms.
+The impact on blockchain is immediate. About 1.7 million BTC are always exposed via pay-to-public-key (P2PK) scripts, and this number rises to 6.9 million BTC when address reuse is included. In P2PK scripts, the public key is recorded on the blockchain as soon as coins are spent, so a quantum attacker could extract the private key and seize any remaining funds. Ethereum is even more at risk than Bitcoin because its account-based system permanently links public keys to addresses, making all assets tied to those addresses vulnerable if quantum computers become practical. Also, Ethereum’s proof-of-stake (PoS) validator key setup means validator funds are always at risk, since validator public keys are always visible. By 2030, real-world asset tokenization on these platforms could exceed $16 trillion.
 
-This isn't a sudden breakthrough — it's steady, credible progress. The gap between current hardware and a cryptographically relevant quantum computer is now measured in engineering generations, not physics breakthroughs.
+This is not a sudden breakthrough, but steady and credible progress. Now, the gap between current hardware and quantum computers relevant to cryptography is measured in engineering generations, not physics breakthroughs. At the current pace, experts estimate that quantum computers capable of breaking today’s cryptography may arrive within a decade. The window to prepare is closing.
 
-There is time to migrate. The margin for error is narrowing.
+Act now—quantum threats are accelerating. Immediately inventory your cryptographic assets, evaluate post-quantum libraries, and establish a dedicated migration task force. Every month counts: early action drastically reduces your risk and paves the way for a seamless transition.
 
-Full analysis with references and implications for PQC deployment entropy requirements: [LINK TO ARTICLE]
+Full analysis with references and implications for the entropy (randomness, a key input for cryptographic security) requirements of deploying post-quantum cryptography (PQC): [SEE OTHER ARTICLE]
 
 Papers:
-- Cain et al.: https://arxiv.org/abs/2603.28627
-- Babbush et al.: https://quantumai.google/static/site-assets/downloads/cryptocurrency-whitepaper.pdf
+
+* Cain et al.: https://arxiv.org/abs/2603.28627
+* Babbush et al.: https://quantumai.google/static/site-assets/downloads/cryptocurrency-whitepaper.pdf
 
 #PostQuantumCryptography #QuantumComputing #Cybersecurity #Blockchain #PQC
+
