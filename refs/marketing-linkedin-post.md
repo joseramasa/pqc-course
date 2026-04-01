@@ -1,23 +1,21 @@
-LinkedIn Post (short — fits in feed without “see more” truncation)
+# LinkedIn Post (short — fits in feed without "see more" truncation)
 
-Two new papers published this week have changed the expected timeline for quantum cryptanalysis.
+Two new papers published this week signal an alarming acceleration in the timeline for quantum cryptanalysis.
 
-Cain et al. (with Preskill, Caltech/Oratomic) show Shor’s algorithm can run with as few as 10,000 neutral-atom qubits. This is about 100,000 times fewer than estimates from five years ago. Their setups: break ECC-256 in 10 days using about 26,000 qubits, and break RSA-2048 in 97 days with about 102,000 qubits.
+**Cain et al.** (with Preskill, Caltech/Oratomic) reveal a dramatic leap: Shor's algorithm now runs with as few as **10,000 neutral-atom qubits** — an astonishing 100,000-fold reduction from five years ago. Their setups break ECC-256 in just 10 days with about 26,000 qubits, and break RSA-2048 in 97 days using about 102,000 qubits. The threat is rapidly escalating.
 
-Babbush et al. (Google Quantum AI, Ethereum Foundation, Stanford, with Gidney and Boneh) take it further: they show ECC-256 can be broken in minutes with fewer than 500,000 physical qubits on superconducting hardware. They also highlight a clear difference between 'fast-clock' architectures, such as superconducting and photonic systems that operate in minutes, and 'slow-clock' architectures, such as neutral atoms and ion traps, which operate over days. Each type has its own attack profile.
+**Babbush et al.** (Google Quantum AI, Ethereum Foundation, Stanford, with Gidney and Boneh) emphasize the urgency: they show that **ECC-256 can be broken in a few minutes** using fewer than 500,000 physical qubits on superconducting hardware. They highlight an important hardware difference: fast-clock systems (superconducting, photonic) can complete attacks in minutes, whereas slow-clock systems (neutral atom, ion-trap) require days to do the same. Both system types, despite their differences in operational speed, represent immediate and escalating threats.
 
-The impact on blockchain is immediate. About 1.7 million BTC are always exposed via pay-to-public-key (P2PK) scripts, and this number rises to 6.9 million BTC when address reuse is included. In P2PK scripts, the public key is recorded on the blockchain as soon as coins are spent, so a quantum attacker could extract the private key and seize any remaining funds. Ethereum is even more at risk than Bitcoin because its account-based system permanently links public keys to addresses, making all assets tied to those addresses vulnerable if quantum computers become practical. Also, Ethereum’s proof-of-stake (PoS) validator key setup means validator funds are always at risk, since validator public keys are always visible. By 2030, real-world asset tokenization on these platforms could exceed $16 trillion.
+Blockchain assets face a vast risk. About **1.7 million BTC** are always exposed through pay-to-public-key scripts. This rises to **6.9 million** with address reuse. Revealing public keys when coins are spent lets quantum attackers steal funds. Ethereum's account model exposes public keys permanently, making all linked assets vulnerable to practical quantum computers. By 2030, **$16 trillion** in tokenized assets could be at serious risk.
 
-This is not a sudden breakthrough, but steady and credible progress. Now, the gap between current hardware and quantum computers relevant to cryptography is measured in engineering generations, not physics breakthroughs. At the current pace, experts estimate that quantum computers capable of breaking today’s cryptography may arrive within a decade. The window to prepare is closing.
+This shift is not a breakthrough. It is relentless progress that calls for urgent action. The gap between current hardware and quantum computers capable of breaking cryptography is now measured in mere engineering generations, not theoretical barriers. At the current pace, experts warn that the arrival of quantum computers is a decade or less away. The window to act is snapping shut.
 
-Act now—quantum threats are accelerating. Immediately inventory your cryptographic assets, evaluate post-quantum libraries, and establish a dedicated migration task force. Every month counts: early action drastically reduces your risk and paves the way for a seamless transition.
+**Act immediately:** quantum threats are intensifying rapidly. Audit your cryptographic assets now, mandate post-quantum library testing without delay, and empower a dedicated task force with real authority and strict deadlines to secure your crypto from its very foundations. Waiting increases your exposure — move decisively to ensure a smooth, secure transition.
 
-Full analysis with references and implications for the entropy (randomness, a key input for cryptographic security) requirements of deploying post-quantum cryptography (PQC): [SEE OTHER ARTICLE]
+Full analysis with references and implications for entropy (randomness, a key input for cryptographic security) requirements of deploying post-quantum cryptography (PQC): [SEE OTHER ARTICLE]
 
-Papers:
-
-* Cain et al.: https://arxiv.org/abs/2603.28627
-* Babbush et al.: https://quantumai.google/static/site-assets/downloads/cryptocurrency-whitepaper.pdf
+**Papers:**
+- Cain et al.: https://arxiv.org/abs/2603.28627
+- Babbush et al.: https://quantumai.google/static/site-assets/downloads/cryptocurrency-whitepaper.pdf
 
 #PostQuantumCryptography #QuantumComputing #Cybersecurity #Blockchain #PQC
-
