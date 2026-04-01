@@ -16,6 +16,6 @@ Full analysis with references and implications for PQC deployment entropy requir
 
 Papers:
 - Cain et al.: https://arxiv.org/abs/2603.28627
-- Babbush et al.: https://arxiv.org/abs/XXXX.XXXXX
+- Babbush et al.: https://quantumai.google/static/site-assets/downloads/cryptocurrency-whitepaper.pdf
 
 #PostQuantumCryptography #QuantumComputing #Cybersecurity #Blockchain #PQC

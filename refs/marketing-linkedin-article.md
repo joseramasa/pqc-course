@@ -72,7 +72,7 @@ Verified entropy — continuously monitored against a physical stochastic model,
 
 **Papers:**
 - Cain et al. (2026): [arxiv.org/abs/2603.28627](https://arxiv.org/abs/2603.28627)
-- Babbush et al. (2026): (link pending publication)
+- Babbush et al. (2026): [quantumai.google/...cryptocurrency-whitepaper.pdf](https://quantumai.google/static/site-assets/downloads/cryptocurrency-whitepaper.pdf)
 - Gidney & Ekerå (2021): [doi.org/10.22331/q-2021-04-15-433](https://doi.org/10.22331/q-2021-04-15-433)
 
 **NIST Standards:**
