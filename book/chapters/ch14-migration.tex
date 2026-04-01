@@ -262,19 +262,28 @@ The signature-size tension is annoying for software distribution; for blockchain
 \section{Blockchain and Cryptocurrencies}
 \label{sec:blockchain}
 
-Blockchain systems face a ``perfect storm'' of post-quantum migration challenges: immutable transaction histories, size-sensitive economics, decentralized governance, and catastrophic failure modes.
+Blockchain systems face a ``perfect storm'' of post-quantum migration challenges: immutable transaction histories, size-sensitive economics, decentralized governance, and catastrophic failure modes.  Until recently, the standard consolation was that breaking ECDSA-256 would require millions of physical qubits and hours to days of continuous quantum computation---a threshold that seemed comfortably distant.  That consolation has evaporated.
 
-\subsection{ECDSA Vulnerability}
+\subsection{ECDSA Vulnerability: New Resource Estimates}
 \label{subsec:ecdsa-vulnerability}
 
-Bitcoin, Ethereum, and most cryptocurrencies derive address security from ECDSA over the \texttt{secp256k1} curve.  Shor's algorithm\index{Shor's algorithm!ECDSA} recovers private keys from public keys in polynomial time.  In Bitcoin, the public key is exposed whenever coins are \emph{spent} from a pay-to-public-key-hash (P2PKH) address.  An adversary with a cryptographically relevant quantum computer (CRQC) could:
-\begin{enumerate}
-\item Monitor the mempool for pending transactions that reveal a public key.
-\item Extract the private key before the transaction is confirmed.
-\item Submit a competing transaction redirecting the funds.
-\end{enumerate}
+Bitcoin, Ethereum, and most cryptocurrencies derive address security from ECDSA over the \texttt{secp256k1} curve.  Shor's algorithm\index{Shor's algorithm!ECDSA} recovers private keys from public keys in polynomial time, and the practical resource estimates for carrying out such an attack have improved dramatically.  Babbush, Zalcman, Gidney et~al.~\cite{BabbushZalcmanGidney2026}, in a collaboration spanning Google Quantum AI, the Ethereum Foundation, UC~Berkeley, and Stanford, demonstrated that ECC-256 can be broken in \emph{minutes}---not hours, not days---using fewer than 500{,}000 physical qubits on a superconducting architecture.  This is roughly the scale that multiple hardware roadmaps target within the next decade.
 
-More dangerously, coins held in addresses where the public key was previously exposed (estimated at over 4~million BTC, roughly 20\% of all supply) are vulnerable even without monitoring the mempool.
+The shift from ``years with millions of qubits'' to ``minutes with fewer than half a million'' is not incremental; it changes the character of the threat.  A multi-hour attack allows defenders to detect anomalous quantum activity and respond; a multi-minute attack does not.  The window between vulnerability and exploitation has collapsed to the timescale of a single blockchain confirmation interval.
+
+\subsection{Attack Taxonomy}
+\label{subsec:attack-taxonomy}
+
+\index{blockchain!attack taxonomy}
+The resource estimates from Babbush et~al.~\cite{BabbushZalcmanGidney2026} sharpen the threat model into three distinct attack classes, each with different hardware requirements and different consequences.
+
+\paragraph{On-spend attacks.}  The adversary monitors the mempool for pending transactions that reveal a public key, extracts the private key via Shor's algorithm, and submits a competing transaction redirecting the funds---all before the original transaction is confirmed in a block.  This attack requires a \emph{fast-clock} CRQC: the quantum computation must complete within the confirmation window, typically 10~minutes for Bitcoin and 12~seconds for Ethereum.  The new sub-minute resource estimates mean that superconducting and photonic architectures are fast enough for on-spend attacks against both networks.  The attack is surgical: it targets individual transactions in real time and leaves no trace until the victim's funds vanish.
+
+\paragraph{At-rest attacks.}  Coins held in addresses where the public key was previously exposed---through a past spend, through address reuse, or through legacy pay-to-public-key (P2PK) scripts---are vulnerable to \emph{leisurely} quantum attack.  The adversary need not race a confirmation timer; the public key is already on-chain, visible to anyone.  Crucially, at-rest attacks do not require fast-clock hardware.  Slow-clock CRQCs based on neutral atoms or trapped ions, which may reach cryptographic relevance on a different timeline than superconducting machines, suffice.  This broadens the set of potential attackers: a neutral-atom machine that takes hours to break a single key is useless for on-spend attacks but perfectly adequate for draining a dormant wallet.
+
+\paragraph{On-setup attacks.}  The adversary compromises the key-generation process itself, either by attacking the randomness source or by intercepting the public key at creation time and pre-computing the private key before the address is ever funded.  On-setup attacks are the least discussed but potentially the most insidious, because the compromise is invisible until the adversary chooses to act.
+
+This taxonomy matters because it determines which defences are effective against which threats.  Commit-reveal schemes and shorter confirmation windows mitigate on-spend attacks but do nothing for at-rest exposure.  Conversely, address-migration campaigns address at-rest risk but cannot protect a transaction in flight.  A comprehensive defence must address all three classes.
 
 \subsection{Migration Challenges}
 \label{subsec:blockchain-migration}
@@ -287,7 +296,7 @@ Transaction size compounds the problem.  Replacing ECDSA ($\sim$72\,B per signat
 
 Governance adds a further constraint.  Any signature-scheme change requires a hard fork or, at minimum, a soft fork with broad community agreement.  In decentralized networks, achieving such agreement can take years---the Bitcoin block-size debate (2015--2017) is a cautionary precedent.
 
-Finally, address migration demands active participation from every user.  Funds must be moved to quantum-safe addresses through on-chain transactions, which means every wallet holder must act.  Funds in dormant wallets---including those belonging to lost keys, estimated at 3--4~million BTC---remain permanently vulnerable, creating a systemic risk that no protocol upgrade can eliminate unilaterally.
+Finally, address migration demands active participation from every user.  Funds must be moved to quantum-safe addresses through on-chain transactions, which means every wallet holder must act.  The next subsection quantifies how large the exposure actually is.
 
 Figure~\ref{fig:ch14-blockchain-immutability} captures the core dilemma: the blockchain's immutability---its defining strength---means that historical ECDSA signatures cannot be replaced, only supplemented, while a quantum attacker who can forge those signatures threatens every block in the chain.
 
@@ -321,22 +330,58 @@ Figure~\ref{fig:ch14-blockchain-immutability} captures the core dilemma: the blo
 \label{fig:ch14-blockchain-immutability}
 \end{figure}
 
-\subsection{Frozen Funds Risk}
+\subsection{Dormant Assets and Frozen Funds}
 \label{subsec:frozen-funds}
 
 \index{frozen funds risk}
-Coins whose owners cannot or will not migrate before a CRQC arrives face outright theft.  The community has proposed several mitigation strategies, none of them painless.
+\index{dormant assets}
+The at-rest attack class is not a theoretical curiosity; its scope is enormous.  Babbush et~al.~\cite{BabbushZalcmanGidney2026} estimate that 1.7~million~BTC are locked in early pay-to-public-key (P2PK) scripts whose public keys sit permanently on-chain, exposed and waiting.  These are among the oldest coins in the network---many date from the Satoshi era and the first two years of mining---and they have never been moved.  When address reuse is included (users who inadvertently revealed their public keys by spending from the same address more than once), the total quantum-vulnerable dormant supply may reach 2.3~million~BTC.  At any plausible valuation, this constitutes a systemic-scale exposure.
 
-The most conservative approach is \emph{commit-reveal}: users commit a hash of a PQC public key to the blockchain now, then reveal the actual key only when spending.  Because the quantum-vulnerable classical public key never enters the mempool, a CRQC operator cannot intercept and forge a competing transaction.  The limitation is clear---commit-reveal protects future transactions but does nothing for the millions of addresses whose public keys were exposed in past spends.
+The community has proposed several mitigation strategies for these dormant assets, none of them painless.  Each trades one kind of harm for another.
 
-A second line of defence is the \emph{quantum-safe sidechain}: a parallel chain secured by PQC signatures that accepts bridged assets from the main chain.  Users lock funds on the classical chain and receive equivalent tokens on the sidechain, migrating at their own pace without requiring a hard fork.  The approach is technically sound but adds operational complexity and splits network effects between two chains.
+The first option is to \emph{do nothing}: accept the risk, and let quantum-vulnerable coins be stolen when a CRQC arrives.  This is the path of least governance friction but the greatest economic damage.  It effectively transfers wealth from early adopters (and lost-key holders) to whoever builds or controls the first CRQC.
 
-The most drastic proposal is \emph{deadline-based freezing}.  After a community-agreed date, the network would reject transactions from addresses that have not migrated to PQC keys.  This protects the system from quantum theft but permanently locks affected funds---including coins belonging to deceased holders or lost wallets.  The measure is politically explosive; it amounts to a collective decision to sacrifice some holders' assets for the security of the whole, a trade-off with no precedent in Bitcoin's history.
+The second is \emph{burn}: the network permanently destroys coins in quantum-vulnerable addresses after a deadline, removing them from the supply.  This eliminates the theft vector but also eliminates the assets, which is indistinguishable from confiscation for any holder who was merely inactive rather than absent.
 
-\begin{example}[Ethereum's Account Abstraction Path]
-\label{ex:ethereum-pqc}
-Ethereum's account-abstraction roadmap (EIP-4337 and successors) decouples signature verification from the protocol layer, allowing smart-contract wallets to adopt PQC signature schemes without a hard fork.  The planned sequence is: enable smart-contract wallets (2024--2025), support hybrid signatures (2025--2027), incentivize migration via gas discounts (2027--2029), and disable raw ECDSA for new transactions (2030+).  This is the most credible blockchain migration plan to date, but it still requires years of coordinated effort.
-\end{example}
+The third is the \emph{hourglass deadline}: after a community-agreed date, the network rejects transactions from addresses that have not migrated to PQC keys.  Funds are not destroyed but are frozen indefinitely.  This protects the system from quantum theft while preserving the theoretical possibility that holders could reclaim their coins if a future protocol change permits it.  The measure is politically explosive; it amounts to a collective decision to sacrifice some holders' access for the security of the whole, a trade-off with no precedent in Bitcoin's history.
+
+A fourth proposal is the \emph{bad sidechain}: a parallel chain secured by PQC signatures that accepts bridged assets from the main chain.  Users lock funds on the classical chain and receive equivalent tokens on the sidechain, migrating at their own pace without requiring a hard fork.  The approach is technically sound but adds operational complexity and splits network effects.
+
+The fifth and most creative proposal is \emph{digital salvage}~\cite{BabbushZalcmanGidney2026}---a legal framework analogous to maritime salvage law, under which dormant quantum-vulnerable coins could be claimed by parties who invest in securing or migrating them, subject to a duty to compensate the original owner if they later resurface.  Maritime law has centuries of precedent for handling property that is lost, abandoned, or in imminent peril; the argument is that digital assets in quantum-vulnerable addresses fit the same pattern.  Whether courts or protocol governance would accept this analogy remains entirely open, but the proposal illustrates how far the dormant-asset problem reaches beyond cryptography and into law and political economy.
+
+For any of these paths, the commit-reveal technique offers a partial shield for \emph{future} transactions.  Users commit a hash of a PQC public key to the blockchain now, then reveal the actual key only when spending.  Because the quantum-vulnerable classical public key never enters the mempool, a CRQC operator cannot execute an on-spend attack.  The limitation is clear---commit-reveal does nothing for the 1.7--2.3~million BTC whose public keys were exposed long ago.
+
+\subsection{Ethereum: Deeper Exposure}
+\label{subsec:ethereum-exposure}
+
+\index{Ethereum!quantum vulnerability}
+If Bitcoin's vulnerability is severe, Ethereum's is structural.  Babbush et~al.~\cite{BabbushZalcmanGidney2026} argue that Ethereum is \emph{more exposed} than Bitcoin across several dimensions, each rooted in a design decision that was reasonable in a pre-quantum world.
+
+The most fundamental difference is the account model.  Bitcoin uses a UTXO model in which public keys need not be revealed until spending; Ethereum's account model exposes every externally owned account's (EOA) public key permanently on-chain from the first outgoing transaction.  Every active Ethereum address is therefore vulnerable to at-rest attack from the moment it sends its first transaction.  There is no hash-based address abstraction to hide behind.
+
+Proof-of-Stake introduces a second attack surface.  Ethereum validators stake 32~ETH and sign attestations and block proposals with keys that are permanently visible to the network.  A CRQC operator who can forge validator signatures can execute slashing attacks, produce conflicting attestations, or seize control of the consensus layer.  Unlike a stolen user key---which harms one account---a compromised validator key undermines the integrity of the chain itself.
+
+Smart-contract governance adds a third dimension.  Many high-value protocols (DAOs, DeFi lending pools, multi-signature treasuries) gate critical operations on ECDSA-signed messages.  A quantum adversary who can forge these signatures can drain treasuries, modify governance parameters, or upgrade contract logic unilaterally.  The damage is not limited to the attacker's own transactions; it extends to every contract that trusts a quantum-vulnerable signature.
+
+Finally, Ethereum's Data Availability Sampling (DAS) layer, central to the rollup-centric scaling roadmap, relies on cryptographic commitments that must remain binding.  If the underlying elliptic-curve assumptions fall, the data-availability guarantees collapse, and with them the security model of every Layer~2 rollup built on top.
+
+Ethereum's account-abstraction roadmap (EIP-4337 and successors) offers the most credible migration path.  By decoupling signature verification from the protocol layer, smart-contract wallets can adopt PQC signature schemes without a hard fork.  The planned sequence is: enable smart-contract wallets (2024--2025), support hybrid signatures (2025--2027), incentivize migration via gas discounts (2027--2029), and disable raw ECDSA for new transactions (2030+).  This is an ambitious and well-structured plan, but it still requires years of coordinated effort, and it does nothing for the vast stock of EOAs that have already exposed their public keys.
+
+\subsection{Tokenization and Systemic Risk}
+\label{subsec:tokenization-risk}
+
+\index{tokenization!quantum risk}
+The blockchain quantum risk extends well beyond cryptocurrency speculation.  Real-world asset (RWA) tokenization---the representation of equities, bonds, real estate, and commodities as on-chain tokens---is projected to exceed 16~trillion~USD by 2030~\cite{BabbushZalcmanGidney2026}.  This is not a niche market; it is a substantial fraction of the global financial system migrating onto infrastructure that, as of this writing, remains quantum-vulnerable.
+
+The ``too big to fail'' threshold is approaching.  When trillions of dollars in tokenized assets sit on chains secured by ECDSA, the quantum threat ceases to be a concern for cryptocurrency enthusiasts and becomes a systemic financial risk.  Regulators, central banks, and institutional investors who might otherwise ignore the blockchain migration debate will be compelled to engage once their own balance sheets depend on elliptic-curve security.
+
+This convergence of quantum computing timelines and tokenization growth creates a hard constraint: the blockchain ecosystem must complete its PQC migration before the tokenized asset base reaches a scale at which a quantum breach triggers cascading financial contagion.  The migration window is not defined solely by qubit roadmaps; it is also defined by the pace at which traditional finance moves on-chain.
+
+\subsection{Migration Urgency}
+\label{subsec:blockchain-urgency}
+
+\index{blockchain!migration urgency}
+The overall picture, as Babbush et~al.~\cite{BabbushZalcmanGidney2026} conclude, is neither hopeless nor comfortable.  There \emph{is} time to migrate---the sub-500K-qubit machines needed for real-time ECDSA breaks do not yet exist, and the engineering path from current hardware to that threshold is nontrivial.  But the margin for error is increasingly narrow.  The resource estimates have improved faster than the migration efforts, and every year of delay narrows the gap between ``when we can be attacked'' and ``when we will be ready.''
 
 Blockchain migration illustrates, in extreme form, the tension between technical necessity and organizational inertia.  The next section generalizes this tension into a structured roadmap applicable to any organization, blockchain or otherwise.
 

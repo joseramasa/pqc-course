@@ -422,47 +422,55 @@ T-gate execution requires \emph{magic state distillation}\index{magic state dist
 \subsection{Concrete Estimates}
 \label{subsec:concrete-estimates}
 
-Table~\ref{tab:resource-estimates} summarises the best known resource estimates, primarily from the landmark analysis of Gidney and Eker\aa{}~\cite{GidneyEkera2021}.
+Table~\ref{tab:resource-estimates} summarises the evolution of resource estimates, from the 2021 baseline of Gidney and Eker\aa{}~\cite{GidneyEkera2021} through two independent 2026 analyses that dramatically reduce the requirements.
 
 \begin{table}[t]
-\caption{Quantum resources to break deployed cryptographic parameters~\cite{GidneyEkera2021}}
+\caption{Quantum resources to break deployed cryptographic parameters: 2021 baseline and 2026 estimates}
 \label{tab:resource-estimates}
-\begin{tabular}{p{2.2cm}p{2cm}p{2cm}p{2.2cm}p{2.5cm}}
+\begin{tabular}{p{2cm}p{2.8cm}p{1.8cm}p{1.8cm}p{2.2cm}p{2cm}}
 \hline\noalign{\smallskip}
-\textbf{Target} & \textbf{Logical qubits} & \textbf{T-gates} & \textbf{Physical qubits} & \textbf{Wall-clock time} \\
+\textbf{Target} & \textbf{Source} & \textbf{Logical qubits} & \textbf{Toffoli/T-gates} & \textbf{Physical qubits} & \textbf{Wall-clock time} \\
 \noalign{\smallskip}\svhline\noalign{\smallskip}
-RSA-2048  & $\sim$4{,}000  & $\sim 2.7 \times 10^{12}$ & $\sim$20 million & $\sim$8 hours \\
-RSA-4096  & $\sim$8{,}000  & $\sim 2.2 \times 10^{13}$ & $\sim$40 million & $\sim$30 hours \\
-ECC-256   & $\sim$2{,}500  & $\sim 1.3 \times 10^{11}$ & $\sim$14 million & $\sim$4 hours \\
+RSA-2048  & Gidney--Eker\aa{} '21~\cite{GidneyEkera2021}  & $\sim$4{,}000  & $\sim 2.7 \times 10^{12}$ T & $\sim$20M (SC) & $\sim$8 h \\
+RSA-2048  & Cain et al.\ '26~\cite{CainXuKing2026}        & ---            & ---                        & $\sim$102K (NA) & $\sim$97 days \\
+ECC-256   & Gidney--Eker\aa{} '21~\cite{GidneyEkera2021}  & $\sim$2{,}500  & $\sim 1.3 \times 10^{11}$ T & $\sim$14M (SC) & $\sim$4 h \\
+ECC-256   & Babbush et al.\ '26~\cite{BabbushZalcmanGidney2026} & $\leq$1{,}200 & $\leq 9 \times 10^{7}$ Tof & $<$500K (SC) & minutes \\
+ECC-256   & Cain et al.\ '26~\cite{CainXuKing2026}        & ---            & ---                        & $\sim$26K (NA) & $\sim$10 days \\
+RSA-4096  & Gidney--Eker\aa{} '21~\cite{GidneyEkera2021}  & $\sim$8{,}000  & $\sim 2.2 \times 10^{13}$ T & $\sim$40M (SC) & $\sim$30 h \\
 \noalign{\smallskip}\hline
 \end{tabular}
+\begin{flushleft}
+\small SC = superconducting ($p_\text{phys} \approx 10^{-3}$, surface code); NA = neutral atoms with qLDPC codes.  Cain et al.\ report that as few as $\sim$10{,}000 physical qubits may suffice for ECC-256 with longer execution time.
+\end{flushleft}
 \end{table}
 
-The physical qubit counts assume superconducting qubits with $p_\text{phys} = 10^{-3}$, surface code with distance $d \approx 27$, and a reaction time (classical control latency) of $10\;\mu\text{s}$, yielding a logical clock speed of approximately $10$~kHz.
+The 2021 physical qubit counts assume superconducting qubits with $p_\text{phys} = 10^{-3}$, surface code with distance $d \approx 27$, and a reaction time (classical control latency) of $10\;\mu\text{s}$, yielding a logical clock speed of approximately $10$~kHz.
+
+The 2026 results represent two complementary approaches.  Babbush et al.~\cite{BabbushZalcmanGidney2026} achieve a $20\times$ reduction over prior estimates for ECC-256 by optimising the logical circuit to $\leq 1{,}200$ logical qubits and $\leq 90$ million Toffoli gates; on a fast-clock superconducting architecture, the attack completes in minutes with fewer than 500{,}000 physical qubits.  Cain et al.~\cite{CainXuKing2026} take a different route, exploiting quantum low-density parity-check (qLDPC) codes on neutral-atom hardware to slash physical qubit counts by two to three orders of magnitude---at the cost of wall-clock times measured in days rather than hours.  The trend is striking: in roughly twenty years since the first concrete estimates of Fowler et al.\ (2012), the physical qubit requirement for breaking RSA-2048 has fallen from $\sim$10$^{9}$ to $\sim$10$^{5}$, a reduction of four orders of magnitude.  The fast-clock/slow-clock distinction\index{CRQC!fast-clock vs slow-clock} introduced by these analyses also reframes the threat timeline: the first cryptographically relevant quantum computer (CRQC)\index{CRQC} may well be a superconducting machine that breaks ECC in minutes, rather than a neutral-atom device that takes days.
 
 A counterintuitive lesson emerges from the table: elliptic curve cryptography\index{ECC!quantum vulnerability}, despite offering stronger classical security per bit of key, is \emph{more} vulnerable to quantum attack than RSA.  Breaking ECC-256 requires roughly 2{,}500 logical qubits and a few hours of wall-clock time, whereas RSA-2048 demands approximately 4{,}000 logical qubits and around eight hours.  The quantum circuits for ECDLP are smaller, the attacks faster, and---crucially---ECC offers no simple fallback to larger parameters because the sub-exponential index-calculus techniques that force RSA to use multi-thousand-bit keys do not apply to elliptic curves; their classical security already scales efficiently.  In the quantum regime this advantage vanishes.  Shor's algorithm reduces both problems to period finding in a cyclic group, and ECC's shorter group order translates directly into a smaller quantum circuit.  The very compactness that made elliptic curves attractive classically makes them the first domino to fall in the quantum era.
 
 \subsection{Current Hardware vs.\ Requirements}
 \label{subsec:hardware-gap}
 
-As of 2025\index{quantum hardware!current state}, the largest demonstrated quantum processors have on the order of $10^3$ physical qubits with error rates of $10^{-3}$--$10^{-2}$.  No system has demonstrated a single \emph{logical} qubit with the quality needed for Shor's algorithm.  The gap is stark:
+As of early 2026\index{quantum hardware!current state}, the largest demonstrated quantum processors have on the order of $10^3$ physical qubits with error rates approaching $10^{-3}$.  Small-scale logical qubits have been demonstrated, but no system has sustained the thousands of logical operations needed for Shor's algorithm.  The gap depends critically on which resource estimate one adopts:
 
 \begin{table}[t]
 \caption{Quantum hardware gap: current capabilities vs.\ cryptanalytic requirements}
 \label{tab:hardware-gap}
-\begin{tabular}{p{3.5cm}p{3cm}p{3cm}}
+\begin{tabular}{p{3.5cm}p{2.5cm}p{2.5cm}p{2.5cm}}
 \hline\noalign{\smallskip}
-\textbf{Metric} & \textbf{Current (2025)} & \textbf{Required (RSA-2048)} \\
+\textbf{Metric} & \textbf{Current (2026)} & \textbf{Required: 2021 est.} & \textbf{Required: 2026 est.} \\
 \noalign{\smallskip}\svhline\noalign{\smallskip}
-Physical qubits & $\sim 1{,}000$ & $\sim 20{,}000{,}000$ \\
-Logical qubits & 0 (demonstrated) & $\sim 4{,}000$ \\
-Error rate & $10^{-3}$--$10^{-2}$ & $< 10^{-3}$ (threshold) \\
-Coherence time & Milliseconds & Hours \\
+Physical qubits & $\sim 1{,}000$ & $\sim 20{,}000{,}000$ & $\sim 100{,}000$--$500{,}000$ \\
+Logical qubits & Small-scale & $\sim 4{,}000$ & $\leq 1{,}200$ \\
+Error rate & $\sim 10^{-3}$ & $< 10^{-3}$ & $< 10^{-3}$ \\
+Coherence time & Milliseconds & Hours & Minutes--days \\
 \noalign{\smallskip}\hline
 \end{tabular}
 \end{table}
 
-The gap is roughly four orders of magnitude in qubit count alone.  However, progress is non-linear---error correction improves super-exponentially with decreasing physical error rate---and roadmaps from major hardware vendors project $10^5$--$10^6$ physical qubits by the early 2030s.  This motivates the urgency of the post-quantum transition discussed in Chap.~\ref{ch:pqc-landscape}.
+Under the 2021 estimates, the gap was roughly four orders of magnitude in qubit count.  The 2026 analyses~\cite{BabbushZalcmanGidney2026,CainXuKing2026} compress this to two orders of magnitude---squarely within the range projected by hardware roadmaps for the late 2020s and early 2030s.  Progress remains non-linear: error correction improves super-exponentially with decreasing physical error rate, and algorithmic improvements continue to reduce the logical overhead.  The combination of shrinking requirements from above and growing hardware from below motivates the urgency of the post-quantum transition discussed in Chap.~\ref{ch:pqc-landscape}.
 
 
 %% ================================================================

@@ -50,7 +50,11 @@ Shor's algorithm~\cite{Shor1994, Shor1997} solves both problems in polynomial ti
 
 \begin{example}[Concrete Resource Estimates]
 \label{ex:resource-estimates}
-The best current estimates~\cite{GidneyEkera2021}\index{quantum resource estimates} place the cost of factoring a 2048-bit RSA modulus at roughly 20~million physical qubits and 8~hours of computation.  The qualifier ``physical'' matters: today's qubits are noisy, so thousands of them must work together---through quantum error correction---to behave like a single reliable logical qubit.  The 20-million figure already includes this overhead.  Today's largest processors have about 1{,}000 qubits with error rates around $10^{-3}$.  That is four orders of magnitude short in qubit count and nine in error rate.  The gap is large, but it is closing: each hardware generation roughly doubles qubit count and halves error rate.
+In 2021, Gidney and Eker\r{a}~\cite{GidneyEkera2021}\index{quantum resource estimates} estimated the cost of factoring a 2048-bit RSA modulus at roughly 20~million physical qubits and 8~hours of computation, using surface codes on a superconducting architecture.  The qualifier ``physical'' matters: today's qubits are noisy, so thousands of them must work together---through quantum error correction---to behave like a single reliable logical qubit.  The 20-million figure already includes this overhead.
+
+As of March 2026, two independent results have dramatically lowered these estimates.  Cain, Xu, King et al.~\cite{CainXuKing2026} show that neutral-atom qubits paired with high-rate quantum LDPC codes can factor RSA-2048 with roughly 102{,}000 physical qubits in 97~days, and can break ECC-256 with roughly 26{,}000 physical qubits in 10~days---or as few as ${\sim}10{,}000$ atomic qubits at the cost of longer runtime.  Separately, Babbush, Zalcman, Gidney et al.~\cite{BabbushZalcmanGidney2026} target ECC-256 on superconducting hardware and achieve the attack with fewer than 500{,}000 physical qubits in \emph{minutes}, a 20-fold reduction from prior elliptic-curve estimates.  The two results reflect a distinction that is becoming central to resource estimation: \emph{fast-clock} architectures (superconducting circuits, photonics) use more qubits but finish quickly, while \emph{slow-clock} architectures (neutral atoms, ion traps) compensate with better connectivity and fewer qubits at the cost of longer wall-clock time.
+
+The trajectory is stark.  Over roughly twenty years of refinement, the estimated physical qubit count for cryptographically relevant attacks has fallen by five orders of magnitude---from $10^9$ to $10^4$.  The gap between what exists today and what is needed is no longer four orders of magnitude in qubit count; depending on the architecture, it may be as little as one.
 \end{example}
 
 
@@ -58,7 +62,7 @@ The best current estimates~\cite{GidneyEkera2021}\index{quantum resource estimat
 \section{Harvest Now, Decrypt Later}
 \label{sec:hndl}
 
-The resource estimates above might suggest comfort: a cryptographically relevant quantum computer (CRQC)\index{cryptographically relevant quantum computer} is years away, perhaps decades.  But an adversary need not wait for a quantum computer to begin exploiting its future existence.  The ``harvest now, decrypt later'' (HNDL)\index{harvest now, decrypt later} attack model captures the essential timing mismatch, and it transforms the quantum threat from a distant concern into a present one.
+The resource estimates above might suggest comfort: a cryptographically relevant quantum computer (CRQC)\index{cryptographically relevant quantum computer} is years away, perhaps decades.  But the gap is closing faster than most projections assumed even two years ago, and an adversary need not wait for a quantum computer to begin exploiting its future existence.  The ``harvest now, decrypt later'' (HNDL)\index{harvest now, decrypt later} attack model captures the essential timing mismatch, and it transforms the quantum threat from a distant concern into a present one.
 
 \subsection{The Threat Model}
 
