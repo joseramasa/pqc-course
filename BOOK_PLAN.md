@@ -1,7 +1,7 @@
 # Post-Quantum Cryptography: From Physics to Practice
 
 **Series target:** Springer Graduate Texts in Information Security (or Texts in Computer Science)
-**Estimated length:** 320–380 pages (15 chapters + appendices)
+**Estimated length:** 350–420 pages (17 chapters + appendices)
 **Working title:** *Post-Quantum Cryptography: Mathematical Foundations for the Quantum Age*
 **Subtitle option:** *A Physicist's Path to Quantum-Resistant Security*
 
@@ -148,7 +148,7 @@ No existing Springer title bridges physics and PQC at textbook depth. Current op
 
 ---
 
-### Part III — Practice and Future (Chapters 12–15, ~70 pages)
+### Part III — Practice and Future (Chapters 12–17, ~100 pages)
 
 #### Chapter 12: Implementation and Side-Channel Resistance (~20 pp)
 - Constant-time programming: why and how
@@ -161,7 +161,18 @@ No existing Springer title bridges physics and PQC at textbook depth. Current op
 |--------|-------|
 | §5.1 (Implementation Challenges) | ~60% reusable. Good code examples (Barrett reduction timing attack). Add: masking countermeasures for NTT, fault injection attacks on lattice schemes, NIST validation program (CMVP) for PQC. |
 
-#### Chapter 13: Migration Strategies (~20 pp)
+#### Chapter 13: Hardware Security (~15 pp)
+- FPGA and ASIC implementations for PQC
+- Hardware random number generators (QRNG)
+- Trusted Platform Modules and PQC
+- Side-channel resistance in hardware
+- Performance benchmarks: hardware vs software
+
+| Source | Notes |
+|--------|-------|
+| New chapter. | Complements Chapter 12 by focusing on hardware-specific concerns: FPGA/ASIC acceleration for NTT and polynomial arithmetic, QRNG integration, TPM 2.0 PQC extensions. |
+
+#### Chapter 14: Migration Strategies (~20 pp)
 - Hybrid modes: composite keys, dual signatures
 - TLS 1.3 with post-quantum key exchange (RFC 9180+)
 - Code signing and software supply chain
@@ -173,7 +184,17 @@ No existing Springer title bridges physics and PQC at textbook depth. Current op
 |--------|-------|
 | §5.2 (Migration Strategies), §5.3 (Case Studies) | ~50% reusable. Good case studies on TLS migration and blockchain. Add: CNSA 2.0 timeline, EU/ANSSI guidance, concrete hybrid TLS handshake diagrams, certificate transparency with PQC. |
 
-#### Chapter 14: Advanced Cryptographic Primitives (~15 pp)
+#### Chapter 15: Standards and Regulatory Landscape (~15 pp)
+- NIST FIPS 203/204/205 and beyond
+- International regulatory postures: CNSA 2.0, EU CRA, ANSSI, BSI
+- Certification and compliance requirements
+- Jurisdictional comparison and global migration coordination
+
+| Source | Notes |
+|--------|-------|
+| New chapter. | Consolidates the regulatory and standards material that cross-cuts migration and implementation. Covers NIST final standards, EU Cyber Resilience Act, national agency guidance. |
+
+#### Chapter 16: Advanced Cryptographic Primitives (~15 pp)
 - Fully homomorphic encryption: from Gentry to TFHE
 - Zero-knowledge proofs: lattice-based ZK, post-quantum SNARKs
 - Secure multiparty computation
@@ -184,7 +205,7 @@ No existing Springer title bridges physics and PQC at textbook depth. Current op
 |--------|-------|
 | §6.2 (Beyond Current Standards) | ~40% reusable. Good FHE and ZKP overviews with physics analogies. Add: TFHE scheme overview, practical FHE parameter selection, lattice-based commitment schemes, Dilithium-based ring signatures. Keep this chapter focused — it's a gateway, not a treatise. |
 
-#### Chapter 15: Open Problems and Research Directions (~15 pp)
+#### Chapter 17: Open Problems and Research Directions (~15 pp)
 - Quantum cryptanalysis of lattice problems
 - Physical side-channel research opportunities
 - Hardware acceleration: FPGA/ASIC for NTT and sampling
@@ -227,7 +248,7 @@ No existing Springer title bridges physics and PQC at textbook depth. Current op
 
 #### Bibliography (~10 pp, 250–300 entries)
 
-| Source: **Does not exist.** Currently zero citations. This is the single largest gap. |
+| Source: `references.bib` exists with ~110 entries covering all 17 chapters. Expand to target range. |
 
 ---
 
@@ -247,13 +268,15 @@ No existing Springer title bridges physics and PQC at textbook depth. Current op
 | 10. Hash-Based | §3.4.3 | 20% | ~20 |
 | 11. Other Approaches | §3.4.4 | 40% | ~12 |
 | 12. Implementation | §5.1 | 60% | ~8 |
-| 13. Migration | §5.2–5.3 | 50% | ~10 |
-| 14. Advanced Primitives | §6.2 | 40% | ~9 |
-| 15. Open Problems | §6.1, §6.3 | 50% | ~8 |
+| 13. Hardware Security | New | 0% | ~15 |
+| 14. Migration | §5.2–5.3 | 50% | ~10 |
+| 15. Standards & Regulatory | New | 0% | ~15 |
+| 16. Advanced Primitives | §6.2 | 40% | ~9 |
+| 17. Open Problems | §6.1, §6.3 | 50% | ~8 |
 | Appendices | App. A–B, new | 20% | ~32 |
-| **Total** | | | **~209 new pp** |
+| **Total** | | | **~239 new pp** |
 
-**Estimated total:** ~340 pages (159 existing reworked + ~209 new)
+**Estimated total:** ~370 pages (159 existing reworked + ~239 new)
 
 ---
 
@@ -320,6 +343,6 @@ Global changes needed across all reused content:
 
 ## Next Steps
 
-1. **Now:** Set up the Springer `svmono` LaTeX scaffold with all 15 chapter files
+1. **Now:** Set up the Springer `svmono` LaTeX scaffold with all 17 chapter files
 2. **Now:** Initialize `references.bib` with the ~30 most critical entries
 3. **First chapter to write:** Chapter 6 (Lattice Theory) — it's the heart of the book and your strongest material. Starting here sets the mathematical tone for everything else.
