@@ -191,7 +191,7 @@ Computing multiplicative inverses modulo~$q$ is a basic operation in cryptograph
 To find $5^{-1} \bmod 17$, we compute: $17 = 3 \cdot 5 + 2$, then $5 = 2 \cdot 2 + 1$, so $1 = 5 - 2 \cdot 2 = 5 - 2(17 - 3 \cdot 5) = 7 \cdot 5 - 2 \cdot 17$.  Reading off: $s = 7$, and indeed $7 \cdot 5 = 35 \equiv 1 \pmod{17}$.  The algorithm runs in $\bigO(\log^2 q)$ time---negligible even for the 12-bit modulus $q = 3329$ used in ML-KEM.  For a thorough treatment of modular arithmetic and its algorithmic aspects, see Shoup~\cite{Shoup2009} or Hoffstein, Pipher, and Silverman~\cite{HPS2014}.
 \end{example}
 
-Lagrange's theorem, applied to the multiplicative group $\Zq^*$, yields a result that underpins RSA and that we will reference when discussing why Shor's algorithm destroys classical public-key cryptography in Chapter~\ref{ch:quantum-threat}.
+Lagrange's theorem, applied to the multiplicative group $\Zq^*$, yields a result that underpins RSA and that we will reference when discussing why Shor's algorithm destroys classical public-key cryptography in Chapter~\ref{ch:classical-crypto}.
 
 \begin{theorem}[Euler's Theorem]
 \label{thm:euler}
