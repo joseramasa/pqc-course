@@ -14,6 +14,12 @@ Course materials for the **Post-Quantum Cryptography** seminar at the [Master of
 ## Building
 
 ```bash
+# Book (requires latexmk and a full TeX distribution with bibtex)
+cd book && latexmk -pdf book.tex
+
+# Or manually:
+cd book && pdflatex book && bibtex book && pdflatex book && pdflatex book
+
 # Notes (compiles cleanly)
 pdflatex notes.tex
 

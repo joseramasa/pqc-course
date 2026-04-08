@@ -12,17 +12,26 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 DATE_SHORT=$(date -u +"%Y-%m-%d")
 PREV_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "initial")
 
+# Portable sed in-place: BSD sed (macOS) requires -i '', GNU sed requires -i
+sedi() {
+    if sed --version >/dev/null 2>&1; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
 # Update preamble.tex footer
 PREAMBLE="book/preamble.tex"
 if [ -f "$PREAMBLE" ]; then
-    sed -i '' "s/DRAFT — [0-9T:ZU.+\-]* — [a-f0-9]* —/DRAFT — ${DATE_SHORT} — ${PREV_HASH} —/" "$PREAMBLE"
+    sedi "s/DRAFT — [0-9T:ZU.+\-]* — [a-f0-9]* —/DRAFT — ${DATE_SHORT} — ${PREV_HASH} —/" "$PREAMBLE"
     git add "$PREAMBLE"
 fi
 
 # Update docs/index.html timestamp and commit
 HTML="docs/index.html"
 if [ -f "$HTML" ]; then
-    sed -i '' "s|<span class=\"timestamp\">[0-9T:ZU.+\-]*</span>|<span class=\"timestamp\">${TIMESTAMP}</span>|" "$HTML"
-    sed -i '' "s|Source commit: <span class=\"timestamp\">[a-f0-9]*</span>|Source commit: <span class=\"timestamp\">${PREV_HASH}</span>|" "$HTML"
+    sedi "s|<span class=\"timestamp\">[0-9T:ZU.+\-]*</span>|<span class=\"timestamp\">${TIMESTAMP}</span>|" "$HTML"
+    sedi "s|Source commit: <span class=\"timestamp\">[a-f0-9]*</span>|Source commit: <span class=\"timestamp\">${PREV_HASH}</span>|" "$HTML"
     git add "$HTML"
 fi
