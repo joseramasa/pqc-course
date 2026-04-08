@@ -5,18 +5,27 @@
 %%       newtxmath are loaded in book.tex per SNmono template.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% --- Draft watermark and footer ---
-\usepackage{draftwatermark}
-\SetWatermarkText{RAW DRAFT}
-\SetWatermarkScale{0.35}
-\SetWatermarkAngle{45}
-\SetWatermarkColor[gray]{0.88}
+%% --- Draft toggle ---
+%% Set \drafttrue for draft builds, \draftfalse for final/submission builds.
+\newif\ifdraft
+\drafttrue  % Change to \draftfalse before submission
+
+%% --- Draft watermark and footer (conditional) ---
+\ifdraft
+  \usepackage{draftwatermark}
+  \SetWatermarkText{RAW DRAFT}
+  \SetWatermarkScale{0.35}
+  \SetWatermarkAngle{45}
+  \SetWatermarkColor[gray]{0.88}
+\fi
 
 \usepackage{fancyhdr}
 \fancypagestyle{plain}{%
   \fancyhf{}%
   \fancyfoot[C]{\thepage}%
-  \fancyfoot[R]{\tiny\texttt{DRAFT — 2026-04-01 — 775e8aa — NOT FOR DISTRIBUTION}}%
+  \ifdraft
+    \fancyfoot[R]{\tiny\texttt{DRAFT — 2026-04-01 — 775e8aa — NOT FOR DISTRIBUTION}}%
+  \fi
   \renewcommand{\headrulewidth}{0pt}%
   \renewcommand{\footrulewidth}{0pt}%
 }
